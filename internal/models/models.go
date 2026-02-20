@@ -77,7 +77,7 @@ func intConstraint(min, max float64) ParameterConstraint {
 // This replaces the complex YAML-based registry system with simple, direct access.
 // Access is provided through public functions like GetModelInfo, ListAllModels, etc.
 //
-// Model registry last updated: January 2026
+// Model registry last updated: February 2026
 // Sources: OpenRouter API documentation (https://openrouter.ai/models)
 var modelDefinitions = map[string]ModelInfo{
 	// =============================================================================
@@ -209,6 +209,72 @@ var modelDefinitions = map[string]ModelInfo{
 	"openai/gpt-5.2-codex": {
 		Provider:        "openrouter",
 		APIModelID:      "openai/gpt-5.2-codex",
+		ContextWindow:   400000,
+		MaxOutputTokens: 128000,
+		DefaultParams: map[string]interface{}{
+			"temperature":       0.7,
+			"top_p":             1.0,
+			"frequency_penalty": 0.0,
+			"presence_penalty":  0.0,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature":       floatConstraint(0.0, 2.0),
+			"top_p":             floatConstraint(0.0, 1.0),
+			"max_tokens":        intConstraint(1, 128000),
+			"frequency_penalty": floatConstraint(-2.0, 2.0),
+			"presence_penalty":  floatConstraint(-2.0, 2.0),
+		},
+	},
+
+	// GPT-5.1 - OpenAI current-gen model, 400K context
+	// https://openrouter.ai/openai/gpt-5.1
+	"gpt-5.1": {
+		Provider:        "openrouter",
+		APIModelID:      "openai/gpt-5.1",
+		ContextWindow:   400000,
+		MaxOutputTokens: 128000,
+		DefaultParams: map[string]interface{}{
+			"temperature":       0.7,
+			"top_p":             1.0,
+			"frequency_penalty": 0.0,
+			"presence_penalty":  0.0,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature":       floatConstraint(0.0, 2.0),
+			"top_p":             floatConstraint(0.0, 1.0),
+			"max_tokens":        intConstraint(1, 128000),
+			"frequency_penalty": floatConstraint(-2.0, 2.0),
+			"presence_penalty":  floatConstraint(-2.0, 2.0),
+		},
+	},
+
+	// GPT-5.1 Chat - Chat-optimized GPT-5.1 variant
+	// https://openrouter.ai/openai/gpt-5.1-chat
+	"gpt-5.1-chat": {
+		Provider:        "openrouter",
+		APIModelID:      "openai/gpt-5.1-chat",
+		ContextWindow:   400000,
+		MaxOutputTokens: 128000,
+		DefaultParams: map[string]interface{}{
+			"temperature":       0.7,
+			"top_p":             1.0,
+			"frequency_penalty": 0.0,
+			"presence_penalty":  0.0,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature":       floatConstraint(0.0, 2.0),
+			"top_p":             floatConstraint(0.0, 1.0),
+			"max_tokens":        intConstraint(1, 128000),
+			"frequency_penalty": floatConstraint(-2.0, 2.0),
+			"presence_penalty":  floatConstraint(-2.0, 2.0),
+		},
+	},
+
+	// GPT-5.2 Chat - Chat-optimized GPT-5.2 variant
+	// https://openrouter.ai/openai/gpt-5.2-chat
+	"gpt-5.2-chat": {
+		Provider:        "openrouter",
+		APIModelID:      "openai/gpt-5.2-chat",
 		ContextWindow:   400000,
 		MaxOutputTokens: 128000,
 		DefaultParams: map[string]interface{}{
@@ -512,6 +578,260 @@ var modelDefinitions = map[string]ModelInfo{
 	},
 
 	// =============================================================================
+	// NEW ANTHROPIC MODELS
+	// =============================================================================
+
+	// Claude Haiku 4.5 - Efficient Anthropic model, fast and cost-effective
+	// https://openrouter.ai/anthropic/claude-haiku-4.5
+	"claude-haiku-4.5": {
+		Provider:        "openrouter",
+		APIModelID:      "anthropic/claude-haiku-4.5",
+		ContextWindow:   200000,
+		MaxOutputTokens: 64000,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 1.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 64000),
+		},
+	},
+
+	// =============================================================================
+	// NEW OPENAI MODELS
+	// =============================================================================
+
+	// GPT-5 - OpenAI flagship, strong all-round performance
+	// https://openrouter.ai/openai/gpt-5
+	"gpt-5": {
+		Provider:        "openrouter",
+		APIModelID:      "openai/gpt-5",
+		ContextWindow:   400000,
+		MaxOutputTokens: 128000,
+		DefaultParams: map[string]interface{}{
+			"temperature":       0.7,
+			"top_p":             1.0,
+			"frequency_penalty": 0.0,
+			"presence_penalty":  0.0,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature":       floatConstraint(0.0, 2.0),
+			"top_p":             floatConstraint(0.0, 1.0),
+			"max_tokens":        intConstraint(1, 128000),
+			"frequency_penalty": floatConstraint(-2.0, 2.0),
+			"presence_penalty":  floatConstraint(-2.0, 2.0),
+		},
+	},
+
+	// =============================================================================
+	// NEW DEEPSEEK MODELS
+	// =============================================================================
+
+	// DeepSeek R1 - DeepSeek's flagship reasoning model
+	// https://openrouter.ai/deepseek/deepseek-r1
+	"deepseek-r1": {
+		Provider:        "openrouter",
+		APIModelID:      "deepseek/deepseek-r1",
+		ContextWindow:   163840,
+		MaxOutputTokens: 32768,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 32768),
+		},
+	},
+
+	// DeepSeek R1-0528 - Updated DeepSeek reasoning model
+	// https://openrouter.ai/deepseek/deepseek-r1-0528
+	"deepseek-r1-0528": {
+		Provider:        "openrouter",
+		APIModelID:      "deepseek/deepseek-r1-0528",
+		ContextWindow:   163840,
+		MaxOutputTokens: 32768,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 32768),
+		},
+	},
+
+	// =============================================================================
+	// NEW MOONSHOT KIMI MODELS
+	// =============================================================================
+
+	// Kimi K2-0905 - Updated Kimi model, 131K context
+	// https://openrouter.ai/moonshotai/kimi-k2-0905
+	"moonshotai/kimi-k2-0905": {
+		Provider:        "openrouter",
+		APIModelID:      "moonshotai/kimi-k2-0905",
+		ContextWindow:   131072,
+		MaxOutputTokens: 65535,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 65535),
+		},
+	},
+
+	// =============================================================================
+	// NEW MINIMAX MODELS
+	// =============================================================================
+
+	// MiniMax M2.5 - Latest MiniMax model, improved over M2.1
+	// https://openrouter.ai/minimax/minimax-m2.5
+	"minimax-m2.5": {
+		Provider:        "openrouter",
+		APIModelID:      "minimax/minimax-m2.5",
+		ContextWindow:   196608,
+		MaxOutputTokens: 131072,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 131072),
+		},
+	},
+
+	// =============================================================================
+	// NEW ZHIPU GLM MODELS
+	// =============================================================================
+
+	// GLM-5 - Zhipu's latest flagship model, 204K context
+	// https://openrouter.ai/z-ai/glm-5
+	"glm-5": {
+		Provider:        "openrouter",
+		APIModelID:      "z-ai/glm-5",
+		ContextWindow:   204800,
+		MaxOutputTokens: 65535,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 65535),
+		},
+	},
+
+	// =============================================================================
+	// NEW QWEN MODELS
+	// =============================================================================
+
+	// Qwen3 235B-A22B - Qwen's flagship large model (full slug)
+	// https://openrouter.ai/qwen/qwen3-235b-a22b
+	"qwen/qwen3-235b-a22b": {
+		Provider:        "openrouter",
+		APIModelID:      "qwen/qwen3-235b-a22b",
+		ContextWindow:   131072,
+		MaxOutputTokens: 65536,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 65536),
+		},
+	},
+
+	// Qwen3 235B - Qwen's flagship MoE model, 235B total / 22B active params
+	// https://openrouter.ai/qwen/qwen3-235b-a22b
+	"qwen3-235b": {
+		Provider:        "openrouter",
+		APIModelID:      "qwen/qwen3-235b-a22b",
+		ContextWindow:   131072,
+		MaxOutputTokens: 32768,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 32768),
+		},
+	},
+
+	// Qwen3 Max - Qwen's top-tier model
+	// https://openrouter.ai/qwen/qwen3-max
+	"qwen3-max": {
+		Provider:        "openrouter",
+		APIModelID:      "qwen/qwen3-max",
+		ContextWindow:   131072,
+		MaxOutputTokens: 32768,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 32768),
+		},
+	},
+
+	// Qwen3 Coder - Qwen's coding-focused model (short alias)
+	// https://openrouter.ai/qwen/qwen3-coder
+	"qwen3-coder": {
+		Provider:        "openrouter",
+		APIModelID:      "qwen/qwen3-coder",
+		ContextWindow:   131072,
+		MaxOutputTokens: 32768,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 32768),
+		},
+	},
+
+	// =============================================================================
+	// NEW MISTRAL MODELS
+	// =============================================================================
+
+	// Mistral Large 2512 - Mistral's latest large model
+	// https://openrouter.ai/mistralai/mistral-large-2512
+	"mistral-large-2512": {
+		Provider:        "openrouter",
+		APIModelID:      "mistralai/mistral-large-2512",
+		ContextWindow:   262144,
+		MaxOutputTokens: 65536,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature":       floatConstraint(0.0, 2.0),
+			"top_p":             floatConstraint(0.0, 1.0),
+			"max_tokens":        intConstraint(1, 65536),
+			"frequency_penalty": floatConstraint(-2.0, 2.0),
+			"presence_penalty":  floatConstraint(-2.0, 2.0),
+		},
+	},
+
+	// =============================================================================
 	// TEST MODELS (for integration testing only)
 	// =============================================================================
 
@@ -630,18 +950,18 @@ func ListModelsForProvider(provider string) []string {
 //   - gpt-5.2: Best math/logic (100% AIME), fastest inference, OpenAI's flagship
 //   - grok-4.1-fast: Largest context (2M), strong Arena, xAI's flagship
 //   - deepseek-v3.2: Frontier-class reasoning at great value, DeepSeek's flagship
-//   - glm-4.7: Best sustained agentic (87.4 τ²-Bench), 84.9% LiveCodeBench, Zhipu's flagship
+//   - glm-5: 204K context, Zhipu's latest flagship (successor to glm-4.7)
 //   - moonshotai/kimi-k2.5: Elite math (99.1% AIME), interleaved thinking, Moonshot's flagship
-//   - minimax-m2.1: Fast/efficient (10B active), 72.5% SWE-bench multilingual, MiniMax's flagship
+//   - minimax-m2.5: Improved efficiency over M2.1, MiniMax's latest flagship
 var coreCouncilModels = []string{
-	"gemini-3.1-pro",
-	"claude-opus-4-6",
-	"gpt-5.2",
-	"grok-4.1-fast",
-	"deepseek-v3.2",
-	"glm-4.7",
-	"moonshotai/kimi-k2.5",
-	"minimax-m2.1",
+	"gemini-3.1-pro",       // Google — frontier multimodal, 1M ctx
+	"claude-opus-4-6",      // Anthropic — best reasoning, 200K ctx
+	"gpt-5.2",              // OpenAI — frontier, 400K ctx
+	"grok-4.1-fast",        // xAI — 2M ctx, strong Arena
+	"deepseek-v3.2",        // DeepSeek — frontier at $0.38/M out
+	"glm-5",                // Z.ai — best sustained agentic
+	"moonshotai/kimi-k2.5", // Moonshot — elite math + reasoning
+	"minimax-m2.5",         // MiniMax — fast/efficient, multilingual
 }
 
 // GetCoreCouncilModels returns the default set of top-performing models.
