@@ -120,6 +120,42 @@ var modelDefinitions = map[string]ModelInfo{
 		},
 	},
 
+	// Claude Opus 4.6 - Next-generation frontier reasoning model
+	// https://openrouter.ai/anthropic/claude-opus-4-6
+	"claude-opus-4-6": {
+		Provider:        "openrouter",
+		APIModelID:      "anthropic/claude-opus-4-6",
+		ContextWindow:   200000,
+		MaxOutputTokens: 32000,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 1.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 32000),
+		},
+	},
+
+	// Claude Sonnet 4.6 - Next-generation agentic coding model
+	// https://openrouter.ai/anthropic/claude-sonnet-4-6
+	"claude-sonnet-4-6": {
+		Provider:        "openrouter",
+		APIModelID:      "anthropic/claude-sonnet-4-6",
+		ContextWindow:   200000,
+		MaxOutputTokens: 64000,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 1.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 64000),
+		},
+	},
+
 	// =============================================================================
 	// OPENAI MODELS
 	// =============================================================================
@@ -219,6 +255,26 @@ var modelDefinitions = map[string]ModelInfo{
 	"gemini-3-pro": {
 		Provider:        "openrouter",
 		APIModelID:      "google/gemini-3-pro-preview",
+		ContextWindow:   1048576,
+		MaxOutputTokens: 65536,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+			"top_k":       40,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"top_k":       intConstraint(1, 100),
+			"max_tokens":  intConstraint(1, 65536),
+		},
+	},
+
+	// Gemini 3.1 Pro - Enhanced reasoning, 1M multimodal context
+	// https://openrouter.ai/google/gemini-3.1-pro-preview
+	"gemini-3.1-pro": {
+		Provider:        "openrouter",
+		APIModelID:      "google/gemini-3.1-pro-preview",
 		ContextWindow:   1048576,
 		MaxOutputTokens: 65536,
 		DefaultParams: map[string]interface{}{
@@ -568,9 +624,9 @@ func ListModelsForProvider(provider string) []string {
 
 // coreCouncilModels defines the default set of top-performing models used when
 // no models are explicitly specified. These 8 models represent frontier intelligence
-// based on LMArena rankings and benchmark performance (January 2026):
-//   - gemini-3-pro: #1 LMArena overall, 1M context, Google's flagship
-//   - claude-opus-4.5: Best coding (80.9% SWE-bench), Anthropic's flagship
+// based on LMArena rankings and benchmark performance (February 2026):
+//   - gemini-3.1-pro: Enhanced reasoning, 1M context, Google's latest flagship
+//   - claude-opus-4-6: Next-generation frontier reasoning, Anthropic's latest flagship
 //   - gpt-5.2: Best math/logic (100% AIME), fastest inference, OpenAI's flagship
 //   - grok-4.1-fast: Largest context (2M), strong Arena, xAI's flagship
 //   - deepseek-v3.2: Frontier-class reasoning at great value, DeepSeek's flagship
@@ -578,8 +634,8 @@ func ListModelsForProvider(provider string) []string {
 //   - moonshotai/kimi-k2.5: Elite math (99.1% AIME), interleaved thinking, Moonshot's flagship
 //   - minimax-m2.1: Fast/efficient (10B active), 72.5% SWE-bench multilingual, MiniMax's flagship
 var coreCouncilModels = []string{
-	"gemini-3-pro",
-	"claude-opus-4.5",
+	"gemini-3.1-pro",
+	"claude-opus-4-6",
 	"gpt-5.2",
 	"grok-4.1-fast",
 	"deepseek-v3.2",

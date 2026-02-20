@@ -27,6 +27,7 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"llama-4-maverick",       // 1M
 				"gemini-3-flash",         // 1M
 				"gemini-3-pro",           // 1M
+				"gemini-3.1-pro",         // 1M
 				"claude-sonnet-4.5",      // 1M
 				"gpt-5.2",                // 400K
 				"gpt-5.2-codex",          // 400K
@@ -36,7 +37,9 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"devstral-2",             // 262K
 				"grok-code-fast-1",       // 256K
 				"glm-4.7",                // 202K
+				"claude-opus-4-6",        // 200K
 				"claude-opus-4.5",        // 200K
+				"claude-sonnet-4-6",      // 200K
 				"minimax-m2.1",           // 196K
 				"deepseek-v3.2",          // 163K
 				"deepseek-v3.2-speciale", // 163K
@@ -51,6 +54,7 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
 				"gpt-5.2",
 				"gpt-5.2-codex",
@@ -60,7 +64,9 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"devstral-2",
 				"grok-code-fast-1",
 				"glm-4.7",
+				"claude-opus-4-6",
 				"claude-opus-4.5",
+				"claude-sonnet-4-6",
 				"minimax-m2.1",
 				"deepseek-v3.2",
 				"deepseek-v3.2-speciale",
@@ -75,6 +81,7 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
 			},
 			verifyOrder: true,
@@ -87,6 +94,7 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
 			},
 			verifyOrder: true,
@@ -99,6 +107,7 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
 			},
 			verifyOrder: true,
@@ -202,6 +211,7 @@ func TestSelectModelsForInput(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
 				"gpt-5.2",
 				"gpt-5.2-codex",
@@ -212,7 +222,9 @@ func TestSelectModelsForInput(t *testing.T) {
 				"grok-code-fast-1",
 				"glm-4.7",
 				"deepseek-v3.2",
+				"claude-opus-4-6",
 				"claude-opus-4.5",
+				"claude-sonnet-4-6",
 				"minimax-m2.1",
 				"deepseek-v3.2-speciale",
 			},
@@ -234,6 +246,7 @@ func TestSelectModelsForInput(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
 			},
 			verifyOrder: true,
