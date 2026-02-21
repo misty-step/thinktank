@@ -319,17 +319,22 @@ func TestCalculateBackoffDelay(t *testing.T) {
 
 // TestProviderRateLimiter_ConcurrentAccess tests thread safety
 func TestProviderRateLimiter_ConcurrentAccess(t *testing.T) {
-	t.Skip("TODO: deadlocks on semaphore Acquire — see thinktank#206")
-	prl := NewProviderRateLimiter(10, nil)
-	ctx := context.Background()
+	// Use a high RPM override so token bucket doesn't throttle goroutines to
+	// multi-second waits (OpenRouterDefaultRPM=20 would take ~600s for 200 ops).
+	prl := NewProviderRateLimiter(10, map[string]int{
+		"openai": 6000, // 100 RPS — well above test load
+	})
 
-	// Test concurrent access from multiple goroutines
+	// Context timeout prevents the test from hanging if a deadlock is reintroduced.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	const numGoroutines = 20
 	const operationsPerGoroutine = 10
 
 	var wg sync.WaitGroup
-	errors := make([]error, numGoroutines*operationsPerGoroutine)
-	errorIndex := 0
+	errs := make([]error, numGoroutines*operationsPerGoroutine)
+	var errIdx int
 	var errorMutex sync.Mutex
 
 	for i := 0; i < numGoroutines; i++ {
@@ -338,25 +343,22 @@ func TestProviderRateLimiter_ConcurrentAccess(t *testing.T) {
 			defer wg.Done()
 
 			for j := 0; j < operationsPerGoroutine; j++ {
-				// Acquire
 				err := prl.Acquire(ctx, "openai", "gpt-5.2")
 
 				errorMutex.Lock()
-				errors[errorIndex] = err
-				errorIndex++
+				errs[errIdx] = err
+				errIdx++
 				errorMutex.Unlock()
 
 				if err == nil {
-					// Small delay to simulate work
 					time.Sleep(time.Microsecond)
 					prl.Release("openai")
 				}
 
-				// Test status access
+				// Concurrent status reads (exercises re-entrant lock path)
 				_ = prl.GetProviderStatus("openai")
 				_ = prl.GetAllProviderStatuses()
 
-				// Test circuit breaker operations
 				if j%5 == 0 {
 					prl.RecordSuccess("openai")
 				}
@@ -366,19 +368,15 @@ func TestProviderRateLimiter_ConcurrentAccess(t *testing.T) {
 
 	wg.Wait()
 
-	// Count successful operations (errors should be nil)
 	successCount := 0
-	for _, err := range errors {
+	for _, err := range errs {
 		if err == nil {
 			successCount++
 		}
 	}
 
-	// Should have some successful operations (exact count depends on rate limiting)
 	assert.Greater(t, successCount, 0, "Should have some successful operations")
-
-	// Should not have crashed or deadlocked
-	assert.True(t, true, "Concurrent access completed without deadlock")
+	assert.NoError(t, ctx.Err(), "Context should not have timed out — possible deadlock")
 }
 
 // TestCircuitBreakerState_String tests state string representation
