@@ -153,11 +153,22 @@ func NewProviderRateLimiter(maxConcurrent int, providerOverrides map[string]int)
 		providerLimits:  make(map[string]int),
 	}
 
+	// Default rate limits per provider (CLI-layer constants take precedence over models package
+	// which treats openai/gemini as obsolete and returns the conservative fallback).
+	providerDefaults := map[string]int{
+		"openai":     OpenAIDefaultRPM,
+		"gemini":     GeminiDefaultRPM,
+		"openrouter": OpenRouterDefaultRPM,
+	}
+
 	// Initialize rate limiters for each provider
 	providers := []string{"openai", "gemini", "openrouter"}
 	for _, provider := range providers {
-		// Get rate limit: override > provider default
-		rateLimit := models.GetProviderDefaultRateLimit(provider)
+		// Get rate limit: override > CLI default > models package default
+		rateLimit := providerDefaults[provider]
+		if rateLimit == 0 {
+			rateLimit = models.GetProviderDefaultRateLimit(provider)
+		}
 		if override, exists := providerOverrides[provider]; exists && override > 0 {
 			rateLimit = override
 		}
