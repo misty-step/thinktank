@@ -33,16 +33,16 @@ func TestSelectModelsForConfig(t *testing.T) {
 			flags:                  0, // No special flags
 			envVars:                map[string]string{"OPENROUTER_API_KEY": "test-key"},
 			expectedModels: []string{
-				"gemini-3-pro",
-				"claude-opus-4.5",
+				"gemini-3.1-pro",
+				"claude-opus-4-6",
 				"gpt-5.2",
 				"grok-4.1-fast",
 				"deepseek-v3.2",
-				"glm-4.7",
+				"glm-5",
 				"moonshotai/kimi-k2.5",
-				"minimax-m2.1",
+				"minimax-m2.5",
 			},
-			expectedSynthesisModel: "gemini-3-pro",
+			expectedSynthesisModel: "gemini-3.1-pro",
 			description:            "Small instructions with OpenRouter should return core council models with synthesis",
 			checkModelsAsSet:       true,
 		},
@@ -53,16 +53,16 @@ func TestSelectModelsForConfig(t *testing.T) {
 			flags:                  FlagSynthesis,
 			envVars:                map[string]string{"OPENROUTER_API_KEY": "test-key"},
 			expectedModels: []string{
-				"gemini-3-pro",
-				"claude-opus-4.5",
+				"gemini-3.1-pro",
+				"claude-opus-4-6",
 				"gpt-5.2",
 				"grok-4.1-fast",
 				"deepseek-v3.2",
-				"glm-4.7",
+				"glm-5",
 				"moonshotai/kimi-k2.5",
-				"minimax-m2.1",
+				"minimax-m2.5",
 			},
-			expectedSynthesisModel: "gemini-3-pro",
+			expectedSynthesisModel: "gemini-3.1-pro",
 			description:            "Should enable synthesis when flag is set even for small input",
 			checkModelsAsSet:       true,
 		},
@@ -75,16 +75,16 @@ func TestSelectModelsForConfig(t *testing.T) {
 				"OPENROUTER_API_KEY": "openrouter-test-key",
 			},
 			expectedModels: []string{
-				"gemini-3-pro",
-				"claude-opus-4.5",
+				"gemini-3.1-pro",
+				"claude-opus-4-6",
 				"gpt-5.2",
 				"grok-4.1-fast",
 				"deepseek-v3.2",
-				"glm-4.7",
+				"glm-5",
 				"moonshotai/kimi-k2.5",
-				"minimax-m2.1",
+				"minimax-m2.5",
 			},
-			expectedSynthesisModel: "gemini-3-pro",
+			expectedSynthesisModel: "gemini-3.1-pro",
 			description:            "Large input should auto-enable synthesis and return core council models",
 			checkModelsAsSet:       true,
 		},
@@ -106,16 +106,16 @@ func TestSelectModelsForConfig(t *testing.T) {
 			flags:                  0,
 			envVars:                map[string]string{"OPENROUTER_API_KEY": "test-key"},
 			expectedModels: []string{
-				"gemini-3-pro",
-				"claude-opus-4.5",
+				"gemini-3.1-pro",
+				"claude-opus-4-6",
 				"gpt-5.2",
 				"grok-4.1-fast",
 				"deepseek-v3.2",
-				"glm-4.7",
+				"glm-5",
 				"moonshotai/kimi-k2.5",
-				"minimax-m2.1",
+				"minimax-m2.5",
 			},
-			expectedSynthesisModel: "gemini-3-pro",
+			expectedSynthesisModel: "gemini-3.1-pro",
 			description:            "Should return core council models when file read fails",
 			checkModelsAsSet:       true,
 		},
@@ -126,16 +126,16 @@ func TestSelectModelsForConfig(t *testing.T) {
 			flags:                  0,
 			envVars:                map[string]string{"OPENROUTER_API_KEY": "openrouter-test-key"},
 			expectedModels: []string{
-				"gemini-3-pro",
-				"claude-opus-4.5",
+				"gemini-3.1-pro",
+				"claude-opus-4-6",
 				"gpt-5.2",
 				"grok-4.1-fast",
 				"deepseek-v3.2",
-				"glm-4.7",
+				"glm-5",
 				"moonshotai/kimi-k2.5",
-				"minimax-m2.1",
+				"minimax-m2.5",
 			},
-			expectedSynthesisModel: "gemini-3-pro",
+			expectedSynthesisModel: "gemini-3.1-pro",
 			description:            "OpenRouter API key should return core council models with synthesis",
 			checkModelsAsSet:       true,
 		},
@@ -148,16 +148,16 @@ func TestSelectModelsForConfig(t *testing.T) {
 				"OPENROUTER_API_KEY": "openrouter-key",
 			},
 			expectedModels: []string{
-				"gemini-3-pro",
-				"claude-opus-4.5",
+				"gemini-3.1-pro",
+				"claude-opus-4-6",
 				"gpt-5.2",
 				"grok-4.1-fast",
 				"deepseek-v3.2",
-				"glm-4.7",
+				"glm-5",
 				"moonshotai/kimi-k2.5",
-				"minimax-m2.1",
+				"minimax-m2.5",
 			},
-			expectedSynthesisModel: "gemini-3-pro",
+			expectedSynthesisModel: "gemini-3.1-pro",
 			description:            "OpenRouter provider with medium input should return core council with synthesis",
 			checkModelsAsSet:       true,
 		},
@@ -181,16 +181,16 @@ func TestSelectModelsForConfig(t *testing.T) {
 				"OPENROUTER_API_KEY": "openrouter-key",
 			},
 			expectedModels: []string{
-				"gemini-3-pro",
-				"claude-opus-4.5",
+				"gemini-3.1-pro",
+				"claude-opus-4-6",
 				"gpt-5.2",
 				"grok-4.1-fast",
 				"deepseek-v3.2",
-				"glm-4.7",
+				"glm-5",
 				"moonshotai/kimi-k2.5",
-				"minimax-m2.1",
+				"minimax-m2.5",
 			},
-			expectedSynthesisModel: "gemini-3-pro",
+			expectedSynthesisModel: "gemini-3.1-pro",
 			description:            "Very large input should return core council models with synthesis",
 			checkModelsAsSet:       true,
 		},
@@ -283,7 +283,7 @@ func TestSelectModelsForConfig(t *testing.T) {
 			}
 
 			// Additional validation: synthesis model should be gemini-3-pro or empty
-			if actualSynthesisModel != "" && actualSynthesisModel != "gemini-3-pro" {
+			if actualSynthesisModel != "" && actualSynthesisModel != "gemini-3.1-pro" {
 				t.Errorf("Invalid synthesis model: got %q, expected empty or 'gemini-3-pro'\nDescription: %s",
 					actualSynthesisModel, tt.description)
 			}
@@ -357,21 +357,21 @@ func TestSynthesisDecisionLogic(t *testing.T) {
 			name:           "single model, force synthesis",
 			modelsCount:    1,
 			forceSynthesis: true,
-			expected:       "gemini-3-pro",
+			expected:       "gemini-3.1-pro",
 			description:    "Single model with force flag should trigger synthesis",
 		},
 		{
 			name:           "multiple models, no force synthesis",
 			modelsCount:    3,
 			forceSynthesis: false,
-			expected:       "gemini-3-pro",
+			expected:       "gemini-3.1-pro",
 			description:    "Multiple models should auto-trigger synthesis",
 		},
 		{
 			name:           "multiple models, force synthesis",
 			modelsCount:    2,
 			forceSynthesis: true,
-			expected:       "gemini-3-pro",
+			expected:       "gemini-3.1-pro",
 			description:    "Multiple models with force flag should trigger synthesis",
 		},
 		{
@@ -396,7 +396,7 @@ func TestSynthesisDecisionLogic(t *testing.T) {
 			var synthesisModel string
 			if len(selectedModels) > 1 || tt.forceSynthesis {
 				if len(selectedModels) > 0 {
-					synthesisModel = "gemini-3-pro"
+					synthesisModel = "gemini-3.1-pro"
 				}
 			}
 
@@ -460,7 +460,7 @@ func TestSelectModelsForConfig_EdgeCases(t *testing.T) {
 		if len(models) == 0 {
 			t.Error("Expected at least one model with all flags set")
 		}
-		if synthesis != "gemini-3-pro" {
+		if synthesis != "gemini-3.1-pro" {
 			t.Errorf("Expected synthesis model with synthesis flag, got: %s", synthesis)
 		}
 	})
@@ -519,7 +519,7 @@ func TestSelectModelsForConfig_AcceptsTokenCountingService(t *testing.T) {
 
 	// Validate that we get reasonable results
 	require.NotEmpty(t, models, "Should return at least one model")
-	assert.Contains(t, []string{"", "gemini-3-pro"}, synthesis, "Synthesis model should be empty or gemini-3-pro")
+	assert.Contains(t, []string{"", "gemini-3.1-pro"}, synthesis, "Synthesis model should be empty or gemini-3-pro")
 }
 
 // TestSelectModelsForConfig_UsesAccurateTokenization verifies that the model selection system
@@ -624,21 +624,21 @@ func TestSynthesisFlagBehaviorConsistency(t *testing.T) {
 			name:                "small_input_with_synthesis_flag",
 			instructionsContent: "Simple analysis task",
 			withSynthesisFlag:   true,
-			expectedSynthesis:   "gemini-3-pro", // Should force synthesis even for small input
+			expectedSynthesis:   "gemini-3.1-pro", // Should force synthesis even for small input
 			behaviorDescription: "With synthesis flag, both approaches should enable synthesis regardless of input size",
 		},
 		{
 			name:                "small_input_without_synthesis_flag",
 			instructionsContent: "Simple analysis task",
 			withSynthesisFlag:   false,
-			expectedSynthesis:   "gemini-3-pro", // Auto-enabled due to multiple models
+			expectedSynthesis:   "gemini-3.1-pro", // Auto-enabled due to multiple models
 			behaviorDescription: "Without synthesis flag, both approaches use automatic synthesis logic based on model count",
 		},
 		{
 			name:                "medium_input_with_synthesis_flag",
 			instructionsContent: strings.Repeat("Medium complexity analysis task. ", 50), // ~1.5K chars
 			withSynthesisFlag:   true,
-			expectedSynthesis:   "gemini-3-pro",
+			expectedSynthesis:   "gemini-3.1-pro",
 			behaviorDescription: "With synthesis flag, both approaches should consistently enable synthesis",
 		},
 	}
