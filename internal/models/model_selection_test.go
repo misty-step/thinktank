@@ -23,23 +23,41 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"model2",
 				"model3",
 				// Production models (sorted by context window desc)
-				"grok-4.1-fast",          // 2M
-				"llama-4-maverick",       // 1M
-				"gemini-3-flash",         // 1M
-				"gemini-3-pro",           // 1M
-				"claude-sonnet-4.5",      // 1M
-				"gpt-5.2",                // 400K
-				"gpt-5.2-codex",          // 400K
-				"openai/gpt-5.2-codex",   // 400K
-				"moonshotai/kimi-k2.5",   // 262K
-				"qwen/qwen3-coder",       // 262K
-				"devstral-2",             // 262K
-				"grok-code-fast-1",       // 256K
-				"glm-4.7",                // 202K
-				"claude-opus-4.5",        // 200K
-				"minimax-m2.1",           // 196K
-				"deepseek-v3.2",          // 163K
-				"deepseek-v3.2-speciale", // 163K
+				"grok-4.1-fast",           // 2M
+				"llama-4-maverick",        // 1M (1048576)
+				"gemini-3-flash",          // 1M (1048576)
+				"gemini-3-pro",            // 1M (1048576)
+				"gemini-3.1-pro",          // 1M (1048576)
+				"claude-sonnet-4.5",       // 1M (1000000)
+				"gpt-5",                   // 400K
+				"gpt-5.1",                 // 400K
+				"gpt-5.1-chat",            // 400K
+				"gpt-5.2",                 // 400K
+				"gpt-5.2-chat",            // 400K
+				"gpt-5.2-codex",           // 400K
+				"openai/gpt-5.2-codex",    // 400K
+				"mistral-large-2512",      // 262K
+				"moonshotai/kimi-k2.5",    // 262K
+				"qwen/qwen3-coder",        // 262K
+				"devstral-2",              // 262K
+				"grok-code-fast-1",        // 256K
+				"glm-5",                   // 204K
+				"glm-4.7",                 // 202K
+				"claude-opus-4-6",         // 200K
+				"claude-haiku-4.5",        // 200K
+				"claude-opus-4.5",         // 200K
+				"claude-sonnet-4-6",       // 200K
+				"minimax-m2.5",            // 196K
+				"minimax-m2.1",            // 196K
+				"deepseek-r1",             // 163K
+				"deepseek-r1-0528",        // 163K
+				"deepseek-v3.2",           // 163K
+				"deepseek-v3.2-speciale",  // 163K
+				"moonshotai/kimi-k2-0905", // 131K
+				"qwen/qwen3-235b-a22b",    // 131K
+				"qwen3-235b",              // 131K
+				"qwen3-coder",             // 131K
+				"qwen3-max",               // 131K
 			},
 			verifyOrder: true,
 		},
@@ -51,19 +69,37 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
+				"gpt-5",
+				"gpt-5.1",
+				"gpt-5.1-chat",
 				"gpt-5.2",
+				"gpt-5.2-chat",
 				"gpt-5.2-codex",
 				"openai/gpt-5.2-codex",
+				"mistral-large-2512",
 				"moonshotai/kimi-k2.5",
 				"qwen/qwen3-coder",
 				"devstral-2",
 				"grok-code-fast-1",
+				"glm-5",
 				"glm-4.7",
+				"claude-opus-4-6",
+				"claude-haiku-4.5",
 				"claude-opus-4.5",
+				"claude-sonnet-4-6",
+				"minimax-m2.5",
 				"minimax-m2.1",
+				"deepseek-r1",
+				"deepseek-r1-0528",
 				"deepseek-v3.2",
 				"deepseek-v3.2-speciale",
+				"moonshotai/kimi-k2-0905",
+				"qwen/qwen3-235b-a22b",
+				"qwen3-235b",
+				"qwen3-coder",
+				"qwen3-max",
 			},
 			verifyOrder: true,
 		},
@@ -75,6 +111,7 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
 			},
 			verifyOrder: true,
@@ -87,6 +124,7 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
 			},
 			verifyOrder: true,
@@ -99,6 +137,7 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
 			},
 			verifyOrder: true,
@@ -202,19 +241,37 @@ func TestSelectModelsForInput(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
+				"gpt-5",
+				"gpt-5.1",
+				"gpt-5.1-chat",
 				"gpt-5.2",
+				"gpt-5.2-chat",
 				"gpt-5.2-codex",
 				"openai/gpt-5.2-codex",
+				"mistral-large-2512",
 				"moonshotai/kimi-k2.5",
 				"qwen/qwen3-coder",
 				"devstral-2",
 				"grok-code-fast-1",
+				"glm-5",
 				"glm-4.7",
-				"deepseek-v3.2",
+				"claude-opus-4-6",
+				"claude-haiku-4.5",
 				"claude-opus-4.5",
+				"claude-sonnet-4-6",
+				"minimax-m2.5",
 				"minimax-m2.1",
+				"deepseek-r1",
+				"deepseek-r1-0528",
+				"deepseek-v3.2",
 				"deepseek-v3.2-speciale",
+				"moonshotai/kimi-k2-0905",
+				"qwen/qwen3-235b-a22b",
+				"qwen3-235b",
+				"qwen3-coder",
+				"qwen3-max",
 			},
 			verifyOrder: true,
 		},
@@ -234,6 +291,7 @@ func TestSelectModelsForInput(t *testing.T) {
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-pro",
 				"claude-sonnet-4.5",
 			},
 			verifyOrder: true,
