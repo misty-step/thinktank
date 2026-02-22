@@ -330,9 +330,8 @@ func TestDefaultConfigurationRobustness(t *testing.T) {
 
 // TestConfigurationIsolation tests that configuration instances are properly isolated
 func TestConfigurationIsolation(t *testing.T) {
-	t.Parallel(
 	// Test CLI config isolation
-	)
+	t.Parallel()
 
 	config1 := NewDefaultCliConfig()
 	config2 := NewDefaultCliConfig()
