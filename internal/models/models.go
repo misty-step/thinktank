@@ -946,7 +946,7 @@ func ListModelsForProvider(provider string) []string {
 // no models are explicitly specified. These 8 models represent frontier intelligence
 // based on LMArena rankings and benchmark performance (February 2026):
 //   - gemini-3.1-pro: Enhanced reasoning, 1M context, Google's latest flagship
-//   - claude-opus-4-6: Next-generation frontier reasoning, Anthropic's latest flagship
+//   - claude-sonnet-4-6: Strong reasoning at lower cost, Anthropic's cost-efficient flagship
 //   - gpt-5.2: Best math/logic (100% AIME), fastest inference, OpenAI's flagship
 //   - grok-4.1-fast: Largest context (2M), strong Arena, xAI's flagship
 //   - deepseek-v3.2: Frontier-class reasoning at great value, DeepSeek's flagship
@@ -955,7 +955,7 @@ func ListModelsForProvider(provider string) []string {
 //   - minimax-m2.5: Improved efficiency over M2.1, MiniMax's latest flagship
 var coreCouncilModels = []string{
 	"gemini-3.1-pro",       // Google — frontier multimodal, 1M ctx
-	"claude-opus-4-6",      // Anthropic — best reasoning, 200K ctx
+	"claude-sonnet-4-6",    // Anthropic — strong reasoning, cost-efficient
 	"gpt-5.2",              // OpenAI — frontier, 400K ctx
 	"grok-4.1-fast",        // xAI — 2M ctx, strong Arena
 	"deepseek-v3.2",        // DeepSeek — frontier at $0.38/M out
