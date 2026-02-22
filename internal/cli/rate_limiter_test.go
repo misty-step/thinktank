@@ -319,12 +319,18 @@ func TestCalculateBackoffDelay(t *testing.T) {
 
 // TestProviderRateLimiter_ConcurrentAccess tests thread safety
 func TestProviderRateLimiter_ConcurrentAccess(t *testing.T) {
-	t.Skip("TODO: deadlocks on semaphore Acquire — see thinktank#206")
-	prl := NewProviderRateLimiter(10, nil)
-	ctx := context.Background()
-
-	// Test concurrent access from multiple goroutines
+	// Use a semaphore large enough to never block (> numGoroutines) and a high RPM
+	// override so the token bucket doesn't serialise goroutines.  Prior failures
+	// were caused by 20 goroutines competing for 10 semaphore slots while the
+	// token bucket allowed only 1 token/sec (60 RPM default), producing ~200 s
+	// of blocking that exceeded the CI 5-minute timeout.
 	const numGoroutines = 20
+	prl := NewProviderRateLimiter(numGoroutines*2, map[string]int{
+		"openai": 6_000_000, // effectively unlimited for this concurrency test
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	const operationsPerGoroutine = 10
 
 	var wg sync.WaitGroup
@@ -366,6 +372,13 @@ func TestProviderRateLimiter_ConcurrentAccess(t *testing.T) {
 
 	wg.Wait()
 
+	// Fail immediately if the context deadline was reached: that means Acquire
+	// was blocking long enough to indicate a deadlock or severe serialisation
+	// regression. With an unlimited semaphore and effectively unlimited RPM,
+	// every Acquire call should return near-instantly; a timeout expiry here is
+	// always a bug, not expected behaviour.
+	require.NoError(t, ctx.Err(), "Context deadline exceeded — Acquire blocked (possible deadlock or severe serialisation regression)")
+
 	// Count successful operations (errors should be nil)
 	successCount := 0
 	for _, err := range errors {
@@ -374,11 +387,10 @@ func TestProviderRateLimiter_ConcurrentAccess(t *testing.T) {
 		}
 	}
 
-	// Should have some successful operations (exact count depends on rate limiting)
-	assert.Greater(t, successCount, 0, "Should have some successful operations")
-
-	// Should not have crashed or deadlocked
-	assert.True(t, true, "Concurrent access completed without deadlock")
+	// With semaphore > numGoroutines and effectively unlimited RPM, every
+	// operation must succeed.  Any non-nil error means a regression.
+	assert.Equal(t, numGoroutines*operationsPerGoroutine, successCount,
+		"All operations should succeed with unlimited semaphore and RPM")
 }
 
 // TestCircuitBreakerState_String tests state string representation
