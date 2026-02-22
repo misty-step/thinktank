@@ -227,9 +227,9 @@ func TestGitCheckerIsolation(t *testing.T) {
 		}
 	})
 
-	t.Run("test isolation without ClearGitCaches", func(t *testing.T) {
+	t.Run("test isolation with NewGitChecker", func(t *testing.T) {
 		// Demonstrate that each test can get a fresh GitChecker
-		// without needing to call ClearGitCaches
+		// without needing a shared cache reset helper
 		gc := NewGitChecker()
 
 		if gc.CacheStats() != 0 {
@@ -258,44 +258,42 @@ func TestGitCheckerCacheStats(t *testing.T) {
 	}
 }
 
-// TestBackwardCompatibility tests the deprecated global functions.
-func TestBackwardCompatibility(t *testing.T) {
-	t.Run("CheckGitRepoCached works", func(t *testing.T) {
-		ClearGitCaches() // Reset for test isolation
+// TestGitCheckerUsagePatterns tests common GitChecker usage patterns.
+func TestGitCheckerUsagePatterns(t *testing.T) {
+	t.Run("IsRepo works", func(t *testing.T) {
+		gc := NewGitChecker()
 		tempDir := t.TempDir()
 
-		result := CheckGitRepoCached(tempDir)
+		result := gc.IsRepo(tempDir)
 
 		if result {
-			t.Error("CheckGitRepoCached should return false for non-git dir")
+			t.Error("IsRepo should return false for non-git dir")
 		}
 	})
 
-	t.Run("CheckGitIgnoreCached works", func(t *testing.T) {
-		ClearGitCaches()
+	t.Run("IsIgnored works", func(t *testing.T) {
+		gc := NewGitChecker()
 		tempDir := t.TempDir()
 
-		_, err := CheckGitIgnoreCached(tempDir, "test.txt")
+		_, err := gc.IsIgnored(tempDir, "test.txt")
 
 		// Should not return error (just returns false for non-git dir)
 		if err != nil {
-			t.Errorf("CheckGitIgnoreCached unexpected error: %v", err)
+			t.Errorf("IsIgnored unexpected error: %v", err)
 		}
 	})
 
-	t.Run("ClearGitCaches resets state", func(t *testing.T) {
+	t.Run("NewGitChecker starts with empty cache", func(t *testing.T) {
 		tempDir := t.TempDir()
 
 		// Populate cache
-		_ = CheckGitRepoCached(tempDir)
+		gc1 := NewGitChecker()
+		_ = gc1.IsRepo(tempDir)
 
-		// Clear
-		ClearGitCaches()
-
-		// DefaultGitChecker should now be fresh
-		if DefaultGitChecker.CacheStats() != 0 {
-			t.Errorf("After ClearGitCaches, cache should be empty, got %d",
-				DefaultGitChecker.CacheStats())
+		// A new checker has isolated cache state
+		gc2 := NewGitChecker()
+		if gc2.CacheStats() != 0 {
+			t.Errorf("New GitChecker cache should be empty, got %d", gc2.CacheStats())
 		}
 	})
 }

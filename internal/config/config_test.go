@@ -766,38 +766,3 @@ func TestGetProviderRateLimit(t *testing.T) {
 		})
 	}
 }
-
-// TestIsStandardOpenAIModel tests the isStandardOpenAIModel helper function
-func TestIsStandardOpenAIModel(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name     string
-		model    string
-		expected bool
-	}{
-		{"gpt-4", "gpt-4", false}, // All models use OpenRouter after consolidation
-		{"gpt-4-turbo", "gpt-4-turbo", false},
-		{"gpt-4o", "gpt-4o", false},
-		{"gpt-4o-mini", "gpt-4o-mini", false},
-		{"gpt-5.2", "gpt-5.2", false},
-		{"gpt-3.5-turbo", "gpt-3.5-turbo", false},
-		{"gpt-5.2", "gpt-5.2", false},
-		{"gpt-5.2", "gpt-5.2", false},
-		{"case insensitive", "GPT-4", false},
-		{"case insensitive 2", "O3", false},
-		{"prefix match", "gpt-4-custom", false},
-		{"gemini model", "gemini-1.5-pro", false},
-		{"openrouter model", "openrouter/gpt-4", false},
-		{"custom model", "custom-model", false},
-		{"empty string", "", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isStandardOpenAIModel(tt.model)
-			if result != tt.expected {
-				t.Errorf("isStandardOpenAIModel(%s) = %v, want %v", tt.model, result, tt.expected)
-			}
-		})
-	}
-}

@@ -17,26 +17,38 @@ func TestValidateInputsIntegration(t *testing.T) {
 	// Removed t.Parallel() - modifies environment variables
 	// Save original environment variables
 
-	originalGeminiKey := os.Getenv(apiKeyEnvVar)
-	originalOpenAIKey := os.Getenv(openaiAPIKeyEnvVar)
+	originalGeminiKey := os.Getenv("GEMINI_API_KEY")
+	originalOpenAIKey := os.Getenv("OPENAI_API_KEY")
 	originalOpenRouterKey := os.Getenv("OPENROUTER_API_KEY")
 
 	defer func() {
 		// Restore original environment
 		if originalGeminiKey != "" {
-			_ = os.Setenv(apiKeyEnvVar, originalGeminiKey)
+			if err := os.Setenv("GEMINI_API_KEY", originalGeminiKey); err != nil {
+				t.Errorf("Failed to restore GEMINI_API_KEY: %v", err)
+			}
 		} else {
-			_ = os.Unsetenv(apiKeyEnvVar)
+			if err := os.Unsetenv("GEMINI_API_KEY"); err != nil {
+				t.Errorf("Failed to unset GEMINI_API_KEY: %v", err)
+			}
 		}
 		if originalOpenAIKey != "" {
-			_ = os.Setenv(openaiAPIKeyEnvVar, originalOpenAIKey)
+			if err := os.Setenv("OPENAI_API_KEY", originalOpenAIKey); err != nil {
+				t.Errorf("Failed to restore OPENAI_API_KEY: %v", err)
+			}
 		} else {
-			_ = os.Unsetenv(openaiAPIKeyEnvVar)
+			if err := os.Unsetenv("OPENAI_API_KEY"); err != nil {
+				t.Errorf("Failed to unset OPENAI_API_KEY: %v", err)
+			}
 		}
 		if originalOpenRouterKey != "" {
-			_ = os.Setenv("OPENROUTER_API_KEY", originalOpenRouterKey)
+			if err := os.Setenv("OPENROUTER_API_KEY", originalOpenRouterKey); err != nil {
+				t.Errorf("Failed to restore OPENROUTER_API_KEY: %v", err)
+			}
 		} else {
-			_ = os.Unsetenv("OPENROUTER_API_KEY")
+			if err := os.Unsetenv("OPENROUTER_API_KEY"); err != nil {
+				t.Errorf("Failed to unset OPENROUTER_API_KEY: %v", err)
+			}
 		}
 	}()
 
@@ -184,9 +196,7 @@ func TestValidateInputsIntegration(t *testing.T) {
 				ModelNames:       []string{geminiModel},
 				DryRun:           false,
 			},
-			envVars: map[string]string{
-				apiKeyEnvVar: "test-gemini-api-key",
-			},
+			envVars:       map[string]string{}, // validation fails before API key check
 			expectError:   true,
 			errorContains: "missing required --instructions flag",
 		},
@@ -198,9 +208,7 @@ func TestValidateInputsIntegration(t *testing.T) {
 				ModelNames:       []string{geminiModel},
 				DryRun:           false,
 			},
-			envVars: map[string]string{
-				apiKeyEnvVar: "test-gemini-api-key",
-			},
+			envVars:       map[string]string{}, // validation fails before API key check
 			expectError:   true,
 			errorContains: "no paths specified",
 		},
@@ -212,9 +220,7 @@ func TestValidateInputsIntegration(t *testing.T) {
 				ModelNames:       []string{}, // No models specified
 				DryRun:           false,
 			},
-			envVars: map[string]string{
-				apiKeyEnvVar: "test-gemini-api-key",
-			},
+			envVars:       map[string]string{}, // validation fails before API key check
 			expectError:   true,
 			errorContains: "no models specified",
 		},
@@ -223,13 +229,17 @@ func TestValidateInputsIntegration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all environment variables first
-			_ = os.Unsetenv(apiKeyEnvVar)
-			_ = os.Unsetenv(openaiAPIKeyEnvVar)
-			_ = os.Unsetenv("OPENROUTER_API_KEY")
+			for _, key := range []string{"GEMINI_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY"} {
+				if err := os.Unsetenv(key); err != nil {
+					t.Fatalf("Failed to unset %s: %v", key, err)
+				}
+			}
 
 			// Set test environment variables
 			for key, value := range tt.envVars {
-				_ = os.Setenv(key, value)
+				if err := os.Setenv(key, value); err != nil {
+					t.Fatalf("Failed to set %s: %v", key, err)
+				}
 			}
 
 			// Call the actual ValidateInputs function

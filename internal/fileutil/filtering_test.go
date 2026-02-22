@@ -680,28 +680,28 @@ func TestIOOperations(t *testing.T) {
 	})
 }
 
-// TestGitCachingLegacy tests the deprecated git caching functions for backward compatibility.
+// TestGitCheckerCachingUsage tests GitChecker caching behavior in filtering scenarios.
 // Comprehensive GitChecker tests are in git_checker_test.go.
-func TestGitCachingLegacy(t *testing.T) {
-	t.Run("CheckGitRepoCached returns consistent results", func(t *testing.T) {
-		ClearGitCaches()
+func TestGitCheckerCachingUsage(t *testing.T) {
+	t.Run("IsRepo returns consistent results", func(t *testing.T) {
+		gc := NewGitChecker()
 		tempDir := t.TempDir()
 
-		result1 := CheckGitRepoCached(tempDir)
-		result2 := CheckGitRepoCached(tempDir)
+		result1 := gc.IsRepo(tempDir)
+		result2 := gc.IsRepo(tempDir)
 
 		if result1 != result2 {
-			t.Errorf("CheckGitRepoCached returned inconsistent results: %v vs %v", result1, result2)
+			t.Errorf("IsRepo returned inconsistent results: %v vs %v", result1, result2)
 		}
 	})
 
-	t.Run("CheckGitIgnoreCached returns false for non-git directory", func(t *testing.T) {
-		ClearGitCaches()
+	t.Run("IsIgnored returns false for non-git directory", func(t *testing.T) {
+		gc := NewGitChecker()
 		tempDir := t.TempDir()
 
 		// Non-git directory: should return (false, nil), not an error
 		// because GitChecker.IsIgnored checks IsRepo first
-		isIgnored, err := CheckGitIgnoreCached(tempDir, "test.txt")
+		isIgnored, err := gc.IsIgnored(tempDir, "test.txt")
 
 		if err != nil {
 			t.Errorf("Unexpected error for non-git directory: %v", err)
@@ -711,17 +711,21 @@ func TestGitCachingLegacy(t *testing.T) {
 		}
 	})
 
-	t.Run("ClearGitCaches resets DefaultGitChecker", func(t *testing.T) {
+	t.Run("NewGitChecker creates isolated cache state", func(t *testing.T) {
 		tempDir := t.TempDir()
+		gc1 := NewGitChecker()
 
 		// Populate cache
-		_ = CheckGitRepoCached(tempDir)
+		_ = gc1.IsRepo(tempDir)
+		if gc1.CacheStats() != 1 {
+			t.Errorf("Expected gc1 to have 1 cache entry, got %d", gc1.CacheStats())
+		}
 
-		// Clear
-		ClearGitCaches()
-
-		// Should work without panic after clear
-		_ = CheckGitRepoCached(tempDir)
+		// New checker should have independent empty cache
+		gc2 := NewGitChecker()
+		if gc2.CacheStats() != 0 {
+			t.Errorf("Expected gc2 to start with empty cache, got %d", gc2.CacheStats())
+		}
 	})
 }
 

@@ -64,7 +64,7 @@ func TestCliConfigValidationScenarios(t *testing.T) {
 			},
 			mockGetenv: func(key string) string {
 				switch key {
-				case OpenAIAPIKeyEnvVar:
+				case "OPENAI_API_KEY":
 					return "sk-openai-key"
 				case OpenRouterAPIKeyEnvVar:
 					return "sk-or-openrouter-key"
@@ -85,7 +85,7 @@ func TestCliConfigValidationScenarios(t *testing.T) {
 			},
 			mockGetenv: func(key string) string {
 				switch key {
-				case OpenAIAPIKeyEnvVar:
+				case "OPENAI_API_KEY":
 					return "sk-openai-key"
 				case OpenRouterAPIKeyEnvVar:
 					return "" // Missing OpenRouter key
@@ -330,9 +330,8 @@ func TestDefaultConfigurationRobustness(t *testing.T) {
 
 // TestConfigurationIsolation tests that configuration instances are properly isolated
 func TestConfigurationIsolation(t *testing.T) {
-	t.Parallel(
 	// Test CLI config isolation
-	)
+	t.Parallel()
 
 	config1 := NewDefaultCliConfig()
 	config2 := NewDefaultCliConfig()
