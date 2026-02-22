@@ -372,6 +372,13 @@ func TestProviderRateLimiter_ConcurrentAccess(t *testing.T) {
 
 	wg.Wait()
 
+	// Fail immediately if the context deadline was reached: that means Acquire
+	// was blocking long enough to indicate a deadlock or severe serialisation
+	// regression. With an unlimited semaphore and effectively unlimited RPM,
+	// every Acquire call should return near-instantly; a timeout expiry here is
+	// always a bug, not expected behaviour.
+	require.NoError(t, ctx.Err(), "Context deadline exceeded — Acquire blocked (possible deadlock or severe serialisation regression)")
+
 	// Count successful operations (errors should be nil)
 	successCount := 0
 	for _, err := range errors {
@@ -380,11 +387,10 @@ func TestProviderRateLimiter_ConcurrentAccess(t *testing.T) {
 		}
 	}
 
-	// Should have some successful operations (exact count depends on rate limiting)
-	assert.Greater(t, successCount, 0, "Should have some successful operations")
-
-	// Should not have crashed or deadlocked
-	assert.True(t, true, "Concurrent access completed without deadlock")
+	// With semaphore > numGoroutines and effectively unlimited RPM, every
+	// operation must succeed.  Any non-nil error means a regression.
+	assert.Equal(t, numGoroutines*operationsPerGoroutine, successCount,
+		"All operations should succeed with unlimited semaphore and RPM")
 }
 
 // TestCircuitBreakerState_String tests state string representation
