@@ -267,8 +267,14 @@ func (prl *ProviderRateLimiter) GetAllProviderStatuses() []ProviderStatus {
 	defer prl.mu.RUnlock()
 
 	var statuses []ProviderStatus
-	for provider := range prl.circuitBreakers {
-		statuses = append(statuses, prl.GetProviderStatus(provider))
+	for provider, cb := range prl.circuitBreakers {
+		statuses = append(statuses, ProviderStatus{
+			Provider:     provider,
+			Available:    cb.CanExecute(),
+			RateLimit:    prl.providerLimits[provider],
+			CircuitState: cb.GetState().String(),
+			FailureCount: cb.GetFailureCount(),
+		})
 	}
 
 	return statuses
