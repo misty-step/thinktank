@@ -17,21 +17,21 @@ func TestValidateInputsIntegration(t *testing.T) {
 	// Removed t.Parallel() - modifies environment variables
 	// Save original environment variables
 
-	originalGeminiKey := os.Getenv(apiKeyEnvVar)
-	originalOpenAIKey := os.Getenv(openaiAPIKeyEnvVar)
+	originalGeminiKey := os.Getenv("GEMINI_API_KEY")
+	originalOpenAIKey := os.Getenv("OPENAI_API_KEY")
 	originalOpenRouterKey := os.Getenv("OPENROUTER_API_KEY")
 
 	defer func() {
 		// Restore original environment
 		if originalGeminiKey != "" {
-			_ = os.Setenv(apiKeyEnvVar, originalGeminiKey)
+			_ = os.Setenv("GEMINI_API_KEY", originalGeminiKey)
 		} else {
-			_ = os.Unsetenv(apiKeyEnvVar)
+			_ = os.Unsetenv("GEMINI_API_KEY")
 		}
 		if originalOpenAIKey != "" {
-			_ = os.Setenv(openaiAPIKeyEnvVar, originalOpenAIKey)
+			_ = os.Setenv("OPENAI_API_KEY", originalOpenAIKey)
 		} else {
-			_ = os.Unsetenv(openaiAPIKeyEnvVar)
+			_ = os.Unsetenv("OPENAI_API_KEY")
 		}
 		if originalOpenRouterKey != "" {
 			_ = os.Setenv("OPENROUTER_API_KEY", originalOpenRouterKey)
@@ -185,7 +185,7 @@ func TestValidateInputsIntegration(t *testing.T) {
 				DryRun:           false,
 			},
 			envVars: map[string]string{
-				apiKeyEnvVar: "test-gemini-api-key",
+				"GEMINI_API_KEY": "test-gemini-api-key",
 			},
 			expectError:   true,
 			errorContains: "missing required --instructions flag",
@@ -199,7 +199,7 @@ func TestValidateInputsIntegration(t *testing.T) {
 				DryRun:           false,
 			},
 			envVars: map[string]string{
-				apiKeyEnvVar: "test-gemini-api-key",
+				"GEMINI_API_KEY": "test-gemini-api-key",
 			},
 			expectError:   true,
 			errorContains: "no paths specified",
@@ -213,7 +213,7 @@ func TestValidateInputsIntegration(t *testing.T) {
 				DryRun:           false,
 			},
 			envVars: map[string]string{
-				apiKeyEnvVar: "test-gemini-api-key",
+				"GEMINI_API_KEY": "test-gemini-api-key",
 			},
 			expectError:   true,
 			errorContains: "no models specified",
@@ -223,8 +223,8 @@ func TestValidateInputsIntegration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all environment variables first
-			_ = os.Unsetenv(apiKeyEnvVar)
-			_ = os.Unsetenv(openaiAPIKeyEnvVar)
+			_ = os.Unsetenv("GEMINI_API_KEY")
+			_ = os.Unsetenv("OPENAI_API_KEY")
 			_ = os.Unsetenv("OPENROUTER_API_KEY")
 
 			// Set test environment variables
