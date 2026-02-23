@@ -18,6 +18,12 @@ import (
 	"github.com/misty-step/thinktank/internal/thinktank/modelproc"
 )
 
+func instantTimer(_ time.Duration) <-chan time.Time {
+	ch := make(chan time.Time, 1)
+	ch <- time.Now()
+	return ch
+}
+
 // TestModelProcessorContextPropagation tests that the model processor properly propagates
 // context through the model processing workflow and includes correlation IDs in logs.
 func TestModelProcessorContextPropagation(t *testing.T) {
@@ -523,6 +529,7 @@ func setupModelProcTestEnvWithLogger(t *testing.T, logger logutil.LoggerInterfac
 
 	// Create the model processor
 	processor := modelproc.NewProcessor(apiService, fileWriter, auditLogger, logger, config)
+	processor.SetTimeAfterForTest(instantTimer)
 
 	return &ModelProcTestEnv{
 		processor:   processor,

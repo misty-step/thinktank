@@ -39,6 +39,11 @@ func nonRetryableErr(msg string) error {
 	return llm.Wrap(errors.New(msg), "", msg, llm.CategoryAuth)
 }
 
+// nonTransientCategorizedErr returns a categorized error that should not be retried.
+func nonTransientCategorizedErr(msg string) error {
+	return llm.Wrap(errors.New(msg), "", msg, llm.CategoryContentFiltered)
+}
+
 func TestGenerateContentWithRetry_SucceedOnSecondAttempt(t *testing.T) {
 	var callCount atomic.Int32
 	mockAPI := &mockAPIService{
@@ -120,6 +125,55 @@ func TestGenerateContentWithRetry_NoRetryOnAuthError(t *testing.T) {
 	}
 }
 
+func TestGenerateContentWithRetry_NoRetryOnNonTransientCategorizedError(t *testing.T) {
+	var callCount atomic.Int32
+	mockAPI := &mockAPIService{
+		initLLMClientFunc: func(ctx context.Context, apiKey, modelName, apiEndpoint string) (llm.LLMClient, error) {
+			return &mockLLMClient{
+				generateContentFunc: func(ctx context.Context, prompt string, params map[string]interface{}) (*llm.ProviderResult, error) {
+					callCount.Add(1)
+					return nil, nonTransientCategorizedErr("filtered content")
+				},
+			}, nil
+		},
+	}
+
+	p := newRetryProcessor(mockAPI)
+	_, err := p.Process(context.Background(), "test-model", "prompt")
+	if err == nil {
+		t.Fatal("expected error for non-transient categorized failure, got nil")
+	}
+	if callCount.Load() != 1 {
+		t.Errorf("expected exactly 1 call (no retry on non-transient error), got %d", callCount.Load())
+	}
+}
+
+func TestGenerateContentWithRetry_PreservesRetryableErrorCategory(t *testing.T) {
+	mockAPI := &mockAPIService{
+		initLLMClientFunc: func(ctx context.Context, apiKey, modelName, apiEndpoint string) (llm.LLMClient, error) {
+			return &mockLLMClient{
+				generateContentFunc: func(ctx context.Context, prompt string, params map[string]interface{}) (*llm.ProviderResult, error) {
+					return nil, retryableErr("network error")
+				},
+			}, nil
+		},
+	}
+
+	p := newRetryProcessor(mockAPI)
+	_, err := p.Process(context.Background(), "test-model", "prompt")
+	if err == nil {
+		t.Fatal("expected error after exhausting retries, got nil")
+	}
+
+	catErr, ok := llm.IsCategorizedError(err)
+	if !ok {
+		t.Fatalf("expected categorized error, got: %v", err)
+	}
+	if catErr.Category() != llm.CategoryNetwork {
+		t.Errorf("expected category %s, got %s", llm.CategoryNetwork, catErr.Category())
+	}
+}
+
 func TestGenerateContentWithRetry_ContextCancelledDuringWait(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -141,10 +195,7 @@ func TestGenerateContentWithRetry_ContextCancelledDuringWait(t *testing.T) {
 		return make(chan time.Time) // never fires
 	}
 
-	cfg := config.NewDefaultCliConfig()
-	cfg.APIKey = "test-key"
-	cfg.OutputDir = "/tmp/test-output"
-	p := modelproc.NewProcessor(mockAPI, &mockFileWriter{}, &mockAuditLogger{}, newNoOpLogger(), cfg)
+	p := newRetryProcessor(mockAPI)
 	p.SetTimeAfterForTest(blockingTimer)
 
 	_, err := p.Process(ctx, "test-model", "prompt")
@@ -188,10 +239,7 @@ func TestGenerateContentWithRetry_RateLimitUsesEstimatedWait(t *testing.T) {
 		return ch
 	}
 
-	cfg := config.NewDefaultCliConfig()
-	cfg.APIKey = "test-key"
-	cfg.OutputDir = "/tmp/test-output"
-	p := modelproc.NewProcessor(mockAPI, &mockFileWriter{}, &mockAuditLogger{}, newNoOpLogger(), cfg)
+	p := newRetryProcessor(mockAPI)
 	p.SetTimeAfterForTest(recordingTimer)
 
 	_, err := p.Process(context.Background(), "test-model", "prompt")
@@ -234,10 +282,7 @@ func TestGenerateContentWithRetry_NetworkUsesEstimatedWait(t *testing.T) {
 		return ch
 	}
 
-	cfg := config.NewDefaultCliConfig()
-	cfg.APIKey = "test-key"
-	cfg.OutputDir = "/tmp/test-output"
-	p := modelproc.NewProcessor(mockAPI, &mockFileWriter{}, &mockAuditLogger{}, newNoOpLogger(), cfg)
+	p := newRetryProcessor(mockAPI)
 	p.SetTimeAfterForTest(recordingTimer)
 
 	_, err := p.Process(context.Background(), "test-model", "prompt")
