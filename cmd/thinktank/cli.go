@@ -36,9 +36,7 @@ func (s *stringSliceFlag) Set(value string) error {
 const (
 	defaultOutputFile      = config.DefaultOutputFile
 	defaultModel           = config.DefaultModel
-	apiKeyEnvVar           = config.APIKeyEnvVar
-	apiEndpointEnvVar      = config.APIEndpointEnvVar
-	openaiAPIKeyEnvVar     = config.OpenAIAPIKeyEnvVar
+	apiEndpointEnvVar      = "GEMINI_API_URL"
 	defaultFormat          = config.DefaultFormat
 	defaultExcludes        = config.DefaultExcludes
 	defaultExcludeNames    = config.DefaultExcludeNames

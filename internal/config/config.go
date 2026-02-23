@@ -19,9 +19,6 @@ const (
 	// Default values
 	DefaultOutputFile      = "PLAN.md"
 	DefaultModel           = "gemini-3-flash"
-	APIKeyEnvVar           = "GEMINI_API_KEY" // Deprecated: kept for backward compatibility only
-	APIEndpointEnvVar      = "GEMINI_API_URL" // Deprecated: kept for backward compatibility only
-	OpenAIAPIKeyEnvVar     = "OPENAI_API_KEY" // Deprecated: kept for backward compatibility only
 	OpenRouterAPIKeyEnvVar = "OPENROUTER_API_KEY"
 	DefaultFormat          = "<{path}>\n```\n{content}\n```\n</{path}>\n\n"
 
@@ -253,13 +250,6 @@ func (c *CliConfig) GetProviderRateLimit(provider string) int {
 // This helps catch configuration errors early before they cause runtime failures.
 func ValidateConfig(config *CliConfig, logger logutil.LoggerInterface) error {
 	return ValidateConfigWithEnv(config, logger, os.Getenv)
-}
-
-// isStandardOpenAIModel is deprecated - all models now use OpenRouter after consolidation.
-// This function is kept for backward compatibility only and always returns false.
-func isStandardOpenAIModel(model string) bool {
-	// All OpenAI models now use OpenRouter provider after consolidation
-	return false
 }
 
 // ValidateConfigWithEnv checks if the configuration is valid and returns an error if not.

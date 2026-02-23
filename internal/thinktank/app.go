@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,10 +20,6 @@ import (
 	"github.com/misty-step/thinktank/internal/thinktank/interfaces"
 	"github.com/misty-step/thinktank/internal/thinktank/orchestrator"
 )
-
-// Deprecated: Using a global var here as a temporary fix during refactoring
-// A better approach would be to inject a random generator instance
-var globalRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 // gatherProjectFiles handles setup and context gathering initialization.
 // It sets up the output directory and initializes logging for the execution.
@@ -339,7 +335,7 @@ func generateTimestampedRunName() string {
 	nanos := now.Nanosecond() % 1000
 
 	// Generate a random number
-	randNum := globalRand.Intn(1000)
+	randNum := rand.IntN(1000)
 
 	// Increment the counter atomically (thread-safe)
 	counter := atomic.AddUint32(&incrementalCounter, 1) % 1000
