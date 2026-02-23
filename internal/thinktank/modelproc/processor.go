@@ -5,6 +5,7 @@ package modelproc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -54,6 +55,8 @@ type ModelProcessor struct {
 	auditLogger auditlog.AuditLogger
 	logger      logutil.LoggerInterface
 	config      *config.CliConfig
+	// timeAfter is used for retry delays; defaults to time.After, injectable for tests.
+	timeAfter func(time.Duration) <-chan time.Time
 }
 
 // NewProcessor creates a new ModelProcessor with all required dependencies.
@@ -72,7 +75,18 @@ func NewProcessor(
 		auditLogger: auditLogger,
 		logger:      logger,
 		config:      config,
+		timeAfter:   time.After,
 	}
+}
+
+// SetTimeAfterForTest replaces the retry timer function.
+// It is used by tests to avoid real-time sleeps during retry paths.
+func (p *ModelProcessor) SetTimeAfterForTest(f func(time.Duration) <-chan time.Time) {
+	if f == nil {
+		p.timeAfter = time.After
+		return
+	}
+	p.timeAfter = f
 }
 
 // Process handles the entire model processing workflow for a single model.
@@ -138,13 +152,19 @@ func (p *ModelProcessor) Process(ctx context.Context, modelName string, stitched
 		}
 	}
 
-	// Generate content with parameters
-	result, err := llmClient.GenerateContent(ctx, stitchedPrompt, params)
+	// Generate content with parameters, retrying on transient failures.
+	result, err := p.generateContentWithRetry(ctx, llmClient, stitchedPrompt, params, modelName)
 
 	// Calculate duration in milliseconds
 	generateDurationMs := time.Since(generateStartTime).Milliseconds()
 
 	if err != nil {
+		// Propagate context errors directly so callers can inspect them.
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			p.logger.InfoContext(ctx, "Generation cancelled for model %s: %v", modelName, err)
+			return "", err
+		}
+
 		p.logger.ErrorContext(ctx, "Generation failed for model %s", modelName)
 
 		// Get detailed error information using APIService
@@ -159,7 +179,12 @@ func (p *ModelProcessor) Process(ctx context.Context, modelName string, stitched
 			p.logger.ErrorContext(ctx, "Failed to write audit log: %v", logErr)
 		}
 
-		return "", llm.Wrap(ErrModelProcessingFailed, "", fmt.Sprintf("output generation failed for model %s: %v", modelName, err), llm.CategoryInvalidRequest)
+		errorCategory := llm.CategoryInvalidRequest
+		if catErr, ok := llm.IsCategorizedError(err); ok {
+			errorCategory = catErr.Category()
+		}
+
+		return "", llm.Wrap(ErrModelProcessingFailed, "", fmt.Sprintf("output generation failed for model %s: %v", modelName, err), errorCategory)
 	}
 
 	// Log successful content generation
@@ -231,6 +256,79 @@ func (p *ModelProcessor) Process(ctx context.Context, modelName string, stitched
 
 	p.logger.InfoContext(ctx, "Successfully processed model: %s", modelName)
 	return generatedOutput, nil
+}
+
+// generateContentWithRetry calls llmClient.GenerateContent with up to maxAttempts retries
+// for transient failures. It uses EstimatedWaitTime from ExtractRecoveryInformation when
+// available, falling back to exponential backoff. Non-retryable errors are returned
+// immediately. Context cancellation during a wait is respected.
+func (p *ModelProcessor) generateContentWithRetry(
+	ctx context.Context,
+	llmClient llm.LLMClient,
+	prompt string,
+	params map[string]interface{},
+	modelName string,
+) (*llm.ProviderResult, error) {
+	const maxAttempts = 3
+	const baseWait = 2 * time.Second
+
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		result, err := llmClient.GenerateContent(ctx, prompt, params)
+		if err == nil {
+			if attempt > 1 {
+				p.logger.InfoContext(ctx, "Model %s succeeded on attempt %d/%d after retries",
+					modelName, attempt, maxAttempts)
+			}
+			return result, nil
+		}
+		lastErr = err
+		if !isTransientRetryableError(err) || attempt == maxAttempts {
+			return nil, err
+		}
+		recovery := llm.ExtractRecoveryInformation(err)
+		waitTime := recovery.EstimatedWaitTime
+		if waitTime == 0 {
+			waitTime = fallbackBackoff(baseWait, attempt)
+		}
+		p.logger.InfoContext(ctx, "Retrying model %s (attempt %d/%d) after %v: %v",
+			modelName, attempt, maxAttempts, waitTime, err)
+		select {
+		case <-p.timeAfter(waitTime):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return nil, lastErr
+}
+
+func isTransientRetryableError(err error) bool {
+	catErr, ok := llm.IsCategorizedError(err)
+	if !ok {
+		return false
+	}
+
+	switch catErr.Category() {
+	case llm.CategoryRateLimit, llm.CategoryNetwork, llm.CategoryServer:
+		return true
+	default:
+		return false
+	}
+}
+
+func fallbackBackoff(baseWait time.Duration, attempt int) time.Duration {
+	shift := attempt - 1
+	if shift < 0 {
+		shift = 0
+	}
+	// Prevent pathological shifts if maxAttempts changes in the future.
+	if shift > 30 {
+		shift = 30
+	}
+	return baseWait * time.Duration(1<<uint(shift))
 }
 
 // SanitizeFilename replaces characters that are not valid in filenames
