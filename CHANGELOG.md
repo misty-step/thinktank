@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.4.0](https://github.com/misty-step/thinktank/compare/v3.3.0...v3.4.0) (2026-02-23)
+
+
+### Features
+
+* **models:** add 14 SOTA models; update council to glm-5, minimax-m2.5 ([684bed3](https://github.com/misty-step/thinktank/commit/684bed395fbcf7c935b25a108686aade7fd43813))
+* **models:** add claude-opus-4-6, claude-sonnet-4-6, gemini-3.1-pro; update council defaults ([edf3f42](https://github.com/misty-step/thinktank/commit/edf3f4215bddcde42cb2f369cf69b5270eafed27))
+* **models:** add claude-opus-4-6, claude-sonnet-4-6, gemini-3.1-pro; update council defaults ([d7d61b9](https://github.com/misty-step/thinktank/commit/d7d61b9f3fb130d33e77d432be856a42dbd2ddff))
+
+
+### Bug Fixes
+
+* add CI job to satisfy branch protection check ([1a5059e](https://github.com/misty-step/thinktank/commit/1a5059e876339c3a4235d07a20ca5adc09a65c63))
+* address CodeRabbit review feedback in test files ([788522f](https://github.com/misty-step/thinktank/commit/788522f594c94362f27e00373cf01e87f7958316))
+* **ci:** cerberus@v2 — switch kimi-api-key to api-key with OPENROUTER_API_KEY ([3fa1f6f](https://github.com/misty-step/thinktank/commit/3fa1f6f992b149552030fbd58df5e73280a5bd00))
+* resolve TestProviderRateLimiter_ConcurrentAccess deadlock ([#210](https://github.com/misty-step/thinktank/issues/210)) ([ce3e408](https://github.com/misty-step/thinktank/commit/ce3e408c240fbbfdfb10e16f36bbe22180db88d3))
+* **tests:** update hardcoded model counts from 21→39 (17→35 production) after SOTA expansion ([4ae5e07](https://github.com/misty-step/thinktank/commit/4ae5e07a20473e0a99dfdff9076056d7f21d293e))
+* **tests:** update select_models_test.go council refs to current-gen models ([b56fc10](https://github.com/misty-step/thinktank/commit/b56fc108c2a1b7ac31436a47d1687763207afb5d))
+* **test:** update model count from 21 to 39 after SOTA roster expansion ([be31ccf](https://github.com/misty-step/thinktank/commit/be31ccf4f6543f4af6abaddb0e9805fb3d6d1e13))
+* update default synthesis model from gemini-3-pro to gemini-3.1-pro ([0660888](https://github.com/misty-step/thinktank/commit/066088826cdacc38516fcd053428c0688237fe88))
+
 ## [3.3.0](https://github.com/misty-step/thinktank/compare/v3.2.0...v3.3.0) (2026-02-06)
 
 
