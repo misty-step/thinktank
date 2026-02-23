@@ -54,6 +54,8 @@ type ModelProcessor struct {
 	auditLogger auditlog.AuditLogger
 	logger      logutil.LoggerInterface
 	config      *config.CliConfig
+	// timeAfter is used for retry delays; defaults to time.After, injectable for tests.
+	timeAfter func(time.Duration) <-chan time.Time
 }
 
 // NewProcessor creates a new ModelProcessor with all required dependencies.
@@ -72,6 +74,7 @@ func NewProcessor(
 		auditLogger: auditLogger,
 		logger:      logger,
 		config:      config,
+		timeAfter:   time.After,
 	}
 }
 
@@ -138,13 +141,18 @@ func (p *ModelProcessor) Process(ctx context.Context, modelName string, stitched
 		}
 	}
 
-	// Generate content with parameters
-	result, err := llmClient.GenerateContent(ctx, stitchedPrompt, params)
+	// Generate content with parameters, retrying on transient failures.
+	result, err := p.generateContentWithRetry(ctx, llmClient, stitchedPrompt, params, modelName)
 
 	// Calculate duration in milliseconds
 	generateDurationMs := time.Since(generateStartTime).Milliseconds()
 
 	if err != nil {
+		// Propagate context errors directly so callers can inspect ctx.Err().
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", ctxErr
+		}
+
 		p.logger.ErrorContext(ctx, "Generation failed for model %s", modelName)
 
 		// Get detailed error information using APIService
@@ -231,6 +239,53 @@ func (p *ModelProcessor) Process(ctx context.Context, modelName string, stitched
 
 	p.logger.InfoContext(ctx, "Successfully processed model: %s", modelName)
 	return generatedOutput, nil
+}
+
+// generateContentWithRetry calls llmClient.GenerateContent with up to maxAttempts retries
+// for transient failures. It uses EstimatedWaitTime from ExtractRecoveryInformation when
+// available, falling back to exponential backoff. Non-retryable errors are returned
+// immediately. Context cancellation during a wait is respected.
+func (p *ModelProcessor) generateContentWithRetry(
+	ctx context.Context,
+	llmClient llm.LLMClient,
+	prompt string,
+	params map[string]interface{},
+	modelName string,
+) (*llm.ProviderResult, error) {
+	const maxAttempts = 3
+	const baseWait = 2 * time.Second
+
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		result, err := llmClient.GenerateContent(ctx, prompt, params)
+		if err == nil {
+			if attempt > 1 {
+				p.logger.InfoContext(ctx, "Model %s succeeded on attempt %d/%d after retries",
+					modelName, attempt, maxAttempts)
+			}
+			return result, nil
+		}
+		lastErr = err
+		recovery := llm.ExtractRecoveryInformation(err)
+		if !recovery.RetryPossible || attempt == maxAttempts {
+			return nil, err
+		}
+		waitTime := recovery.EstimatedWaitTime
+		if waitTime == 0 {
+			waitTime = baseWait * time.Duration(1<<uint(attempt-1))
+		}
+		p.logger.InfoContext(ctx, "Retrying model %s (attempt %d/%d) after %v: %v",
+			modelName, attempt, maxAttempts, waitTime, err)
+		select {
+		case <-p.timeAfter(waitTime):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return nil, lastErr
 }
 
 // SanitizeFilename replaces characters that are not valid in filenames
