@@ -2,6 +2,16 @@ name: CI
 on: [push, pull_request]
 
 jobs:
+  CI:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: CI check
+        run: |
+          # CI job serves as the branch protection check
+          # It depends on the test job to ensure tests pass
+          echo "All required checks passed"
+
   test:
     runs-on: ubuntu-latest
     permissions:
@@ -49,7 +59,7 @@ jobs:
   security:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: test
+    needs: CI
     steps:
     - uses: actions/checkout@v4
     - name: Set up Go
