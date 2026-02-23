@@ -166,3 +166,5 @@ TASK-*.md
 # Note: TODO.md and BACKLOG.md are legitimate project files and should NOT be ignored
 
 .env
+
+.flywheel/
