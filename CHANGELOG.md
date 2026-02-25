@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.0](https://github.com/misty-step/thinktank/compare/v3.4.0...v3.5.0) (2026-02-25)
+
+
+### Features
+
+* add retry/backoff for transient model failures ([#223](https://github.com/misty-step/thinktank/issues/223)) ([df2ced4](https://github.com/misty-step/thinktank/commit/df2ced4863747947119fb2b22b876a419b483da0))
+
 ## [3.4.0](https://github.com/misty-step/thinktank/compare/v3.3.0...v3.4.0) (2026-02-23)
 
 
