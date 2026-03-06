@@ -1,16 +1,18 @@
-name: CI
+name: Quality Checks
 on: [push, pull_request]
 
 jobs:
-  CI:
+  merge-gate:
     runs-on: ubuntu-latest
     needs: test
+    if: always()
     steps:
-      - name: CI check
+      - name: Check all jobs passed
         run: |
-          # CI job serves as the branch protection check
-          # It depends on the test job to ensure tests pass
-          echo "All required checks passed"
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]] || \
+             [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            exit 1
+          fi
 
   test:
     runs-on: ubuntu-latest
@@ -59,7 +61,7 @@ jobs:
   security:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: CI
+    needs: merge-gate
     steps:
     - uses: actions/checkout@v4
     - name: Set up Go
