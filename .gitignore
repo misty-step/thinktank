@@ -168,6 +168,7 @@ TASK-*.md
 .env
 
 .flywheel/
+.pi/state/
 
 # Elixir / Erlang
 /_build/
