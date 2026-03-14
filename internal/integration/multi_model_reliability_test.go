@@ -34,14 +34,14 @@ import (
 	"github.com/misty-step/thinktank/internal/thinktank/orchestrator"
 )
 
-// TestMultiModelReliability_AllModelsBasic tests basic functionality with all 39 supported models
+// TestMultiModelReliability_AllModelsBasic tests basic functionality with all 45 supported models
 func TestMultiModelReliability_AllModelsBasic(t *testing.T) {
 	logger := logutil.NewTestLogger(t)
 
-	// Get all 39 supported models (35 production models + 4 test models = 39 total)
+	// Get all 45 supported models (41 production models + 4 test models = 45 total)
 	allModels := models.ListAllModels()
-	if len(allModels) != 39 {
-		t.Fatalf("Expected 39 models, got %d", len(allModels))
+	if len(allModels) != 45 {
+		t.Fatalf("Expected 45 models, got %d", len(allModels))
 	}
 
 	// Create test environment
@@ -453,7 +453,7 @@ func TestMultiModelReliability_ResourceUsage(t *testing.T) {
 	logger := logutil.NewTestLogger(t)
 
 	// Use a substantial number of models to test resource usage
-	testModels := models.ListAllModels() // All 39 models
+	testModels := models.ListAllModels() // All 45 models
 
 	env := setupMultiModelTestEnv(t, logger, testModels, nil)
 	defer env.cleanup()
