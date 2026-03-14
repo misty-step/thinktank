@@ -77,7 +77,7 @@ func intConstraint(min, max float64) ParameterConstraint {
 // This replaces the complex YAML-based registry system with simple, direct access.
 // Access is provided through public functions like GetModelInfo, ListAllModels, etc.
 //
-// Model registry last updated: February 2026
+// Model registry last updated: March 2026
 // Sources: OpenRouter API documentation (https://openrouter.ai/models)
 var modelDefinitions = map[string]ModelInfo{
 	// =============================================================================
@@ -143,7 +143,7 @@ var modelDefinitions = map[string]ModelInfo{
 	"claude-sonnet-4-6": {
 		Provider:        "openrouter",
 		APIModelID:      "anthropic/claude-sonnet-4-6",
-		ContextWindow:   200000,
+		ContextWindow:   1000000,
 		MaxOutputTokens: 64000,
 		DefaultParams: map[string]interface{}{
 			"temperature": 0.7,
@@ -270,6 +270,28 @@ var modelDefinitions = map[string]ModelInfo{
 		},
 	},
 
+	// GPT-5.4 - Unified Codex/GPT architecture, frontier reasoning
+	// https://openrouter.ai/openai/gpt-5.4
+	"gpt-5.4": {
+		Provider:        "openrouter",
+		APIModelID:      "openai/gpt-5.4",
+		ContextWindow:   922000,
+		MaxOutputTokens: 128000,
+		DefaultParams: map[string]interface{}{
+			"temperature":       0.7,
+			"top_p":             1.0,
+			"frequency_penalty": 0.0,
+			"presence_penalty":  0.0,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature":       floatConstraint(0.0, 2.0),
+			"top_p":             floatConstraint(0.0, 1.0),
+			"max_tokens":        intConstraint(1, 128000),
+			"frequency_penalty": floatConstraint(-2.0, 2.0),
+			"presence_penalty":  floatConstraint(-2.0, 2.0),
+		},
+	},
+
 	// GPT-5.2 Chat - Chat-optimized GPT-5.2 variant
 	// https://openrouter.ai/openai/gpt-5.2-chat
 	"gpt-5.2-chat": {
@@ -356,6 +378,26 @@ var modelDefinitions = map[string]ModelInfo{
 		},
 	},
 
+	// Gemini 3.1 Flash Lite - Half cost of Gemini 3 Flash, 1M context
+	// https://openrouter.ai/google/gemini-3.1-flash-lite-preview
+	"gemini-3.1-flash-lite": {
+		Provider:        "openrouter",
+		APIModelID:      "google/gemini-3.1-flash-lite-preview",
+		ContextWindow:   1048576,
+		MaxOutputTokens: 65536,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+			"top_k":       40,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"top_k":       intConstraint(1, 100),
+			"max_tokens":  intConstraint(1, 65536),
+		},
+	},
+
 	// =============================================================================
 	// XAI GROK MODELS
 	// =============================================================================
@@ -393,6 +435,42 @@ var modelDefinitions = map[string]ModelInfo{
 			"temperature": floatConstraint(0.0, 2.0),
 			"top_p":       floatConstraint(0.0, 1.0),
 			"max_tokens":  intConstraint(1, 10000),
+		},
+	},
+
+	// Grok 4.20 Beta - Speed + agentic tool calling, 2M context
+	// https://openrouter.ai/x-ai/grok-4.20-beta
+	"grok-4.20-beta": {
+		Provider:        "openrouter",
+		APIModelID:      "x-ai/grok-4.20-beta",
+		ContextWindow:   2000000,
+		MaxOutputTokens: 30000,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 30000),
+		},
+	},
+
+	// Grok 4.20 Multi-Agent Beta - Multi-agent orchestration, 2M context
+	// https://openrouter.ai/x-ai/grok-4.20-multi-agent-beta
+	"grok-4.20-multi-agent-beta": {
+		Provider:        "openrouter",
+		APIModelID:      "x-ai/grok-4.20-multi-agent-beta",
+		ContextWindow:   2000000,
+		MaxOutputTokens: 30000,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 30000),
 		},
 	},
 
@@ -549,6 +627,28 @@ var modelDefinitions = map[string]ModelInfo{
 			"max_tokens":        intConstraint(1, 65536),
 			"frequency_penalty": floatConstraint(-2.0, 2.0),
 			"presence_penalty":  floatConstraint(-2.0, 2.0),
+		},
+	},
+
+	// =============================================================================
+	// INCEPTION MODELS
+	// =============================================================================
+
+	// Mercury 2 - Reasoning diffusion architecture, >1K tok/sec
+	// https://openrouter.ai/inception/mercury-2
+	"mercury-2": {
+		Provider:        "openrouter",
+		APIModelID:      "inception/mercury-2",
+		ContextWindow:   128000,
+		MaxOutputTokens: 32000,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 32000),
 		},
 	},
 
@@ -789,6 +889,24 @@ var modelDefinitions = map[string]ModelInfo{
 		},
 	},
 
+	// Qwen3 Max Thinking - Flagship reasoning model with extended thinking
+	// https://openrouter.ai/qwen/qwen3-max-thinking
+	"qwen3-max-thinking": {
+		Provider:        "openrouter",
+		APIModelID:      "qwen/qwen3-max-thinking",
+		ContextWindow:   262144,
+		MaxOutputTokens: 65536,
+		DefaultParams: map[string]interface{}{
+			"temperature": 0.7,
+			"top_p":       0.95,
+		},
+		ParameterConstraints: map[string]ParameterConstraint{
+			"temperature": floatConstraint(0.0, 2.0),
+			"top_p":       floatConstraint(0.0, 1.0),
+			"max_tokens":  intConstraint(1, 65536),
+		},
+	},
+
 	// Qwen3 Coder - Qwen's coding-focused model (short alias)
 	// https://openrouter.ai/qwen/qwen3-coder
 	"qwen3-coder": {
@@ -944,20 +1062,20 @@ func ListModelsForProvider(provider string) []string {
 
 // coreCouncilModels defines the default set of top-performing models used when
 // no models are explicitly specified. These 8 models represent frontier intelligence
-// based on LMArena rankings and benchmark performance (February 2026):
+// based on LMArena rankings and benchmark performance (March 2026):
 //   - gemini-3.1-pro: Enhanced reasoning, 1M context, Google's latest flagship
-//   - claude-sonnet-4-6: Strong reasoning at lower cost, Anthropic's cost-efficient flagship
-//   - gpt-5.2: Best math/logic (100% AIME), fastest inference, OpenAI's flagship
-//   - grok-4.1-fast: Largest context (2M), strong Arena, xAI's flagship
+//   - claude-sonnet-4-6: Strong reasoning at lower cost, 1M context, Anthropic's cost-efficient flagship
+//   - gpt-5.4: Unified Codex/GPT arch, 922K context, OpenAI's flagship
+//   - grok-4.20-beta: Speed + agentic tool calling, 2M context, xAI's flagship
 //   - deepseek-v3.2: Frontier-class reasoning at great value, DeepSeek's flagship
 //   - glm-5: 204K context, Zhipu's latest flagship (successor to glm-4.7)
 //   - moonshotai/kimi-k2.5: Elite math (99.1% AIME), interleaved thinking, Moonshot's flagship
 //   - minimax-m2.5: Improved efficiency over M2.1, MiniMax's latest flagship
 var coreCouncilModels = []string{
 	"gemini-3.1-pro",       // Google — frontier multimodal, 1M ctx
-	"claude-sonnet-4-6",    // Anthropic — strong reasoning, cost-efficient
-	"gpt-5.2",              // OpenAI — frontier, 400K ctx
-	"grok-4.1-fast",        // xAI — 2M ctx, strong Arena
+	"claude-sonnet-4-6",    // Anthropic — strong reasoning, 1M ctx
+	"gpt-5.4",              // OpenAI — unified arch, 922K ctx
+	"grok-4.20-beta",       // xAI — 2M ctx, agentic tool calling
 	"deepseek-v3.2",        // DeepSeek — frontier at $0.38/M out
 	"glm-5",                // Z.ai — best sustained agentic
 	"moonshotai/kimi-k2.5", // Moonshot — elite math + reasoning

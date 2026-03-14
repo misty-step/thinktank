@@ -23,41 +23,47 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"model2",
 				"model3",
 				// Production models (sorted by context window desc)
-				"grok-4.1-fast",           // 2M
-				"llama-4-maverick",        // 1M (1048576)
-				"gemini-3-flash",          // 1M (1048576)
-				"gemini-3-pro",            // 1M (1048576)
-				"gemini-3.1-pro",          // 1M (1048576)
-				"claude-sonnet-4.5",       // 1M (1000000)
-				"gpt-5",                   // 400K
-				"gpt-5.1",                 // 400K
-				"gpt-5.1-chat",            // 400K
-				"gpt-5.2",                 // 400K
-				"gpt-5.2-chat",            // 400K
-				"gpt-5.2-codex",           // 400K
-				"openai/gpt-5.2-codex",    // 400K
-				"mistral-large-2512",      // 262K
-				"moonshotai/kimi-k2.5",    // 262K
-				"qwen/qwen3-coder",        // 262K
-				"devstral-2",              // 262K
-				"grok-code-fast-1",        // 256K
-				"glm-5",                   // 204K
-				"glm-4.7",                 // 202K
-				"claude-opus-4-6",         // 200K
-				"claude-haiku-4.5",        // 200K
-				"claude-opus-4.5",         // 200K
-				"claude-sonnet-4-6",       // 200K
-				"minimax-m2.5",            // 196K
-				"minimax-m2.1",            // 196K
-				"deepseek-r1",             // 163K
-				"deepseek-r1-0528",        // 163K
-				"deepseek-v3.2",           // 163K
-				"deepseek-v3.2-speciale",  // 163K
-				"moonshotai/kimi-k2-0905", // 131K
-				"qwen/qwen3-235b-a22b",    // 131K
-				"qwen3-235b",              // 131K
-				"qwen3-coder",             // 131K
-				"qwen3-max",               // 131K
+				"grok-4.1-fast",              // 2M
+				"grok-4.20-beta",             // 2M
+				"grok-4.20-multi-agent-beta", // 2M
+				"llama-4-maverick",           // 1M (1048576)
+				"gemini-3-flash",             // 1M (1048576)
+				"gemini-3-pro",               // 1M (1048576)
+				"gemini-3.1-flash-lite",      // 1M (1048576)
+				"gemini-3.1-pro",             // 1M (1048576)
+				"claude-sonnet-4-6",          // 1M (1000000)
+				"claude-sonnet-4.5",          // 1M (1000000)
+				"gpt-5.4",                    // 922K
+				"gpt-5",                      // 400K
+				"gpt-5.1",                    // 400K
+				"gpt-5.1-chat",               // 400K
+				"gpt-5.2",                    // 400K
+				"gpt-5.2-chat",               // 400K
+				"gpt-5.2-codex",              // 400K
+				"openai/gpt-5.2-codex",       // 400K
+				"mistral-large-2512",         // 262K
+				"moonshotai/kimi-k2.5",       // 262K
+				"qwen/qwen3-coder",           // 262K
+				"qwen3-max-thinking",         // 262K
+				"devstral-2",                 // 262K
+				"grok-code-fast-1",           // 256K
+				"glm-5",                      // 204K
+				"glm-4.7",                    // 202K
+				"claude-opus-4-6",            // 200K
+				"claude-haiku-4.5",           // 200K
+				"claude-opus-4.5",            // 200K
+				"minimax-m2.5",               // 196K
+				"minimax-m2.1",               // 196K
+				"deepseek-r1",                // 163K
+				"deepseek-r1-0528",           // 163K
+				"deepseek-v3.2",              // 163K
+				"deepseek-v3.2-speciale",     // 163K
+				"moonshotai/kimi-k2-0905",    // 131K
+				"qwen/qwen3-235b-a22b",       // 131K
+				"qwen3-235b",                 // 131K
+				"qwen3-coder",                // 131K
+				"qwen3-max",                  // 131K
+				"mercury-2",                  // 128K
 			},
 			verifyOrder: true,
 		},
@@ -66,11 +72,16 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 			minTokens: 100000,
 			expectedModels: []string{
 				"grok-4.1-fast",
+				"grok-4.20-beta",
+				"grok-4.20-multi-agent-beta",
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-flash-lite",
 				"gemini-3.1-pro",
+				"claude-sonnet-4-6",
 				"claude-sonnet-4.5",
+				"gpt-5.4",
 				"gpt-5",
 				"gpt-5.1",
 				"gpt-5.1-chat",
@@ -81,6 +92,7 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"mistral-large-2512",
 				"moonshotai/kimi-k2.5",
 				"qwen/qwen3-coder",
+				"qwen3-max-thinking",
 				"devstral-2",
 				"grok-code-fast-1",
 				"glm-5",
@@ -88,7 +100,6 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"claude-opus-4-6",
 				"claude-haiku-4.5",
 				"claude-opus-4.5",
-				"claude-sonnet-4-6",
 				"minimax-m2.5",
 				"minimax-m2.1",
 				"deepseek-r1",
@@ -100,6 +111,7 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 				"qwen3-235b",
 				"qwen3-coder",
 				"qwen3-max",
+				"mercury-2",
 			},
 			verifyOrder: true,
 		},
@@ -108,11 +120,16 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 			minTokens: 500000,
 			expectedModels: []string{
 				"grok-4.1-fast",
+				"grok-4.20-beta",
+				"grok-4.20-multi-agent-beta",
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-flash-lite",
 				"gemini-3.1-pro",
+				"claude-sonnet-4-6",
 				"claude-sonnet-4.5",
+				"gpt-5.4",
 			},
 			verifyOrder: true,
 		},
@@ -121,11 +138,16 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 			minTokens: 900000,
 			expectedModels: []string{
 				"grok-4.1-fast",
+				"grok-4.20-beta",
+				"grok-4.20-multi-agent-beta",
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-flash-lite",
 				"gemini-3.1-pro",
+				"claude-sonnet-4-6",
 				"claude-sonnet-4.5",
+				"gpt-5.4",
 			},
 			verifyOrder: true,
 		},
@@ -134,10 +156,14 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 			minTokens: 1000000,
 			expectedModels: []string{
 				"grok-4.1-fast",
+				"grok-4.20-beta",
+				"grok-4.20-multi-agent-beta",
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-flash-lite",
 				"gemini-3.1-pro",
+				"claude-sonnet-4-6",
 				"claude-sonnet-4.5",
 			},
 			verifyOrder: true,
@@ -147,6 +173,8 @@ func TestGetModelsWithMinContextWindow(t *testing.T) {
 			minTokens: 1500000,
 			expectedModels: []string{
 				"grok-4.1-fast",
+				"grok-4.20-beta",
+				"grok-4.20-multi-agent-beta",
 			},
 			verifyOrder: true,
 		},
@@ -238,11 +266,16 @@ func TestSelectModelsForInput(t *testing.T) {
 			availableProviders: []string{"openrouter"},
 			expectedModels: []string{
 				"grok-4.1-fast",
+				"grok-4.20-beta",
+				"grok-4.20-multi-agent-beta",
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-flash-lite",
 				"gemini-3.1-pro",
+				"claude-sonnet-4-6",
 				"claude-sonnet-4.5",
+				"gpt-5.4",
 				"gpt-5",
 				"gpt-5.1",
 				"gpt-5.1-chat",
@@ -253,6 +286,7 @@ func TestSelectModelsForInput(t *testing.T) {
 				"mistral-large-2512",
 				"moonshotai/kimi-k2.5",
 				"qwen/qwen3-coder",
+				"qwen3-max-thinking",
 				"devstral-2",
 				"grok-code-fast-1",
 				"glm-5",
@@ -260,7 +294,6 @@ func TestSelectModelsForInput(t *testing.T) {
 				"claude-opus-4-6",
 				"claude-haiku-4.5",
 				"claude-opus-4.5",
-				"claude-sonnet-4-6",
 				"minimax-m2.5",
 				"minimax-m2.1",
 				"deepseek-r1",
@@ -272,6 +305,7 @@ func TestSelectModelsForInput(t *testing.T) {
 				"qwen3-235b",
 				"qwen3-coder",
 				"qwen3-max",
+				"mercury-2",
 			},
 			verifyOrder: true,
 		},
@@ -288,11 +322,16 @@ func TestSelectModelsForInput(t *testing.T) {
 			availableProviders: []string{"openrouter"},
 			expectedModels: []string{
 				"grok-4.1-fast",
+				"grok-4.20-beta",
+				"grok-4.20-multi-agent-beta",
 				"llama-4-maverick",
 				"gemini-3-flash",
 				"gemini-3-pro",
+				"gemini-3.1-flash-lite",
 				"gemini-3.1-pro",
+				"claude-sonnet-4-6",
 				"claude-sonnet-4.5",
+				"gpt-5.4",
 			},
 			verifyOrder: true,
 		},
@@ -322,7 +361,9 @@ func TestSelectModelsForInput(t *testing.T) {
 			estimatedTokens:    1200000,
 			availableProviders: []string{"openrouter"},
 			expectedModels: []string{
-				"grok-4.1-fast", // Only 2M context model qualifies
+				"grok-4.1-fast",
+				"grok-4.20-beta",
+				"grok-4.20-multi-agent-beta",
 			},
 			verifyOrder: true,
 		},
