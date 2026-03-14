@@ -168,3 +168,12 @@ TASK-*.md
 .env
 
 .flywheel/
+
+# Elixir / Erlang
+/_build/
+/deps/
+/cover/
+*.beam
+erl_crash.dump
+*.ez
+thinktank-*.tar
