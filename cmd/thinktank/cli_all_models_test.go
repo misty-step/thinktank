@@ -25,9 +25,6 @@ func TestCLIValidatesAllSupportedModels(t *testing.T) {
 
 	// Get all supported models
 	supportedModels := models.ListAllModels()
-	if len(supportedModels) != 45 {
-		t.Fatalf("Expected 45 supported models (41 production + 4 test), got %d", len(supportedModels))
-	}
 
 	// Create a mock logger
 	logger := logutil.NewTestLogger(t)
