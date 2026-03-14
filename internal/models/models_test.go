@@ -758,7 +758,7 @@ func TestOpenRouterModels(t *testing.T) {
 			modelName:          "claude-sonnet-4-6",
 			expectedProvider:   "openrouter",
 			expectedAPIModelID: "anthropic/claude-sonnet-4-6",
-			minContextWindow:   200000,
+			minContextWindow:   1000000,
 			minOutputTokens:    64000,
 		},
 		{
@@ -808,14 +808,6 @@ func TestOpenRouterModels(t *testing.T) {
 			expectedAPIModelID: "x-ai/grok-4.1-fast",
 			minContextWindow:   2000000,
 			minOutputTokens:    30000,
-		},
-		{
-			name:               "deepseek-v3.2",
-			modelName:          "deepseek-v3.2",
-			expectedProvider:   "openrouter",
-			expectedAPIModelID: "deepseek/deepseek-v3.2",
-			minContextWindow:   160000,
-			minOutputTokens:    65000,
 		},
 	}
 

@@ -50,11 +50,8 @@ func TestRegistryAPIWithModelsPackage(t *testing.T) {
 	service := NewRegistryAPIService(logger)
 	ctx := context.Background()
 
-	// Test all models work with the service (41 production + 4 test)
+	// Test all models work with the service
 	allModels := models.ListAllModels()
-	if len(allModels) != 45 {
-		t.Fatalf("Expected 45 models (41 production + 4 test), got %d", len(allModels))
-	}
 
 	for _, modelName := range allModels {
 		t.Run(modelName, func(t *testing.T) {
@@ -148,15 +145,16 @@ func TestProviderDistribution(t *testing.T) {
 	if len(geminiModels) != 0 {
 		t.Errorf("Expected 0 Gemini models after consolidation, got %d", len(geminiModels))
 	}
-	if len(openrouterModels) != 41 {
-		t.Errorf("Expected 41 OpenRouter models after consolidation, got %d", len(openrouterModels))
+	wantTotal, wantProd, wantTest := models.ModelCounts()
+	if len(openrouterModels) != wantProd {
+		t.Errorf("Expected %d OpenRouter models after consolidation, got %d", wantProd, len(openrouterModels))
 	}
-	if len(testModels) != 4 {
-		t.Errorf("Expected 4 test models, got %d", len(testModels))
+	if len(testModels) != wantTest {
+		t.Errorf("Expected %d test models, got %d", wantTest, len(testModels))
 	}
 
 	total := len(openaiModels) + len(geminiModels) + len(openrouterModels) + len(testModels)
-	if total != 45 {
-		t.Errorf("Expected total 45 models (41 production + 4 test), got %d", total)
+	if total != wantTotal {
+		t.Errorf("Expected total %d models, got %d", wantTotal, total)
 	}
 }

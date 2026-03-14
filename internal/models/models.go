@@ -859,7 +859,7 @@ var modelDefinitions = map[string]ModelInfo{
 		Provider:        "openrouter",
 		APIModelID:      "qwen/qwen3-235b-a22b",
 		ContextWindow:   131072,
-		MaxOutputTokens: 32768,
+		MaxOutputTokens: 65536,
 		DefaultParams: map[string]interface{}{
 			"temperature": 0.7,
 			"top_p":       0.95,
@@ -867,7 +867,7 @@ var modelDefinitions = map[string]ModelInfo{
 		ParameterConstraints: map[string]ParameterConstraint{
 			"temperature": floatConstraint(0.0, 2.0),
 			"top_p":       floatConstraint(0.0, 1.0),
-			"max_tokens":  intConstraint(1, 32768),
+			"max_tokens":  intConstraint(1, 65536),
 		},
 	},
 
@@ -1035,6 +1035,19 @@ func GetProviderForModel(name string) (string, error) {
 		return "", err
 	}
 	return info.Provider, nil
+}
+
+// ModelCounts returns total, production, and test model counts.
+// Use in tests instead of hardcoding magic numbers.
+func ModelCounts() (total, production, test int) {
+	total = len(modelDefinitions)
+	for _, info := range modelDefinitions {
+		if info.Provider == "test" {
+			test++
+		}
+	}
+	production = total - test
+	return total, production, test
 }
 
 // ListAllModels returns a sorted slice of all supported model names.
