@@ -1,12 +1,29 @@
 # Project: thinktank
 
 ## Vision
-CLI tool that sends a codebase + instructions to multiple LLMs via OpenRouter and synthesizes their responses — turning any AI model into a grounded code reviewer.
 
-**North Star:** The go-to multi-model code analysis tool for engineers who want more than one AI opinion without switching tabs.
-**Target User:** Individual engineers and AI-augmented teams who use LLMs for code review, architecture validation, and deep analysis.
-**Current Focus:** Model freshness, code quality, and UX polish post-v3.4.0.
-**Key Differentiators:** Single-key OpenRouter access to 39+ models; intelligent model selection based on input size; synthesis mode that combines multiple model outputs.
+Agent-first research tool that gets multiple AI perspectives on a question or problem. Sends context + instructions to multiple LLMs via OpenRouter and synthesizes their responses — turning model diversity into deeper understanding.
+
+**North Star:** The research backbone for AI agents and engineers who need multiple perspectives, not just one model's opinion.
+**Target User:** AI agents orchestrating research workflows; engineers who want diverse model perspectives on code, architecture, and design decisions.
+**Key Differentiators:** Agent-composable CLI; single-key OpenRouter access to many models; synthesis that extracts signal from model disagreement; context-grounded analysis.
+
+## Principles
+
+- **Agent-first.** Thinktank is a tool for agents to call, not primarily a human-interactive CLI. Design for machine consumption, human readability is a bonus.
+- **Perspective diversity is the product.** The value isn't any single model's output — it's the disagreement, convergence, and synthesis across models.
+- **Grounded analysis only.** Models always see the actual context — no hallucination-prone "describe your problem" workflows.
+- **One key, many minds.** OpenRouter as the single gateway means zero vendor lock-in and instant access to new models as they ship.
+- **CLI-native composability.** Pipes, scripts, automation. A building block in larger agent workflows, not an island.
+- **Minimal moving parts.** Single binary, single env var, single config file. Complexity in the model layer, simplicity in the tool layer.
+
+## Philosophy
+
+- Model diversity is a research methodology, not a feature. Different models catch different things.
+- Synthesis > aggregation. Combining outputs into coherent insight is harder and more valuable than concatenation.
+- Resilience over speed. Retry transient failures, degrade gracefully, never lose results.
+- Ship what matters. Model registry freshness and output quality outweigh feature count.
+- Go idioms: interfaces for testability, table-driven tests, explicit error handling, no globals.
 
 ## Domain Glossary
 
@@ -19,12 +36,6 @@ CLI tool that sends a codebase + instructions to multiple LLMs via OpenRouter an
 | ConsoleWriter | `internal/logutil/` — dual-output: TUI for humans, structured JSON for machines |
 | OpenRouter | Single API gateway used for all model access (one key, unified interface) |
 | Dry-run | Preview mode: shows files and token count without making API calls |
-
-## Active Focus
-
-- **Milestone:** Now: Current Sprint — clean maintenance post-v3.4.0
-- **Key Issues:** #187, #144, #143, #142 (all P3/later)
-- **Theme:** Stability and polish; no active sprint work
 
 ## Quality Bar
 
@@ -77,5 +88,5 @@ if err != nil {
 | — | — | No retro data yet |
 
 ---
-*Last updated: 2026-02-23*
+*Last updated: 2026-03-14*
 *Updated during: /groom session*
