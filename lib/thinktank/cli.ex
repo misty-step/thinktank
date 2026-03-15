@@ -54,7 +54,7 @@ defmodule Thinktank.CLI do
   def main(args) do
     result =
       case parse_args(args) do
-        {:error, "instruction argument required"} -> try_stdin(args)
+        {:needs_stdin, parsed} -> try_stdin(parsed)
         other -> other
       end
 
@@ -93,7 +93,7 @@ defmodule Thinktank.CLI do
         {:version, parsed}
 
       rest == [] ->
-        {:error, "instruction argument required"}
+        {:needs_stdin, parsed}
 
       true ->
         {:ok, build_opts(Enum.join(rest, " "), parsed)}
@@ -116,7 +116,7 @@ defmodule Thinktank.CLI do
     })
   end
 
-  defp try_stdin(args) do
+  defp try_stdin(parsed) do
     if stdin_piped?() do
       case IO.read(:stdio, :eof) do
         data when is_binary(data) ->
@@ -125,7 +125,6 @@ defmodule Thinktank.CLI do
           if trimmed == "" do
             {:error, "instruction argument required"}
           else
-            {parsed, _rest, _invalid} = OptionParser.parse(args, @option_spec)
             {:ok, build_opts(trimmed, parsed)}
           end
 
@@ -224,8 +223,8 @@ defmodule Thinktank.CLI do
   defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
 
   defp stdin_piped? do
-    # test -t 0 returns 0 when fd 0 (stdin) is a terminal, 1 when piped
-    match?({_, 1}, System.cmd("test", ["-t", "0"], stderr_to_stdout: true))
+    # :io.columns/1 returns {:error, :enotsup} when stdin is not a terminal
+    match?({:error, _}, :io.columns(:standard_io))
   rescue
     _ -> false
   end

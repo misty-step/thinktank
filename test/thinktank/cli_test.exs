@@ -13,8 +13,8 @@ defmodule Thinktank.CLITest do
                CLI.parse_args(["review", "this", "code"])
     end
 
-    test "returns error when no instruction provided" do
-      assert {:error, "instruction argument required"} = CLI.parse_args([])
+    test "returns :needs_stdin when no instruction provided" do
+      assert {:needs_stdin, _parsed} = CLI.parse_args([])
     end
 
     test "parses --help flag" do
