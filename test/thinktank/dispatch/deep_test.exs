@@ -12,6 +12,9 @@ defmodule Thinktank.Dispatch.DeepTest do
     }
   end
 
+  # Extract the shell command string from runner args (sh -c "...")
+  defp shell_cmd(["-c", cmd]), do: cmd
+
   describe "dispatch/3 — parallel subprocess spawning" do
     test "spawns one subprocess per perspective and returns results" do
       perspectives = [
@@ -31,9 +34,11 @@ defmodule Thinktank.Dispatch.DeepTest do
 
       assert length(results) == 3
 
-      # Verify 3 subprocesses were spawned
       spawns = flush_tagged(:spawned)
       assert length(spawns) == 3
+
+      # All spawns go through sh
+      Enum.each(spawns, fn {cmd, _args, _opts} -> assert cmd == "sh" end)
     end
 
     test "returns {:ok, role, text} for successful agents" do
@@ -64,15 +69,10 @@ defmodule Thinktank.Dispatch.DeepTest do
       ]
 
       runner = fn _cmd, args, _opts ->
-        if "--model" in args do
-          model_idx = Enum.find_index(args, &(&1 == "--model"))
-          model = Enum.at(args, model_idx + 1)
+        cmd = shell_cmd(args)
 
-          if model == "model-b" do
-            {"crash", 137}
-          else
-            {"ok", 0}
-          end
+        if cmd =~ "model-b" do
+          {"crash", 137}
         else
           {"ok", 0}
         end
@@ -117,7 +117,7 @@ defmodule Thinktank.Dispatch.DeepTest do
   end
 
   describe "dispatch/3 — command arguments" do
-    test "passes correct pi args with model and tools" do
+    test "wraps pi via sh -c with correct flags" do
       perspectives = [perspective("analyst", "anthropic/claude-opus-4-6")]
       test_pid = self()
 
@@ -128,17 +128,11 @@ defmodule Thinktank.Dispatch.DeepTest do
 
       Deep.dispatch(perspectives, "review code", runner: runner)
 
-      assert_receive {:call, "pi", args, _opts}
-      assert "--no-session" in args
-      assert "--no-skills" in args
-      assert "--model" in args
-
-      model_idx = Enum.find_index(args, &(&1 == "--model"))
-      assert Enum.at(args, model_idx + 1) == "anthropic/claude-opus-4-6"
-
-      assert "--tools" in args
-      tools_idx = Enum.find_index(args, &(&1 == "--tools"))
-      assert Enum.at(args, tools_idx + 1) == "read,bash,grep,find"
+      assert_receive {:call, "sh", ["-c", shell_cmd], _opts}
+      assert shell_cmd =~ "pi --no-session --no-skills"
+      assert shell_cmd =~ "--model 'anthropic/claude-opus-4-6'"
+      assert shell_cmd =~ "--tools read,bash,grep,find"
+      assert shell_cmd =~ "< /dev/null"
     end
 
     test "includes instruction and system prompt in the prompt argument" do
@@ -159,12 +153,10 @@ defmodule Thinktank.Dispatch.DeepTest do
 
       Deep.dispatch(perspectives, "audit the auth module", runner: runner)
 
-      assert_receive {:args, args}
-      prompt_idx = Enum.find_index(args, &(&1 == "-p"))
-      prompt = Enum.at(args, prompt_idx + 1)
+      assert_receive {:args, ["-c", shell_cmd]}
 
-      assert prompt =~ "You are a security expert focused on auth."
-      assert prompt =~ "audit the auth module"
+      assert shell_cmd =~ "You are a security expert focused on auth."
+      assert shell_cmd =~ "audit the auth module"
     end
 
     test "includes file paths in the prompt when provided" do
@@ -181,12 +173,10 @@ defmodule Thinktank.Dispatch.DeepTest do
         paths: ["/src/auth.ex", "/src/router.ex"]
       )
 
-      assert_receive {:args, args}
-      prompt_idx = Enum.find_index(args, &(&1 == "-p"))
-      prompt = Enum.at(args, prompt_idx + 1)
+      assert_receive {:args, ["-c", shell_cmd]}
 
-      assert prompt =~ "/src/auth.ex"
-      assert prompt =~ "/src/router.ex"
+      assert shell_cmd =~ "/src/auth.ex"
+      assert shell_cmd =~ "/src/router.ex"
     end
 
     test "sets PI_CODING_AGENT_DIR env when agent_config_dir provided" do
@@ -263,11 +253,8 @@ defmodule Thinktank.Dispatch.DeepTest do
       test_pid = self()
 
       runner = fn _cmd, args, _opts ->
-        model_idx = Enum.find_index(args, &(&1 == "--model"))
-        model = Enum.at(args, model_idx + 1)
-        prompt_idx = Enum.find_index(args, &(&1 == "-p"))
-        prompt = Enum.at(args, prompt_idx + 1)
-        send(test_pid, {:agent, model, prompt})
+        cmd = shell_cmd(args)
+        send(test_pid, {:agent, cmd})
         {"done", 0}
       end
 
@@ -276,15 +263,35 @@ defmodule Thinktank.Dispatch.DeepTest do
       agents = flush_tagged(:agent)
       assert length(agents) == 3
 
-      models = Enum.map(agents, fn {model, _prompt} -> model end)
-      assert "model-a" in models
-      assert "model-b" in models
-      assert "model-c" in models
+      assert Enum.any?(agents, &(&1 =~ "model-a" and &1 =~ "security expert"))
+      assert Enum.any?(agents, &(&1 =~ "model-b" and &1 =~ "performance analyst"))
+      assert Enum.any?(agents, &(&1 =~ "model-c" and &1 =~ "software architect"))
+    end
+  end
 
-      prompts = Enum.map(agents, fn {_model, prompt} -> prompt end)
-      assert Enum.any?(prompts, &(&1 =~ "security expert"))
-      assert Enum.any?(prompts, &(&1 =~ "performance analyst"))
-      assert Enum.any?(prompts, &(&1 =~ "software architect"))
+  describe "build_shell_cmd/2 — shell escaping" do
+    test "escapes single quotes in prompts" do
+      perspectives = [
+        %Perspective{
+          role: "test",
+          model: "test-model",
+          system_prompt: "You're an expert."
+        }
+      ]
+
+      test_pid = self()
+
+      runner = fn _cmd, args, _opts ->
+        send(test_pid, {:args, args})
+        {"done", 0}
+      end
+
+      Deep.dispatch(perspectives, "what's the issue?", runner: runner)
+
+      assert_receive {:args, ["-c", shell_cmd]}
+      # Single quotes should be escaped
+      assert shell_cmd =~ "You'\\''re an expert."
+      assert shell_cmd =~ "what'\\''s the issue?"
     end
   end
 
