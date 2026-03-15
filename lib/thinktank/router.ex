@@ -12,7 +12,7 @@ defmodule Thinktank.Router do
 
   alias Thinktank.{OpenRouter, Perspective}
 
-  @router_model "anthropic/claude-sonnet-4-6"
+  @router_model "google/gemini-3-flash-preview"
 
   @perspective_schema %{
     "type" => "object",

@@ -4,9 +4,9 @@ defmodule Thinktank.RouterTest do
   alias Thinktank.{Router, Perspective}
 
   @available_models [
-    "anthropic/claude-sonnet-4-6",
-    "openai/gpt-4o",
-    "google/gemini-2.5-pro"
+    "anthropic/claude-sonnet-4.5",
+    "openai/gpt-5.1",
+    "deepseek/deepseek-v3.2"
   ]
 
   @test_opts [api_key: "test-key", plug: {Req.Test, Router}]
@@ -16,19 +16,19 @@ defmodule Thinktank.RouterTest do
       "perspectives" => [
         %{
           "role" => "security auditor",
-          "model" => "anthropic/claude-sonnet-4-6",
+          "model" => "anthropic/claude-sonnet-4.5",
           "system_prompt" => "You are a security auditor focused on vulnerabilities.",
           "priority" => 1
         },
         %{
           "role" => "performance engineer",
-          "model" => "openai/gpt-4o",
+          "model" => "openai/gpt-5.1",
           "system_prompt" => "You are a performance engineer focused on bottlenecks.",
           "priority" => 2
         },
         %{
           "role" => "API designer",
-          "model" => "google/gemini-2.5-pro",
+          "model" => "deepseek/deepseek-v3.2",
           "system_prompt" => "You are an API designer focused on ergonomics.",
           "priority" => 3
         }
@@ -51,7 +51,7 @@ defmodule Thinktank.RouterTest do
         },
         %{
           "role" => "reviewer",
-          "model" => "anthropic/claude-sonnet-4-6",
+          "model" => "anthropic/claude-sonnet-4.5",
           "system_prompt" => "You review.",
           "priority" => 2
         }
@@ -120,7 +120,7 @@ defmodule Thinktank.RouterTest do
         )
 
       assert length(perspectives) == 1
-      assert hd(perspectives).model == "anthropic/claude-sonnet-4-6"
+      assert hd(perspectives).model == "anthropic/claude-sonnet-4.5"
     end
 
     test "falls back to default council on API error" do
