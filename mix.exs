@@ -28,6 +28,7 @@ defmodule Thinktank.MixProject do
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
       {:muontrap, "~> 1.6"},
+      {:plug, "~> 1.16", only: :test},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test}
     ]
