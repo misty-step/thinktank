@@ -39,10 +39,8 @@ agent_config/auth.json
 *.old
 *.tmp
 
-# Coverage
-*.out
-*.html
-coverage.out
+# Coverage (Elixir reports go to /cover/ which is already ignored)
+*.coverdata
 
 # Artifacts and caches
 .artifacts/
