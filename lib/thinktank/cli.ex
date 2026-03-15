@@ -3,11 +3,25 @@ defmodule Thinktank.CLI do
   CLI entry point for the thinktank escript.
 
   Parses arguments, validates input, and dispatches to the
-  appropriate mode (quick or deep).
+  appropriate mode (quick or deep). Agent-friendly: structured
+  JSON output, meaningful exit codes, no interactive prompts.
   """
 
-  @exit_success 0
-  @exit_input_error 6
+  @exit_codes %{
+    success: 0,
+    generic_error: 1,
+    auth_error: 2,
+    rate_limit: 3,
+    invalid_request: 4,
+    server_error: 5,
+    network_error: 6,
+    input_error: 7,
+    content_filtered: 8,
+    insufficient_credits: 9,
+    cancelled: 10
+  }
+
+  def exit_codes, do: @exit_codes
 
   @doc """
   Escript entry point.
@@ -16,16 +30,16 @@ defmodule Thinktank.CLI do
     case parse_args(args) do
       {:help, _} ->
         print_usage()
-        System.halt(@exit_success)
+        System.halt(@exit_codes.success)
 
       {:version, _} ->
         IO.puts("thinktank #{version()}")
-        System.halt(@exit_success)
+        System.halt(@exit_codes.success)
 
       {:error, message} ->
         IO.puts(:stderr, "Error: #{message}")
         IO.puts(:stderr, "Run 'thinktank --help' for usage.")
-        System.halt(@exit_input_error)
+        System.halt(@exit_codes.input_error)
 
       {:ok, opts} ->
         run(opts)
@@ -71,32 +85,76 @@ defmodule Thinktank.CLI do
       parsed[:version] ->
         {:version, parsed}
 
-      rest == [] ->
-        {:error, "instruction argument required"}
-
       true ->
-        instruction = Enum.join(rest, " ")
+        case read_instruction(rest) do
+          {:ok, instruction} ->
+            {:ok, build_opts(instruction, parsed)}
 
-        opts = %{
-          instruction: instruction,
-          paths: Keyword.get_values(parsed, :paths),
-          mode: if(parsed[:quick], do: :quick, else: :deep),
-          json: parsed[:json] || false,
-          output: parsed[:output],
-          models: parse_csv(parsed[:models]),
-          roles: parse_csv(parsed[:roles]),
-          dry_run: parsed[:dry_run] || false,
-          no_synthesis: parsed[:no_synthesis] || false,
-          perspectives: parsed[:perspectives] || 4
-        }
-
-        {:ok, opts}
+          {:error, _} = err ->
+            err
+        end
     end
+  end
+
+  @doc """
+  Reads the instruction from positional args or stdin (if piped).
+  """
+  def read_instruction(rest) when rest != [] do
+    {:ok, Enum.join(rest, " ")}
+  end
+
+  def read_instruction([]) do
+    if stdin_piped?() do
+      case IO.read(:stdio, :eof) do
+        {:error, _} ->
+          {:error, "instruction argument required"}
+
+        :eof ->
+          {:error, "instruction argument required"}
+
+        data when is_binary(data) ->
+          trimmed = String.trim(data)
+          if trimmed == "", do: {:error, "instruction argument required"}, else: {:ok, trimmed}
+      end
+    else
+      {:error, "instruction argument required"}
+    end
+  end
+
+  @doc """
+  Returns the JSON string for dry-run output.
+  """
+  def dry_run_output(opts) do
+    Jason.encode!(%{
+      mode: "dry_run",
+      instruction: opts.instruction,
+      paths: opts.paths,
+      perspectives: opts.perspectives,
+      dispatch_mode: to_string(opts.mode),
+      models: opts.models,
+      roles: opts.roles,
+      no_synthesis: opts.no_synthesis
+    })
+  end
+
+  defp build_opts(instruction, parsed) do
+    %{
+      instruction: instruction,
+      paths: parsed |> Keyword.get_values(:paths) |> Enum.map(&Path.expand/1),
+      mode: if(parsed[:quick], do: :quick, else: :deep),
+      json: parsed[:json] || false,
+      output: parsed[:output],
+      models: parse_csv(parsed[:models]),
+      roles: parse_csv(parsed[:roles]),
+      dry_run: parsed[:dry_run] || false,
+      no_synthesis: parsed[:no_synthesis] || false,
+      perspectives: parsed[:perspectives] || 4
+    }
   end
 
   defp run(%{dry_run: true} = opts) do
     if opts.json do
-      IO.puts(Jason.encode!(%{mode: "dry_run", instruction: opts.instruction, paths: opts.paths}))
+      IO.puts(dry_run_output(opts))
     else
       IO.puts("Dry run: would dispatch #{opts.perspectives} perspectives in #{opts.mode} mode")
       IO.puts("Instruction: #{opts.instruction}")
@@ -106,12 +164,12 @@ defmodule Thinktank.CLI do
       end
     end
 
-    System.halt(@exit_success)
+    System.halt(@exit_codes.success)
   end
 
   defp run(_opts) do
     IO.puts(:stderr, "Error: not yet implemented")
-    System.halt(1)
+    System.halt(@exit_codes.generic_error)
   end
 
   defp print_usage do
@@ -120,9 +178,10 @@ defmodule Thinktank.CLI do
 
     USAGE
       thinktank <instruction> [options]
+      echo "instruction" | thinktank [options]
 
     ARGUMENTS
-      <instruction>    Research question or task (required)
+      <instruction>    Research question or task (required, or pipe via stdin)
 
     OPTIONS
       --paths PATH     Files/dirs for agent context (repeatable)
@@ -138,11 +197,24 @@ defmodule Thinktank.CLI do
       --help, -h       Show this help
       --version, -v    Show version
 
+    EXIT CODES
+      0   Success
+      1   Generic error
+      2   Authentication error
+      3   Rate limit exceeded
+      4   Invalid request
+      5   Server error
+      6   Network error
+      7   Input error
+      8   Content filtered
+      9   Insufficient credits
+      10  Cancelled
+
     EXAMPLES
       thinktank "review this auth flow" --paths ./src/auth
       thinktank "suggest project names" --quick
       thinktank "audit for security issues" --paths ./src --perspectives 5
-      thinktank "compare approaches" --models claude-opus-4-6,gpt-5.4 --quick
+      echo "compare approaches" | thinktank --models claude-opus-4-6,gpt-5.4 --quick
     """)
   end
 
@@ -150,4 +222,13 @@ defmodule Thinktank.CLI do
   defp parse_csv(str), do: str |> String.split(",") |> Enum.map(&String.trim/1)
 
   defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
+
+  defp stdin_piped? do
+    case :io.getopts(:standard_io) do
+      opts when is_list(opts) -> opts[:binary] == true
+      _ -> false
+    end
+  rescue
+    _ -> false
+  end
 end
