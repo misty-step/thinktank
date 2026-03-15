@@ -2,88 +2,90 @@
 
 ## Purpose
 
-CLI tool that analyzes codebases using multiple LLMs via OpenRouter. Sends instructions + code to models, saves responses, optionally synthesizes.
+Agent-first research tool for multi-perspective AI analysis. Routes questions through an LLM-powered perspective router, dispatches agents in quick (parallel API) or deep (Pi subprocess) mode, produces kill-safe structured artifacts.
 
 ## Architecture Map
 
 ```
-cmd/thinktank/main.go          → CLI entry, flag parsing
-internal/cli/run.go:50         → Run() orchestrates execution
-internal/thinktank/            → Core processing logic
-  orchestrator/orchestrator.go → Model coordination
-  modelproc/processor.go       → Individual model calls
-internal/providers/openrouter/ → API client
-internal/models/models.go      → Model definitions (ADD NEW MODELS HERE)
-internal/logutil/              → Console output + TUI components
-internal/fileutil/             → File filtering, gitignore
+lib/thinktank/cli.ex            → Escript entry, arg parsing, dispatch
+lib/thinktank/router.ex         → LLM-powered perspective generation
+lib/thinktank/perspective.ex    → Perspective struct (role + model + prompt)
+lib/thinktank/dispatch/quick.ex → Parallel OpenRouter API calls
+lib/thinktank/dispatch/deep.ex  → Pi subprocess orchestration via MuonTrap
+lib/thinktank/openrouter.ex     → OpenRouter HTTP client (Req)
+lib/thinktank/synthesis.ex      → Structured fan-in with retry
+lib/thinktank/output.ex         → Kill-safe artifact writer + manifest
+lib/thinktank/application.ex    → OTP supervision tree
 ```
 
-**Start here:** `internal/cli/run.go:50` - the `Run()` function shows the full execution flow.
+**Start here:** `lib/thinktank/cli.ex` — the `main/1` function shows the full execution flow.
 
 ## Run & Test
 
 ```bash
-# Build & run
-go build ./... && thinktank instructions.txt ./src --dry-run
+# Build escript
+mix escript.build
 
-# Test (race detection required before commit)
-go test -race ./...
+# Run
+./thinktank "research question" --paths ./src --quick --dry-run
 
-# Coverage (79% minimum)
-./scripts/check-coverage.sh
+# Test
+mix test
 
-# Lint (fix all violations)
-golangci-lint run ./...
+# Format: auto-fix locally, check in CI
+mix format                    # Apply formatting
+mix format --check-formatted  # Verify (CI gate)
 
-# Vulnerability scan (hard fail)
-govulncheck -scan=module
+# Compile with warnings-as-errors
+mix compile --warnings-as-errors
+
+# Dialyzer (when available)
+mix dialyzer
 ```
 
-**Required env:** `OPENROUTER_API_KEY` (single key for all models)
+**Required env:** `OPENROUTER_API_KEY` or `THINKTANK_OPENROUTER_API_KEY`
+
+### Legacy Go (archiving — see #250)
+
+```bash
+go build ./... && go test -race ./...
+golangci-lint run ./...
+./scripts/check-coverage.sh   # 79% minimum
+govulncheck -scan=module
+```
 
 ## Quality & Pitfalls
 
 ### Definition of Done
-- Tests pass with `-race`
-- Coverage ≥79%
-- golangci-lint clean
+- `mix test` passes
+- `mix format --check-formatted` clean
+- `mix compile --warnings-as-errors` clean
 - Conventional commit message
 
 ### Critical Invariants
-- **No error suppression**: Never ignore errors with `_`. Fix them.
+- **No error suppression**: Handle every `{:error, _}` explicitly
 - **TDD**: Write tests first, then implement
-- **Direct function testing**: Use dependency injection, not subprocess tests
-- **Dual logging**: ConsoleWriter for users, structured JSON for debugging
+- **Run `mix format` before push**
+- **Kill-safe output**: Atomic manifest writes (tmp + rename) in `Output`
+- **Defensive deserialization**: Type guards and nil filtering for LLM structured output
 
 ### Model IDs — Mechanical Enforcement
-- **Single source of truth**: `internal/models/models.go` — ALL model IDs come from here
-- **NEVER write a model ID from memory** — always read models.go first
+- **Default models live in** `lib/thinktank/cli.ex` `@default_models`
+- **Go registry**: `internal/models/models.go` — legacy source of truth until #250 archives Go
 - **Pre-commit hook**: `scripts/validate-elixir-models.sh` rejects Elixir commits with model IDs not in Go registry
-- **If models.go is stale**: WebSearch OpenRouter models page, update models.go, then use the ID
-- **Validation**: `scripts/validate-elixir-models.sh` (run manually or via pre-commit)
-
-### Adding New Models
-1. Edit `internal/models/models.go` → add to `ModelDefinitions` map
-2. Run `go test ./internal/models && go test ./...`
-3. Run `scripts/validate-elixir-models.sh` to verify cross-codebase consistency
-4. Test: `thinktank instructions.txt ./src --dry-run`
-
-### TUI/Terminal Output (internal/logutil)
-- Use `runewidth.StringWidth()` for alignment, not `len()` (Unicode width ≠ bytes)
-- Use `AdaptiveColor{Light: dark, Dark: light}` for accessibility
-- Provide ASCII fallbacks when `!isInteractive` (CI/logs)
-- Structs with goroutines need `Stop()` method + `t.Cleanup(obj.Stop)` in tests
-- Render methods are lock-free; caller owns serialization (consoleWriter)
+- **If models are stale**: WebSearch OpenRouter models page, update `lib/thinktank/cli.ex` and `internal/models/models.go`, then use the ID
 
 ### Pre-commit Hooks
 ```bash
 pre-commit install  # One-time setup
 ```
-Timeouts: lint 4min, coverage 8min. Skip with `--no-verify` (sparingly).
+Hooks: gitleaks, trailing-whitespace, mix-format, validate-elixir-models.
+Legacy (until #250): go-fmt, go-vet.
 
 ## References
 
-- [README.md](README.md) - Usage, CLI flags, model list
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - License policy, detailed setup
-- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common issues
-- [AGENTS.md](AGENTS.md) - Coding style, testing guidelines
+- [README.md](README.md) — Usage, CLI flags, model list
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — License policy, detailed setup
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — Common issues
+- [.groom/BACKLOG.md](.groom/BACKLOG.md) — Prioritized backlog
+- [.groom/plan-*.md](.groom/) — Sprint plans
