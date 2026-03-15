@@ -21,6 +21,16 @@ repos:
     -   id: go-vet
         exclude: ^internal/(e2e|lint)/
 
+# Elixir formatting — mirrors CI `mix format --check-formatted`
+-   repo: local
+    hooks:
+    -   id: mix-format
+        name: mix-format
+        entry: mix format --check-formatted
+        language: system
+        files: \.exs?$
+        pass_filenames: false
+
 # Elixir model ID validation — prevents stale/deprecated model IDs
 -   repo: local
     hooks:
