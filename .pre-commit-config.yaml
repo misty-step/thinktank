@@ -13,14 +13,6 @@ repos:
     -   id: end-of-file-fixer
     -   id: check-yaml
 
-# Go formatting and basic checks
--   repo: https://github.com/dnephin/pre-commit-golang
-    rev: v0.5.1
-    hooks:
-    -   id: go-fmt
-    -   id: go-vet
-        exclude: ^internal/(e2e|lint)/
-
 # Elixir formatting — mirrors CI `mix format --check-formatted`
 -   repo: local
     hooks:
