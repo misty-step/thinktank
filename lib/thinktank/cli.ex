@@ -7,7 +7,7 @@ defmodule Thinktank.CLI do
   JSON output, meaningful exit codes, no interactive prompts.
   """
 
-  alias Thinktank.{Dispatch.Quick, Output, Router}
+  alias Thinktank.{Dispatch.Quick, Output, Router, Synthesis}
 
   @default_models [
     "anthropic/claude-sonnet-4",
@@ -191,6 +191,16 @@ defmodule Thinktank.CLI do
 
         for {role, text} <- successes do
           Output.write_perspective(output_dir, role, text)
+        end
+
+        unless opts.no_synthesis or successes == [] do
+          case Synthesis.synthesize(successes, opts.instruction) do
+            {:ok, synthesis_text} ->
+              Output.write_synthesis(output_dir, synthesis_text)
+
+            {:error, _} ->
+              IO.puts(:stderr, "Warning: synthesis failed after retries")
+          end
         end
 
         Output.complete_run(output_dir)
