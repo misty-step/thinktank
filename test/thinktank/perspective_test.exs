@@ -7,14 +7,14 @@ defmodule Thinktank.PerspectiveTest do
     test "builds struct from complete map" do
       map = %{
         "role" => "security auditor",
-        "model" => "anthropic/claude-sonnet-4-6",
+        "model" => "anthropic/claude-sonnet-4.6",
         "system_prompt" => "You are a security auditor.",
         "priority" => 1
       }
 
       assert %Perspective{
                role: "security auditor",
-               model: "anthropic/claude-sonnet-4-6",
+               model: "anthropic/claude-sonnet-4.6",
                system_prompt: "You are a security auditor.",
                priority: 1
              } = Perspective.from_map(map)

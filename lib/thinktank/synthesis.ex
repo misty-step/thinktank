@@ -12,7 +12,8 @@ defmodule Thinktank.Synthesis do
 
   alias Thinktank.OpenRouter
 
-  @default_model "anthropic/claude-sonnet-4-6"
+  # Most capable Anthropic model with 1M context — verified via OpenRouter API
+  @default_model "anthropic/claude-sonnet-4.6"
   @max_attempts 3
   @default_backoff_base 1000
 

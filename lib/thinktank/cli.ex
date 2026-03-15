@@ -9,11 +9,13 @@ defmodule Thinktank.CLI do
 
   alias Thinktank.{Dispatch.Quick, Output, Router, Synthesis}
 
+  # Verified against OpenRouter API (March 2026)
+  # curl -s https://openrouter.ai/api/v1/models | jq '.data[].id'
   @default_models [
-    "anthropic/claude-sonnet-4-6",
-    "google/gemini-3-flash-preview",
+    "anthropic/claude-sonnet-4.6",
     "openai/gpt-5.4",
-    "google/gemini-3.1-pro-preview"
+    "google/gemini-3.1-pro-preview",
+    "deepseek/deepseek-v3.2"
   ]
 
   @exit_codes %{

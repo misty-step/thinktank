@@ -144,10 +144,10 @@ defmodule Thinktank.SynthesisTest do
 
       Synthesis.synthesize(@perspectives, "review this",
         openrouter_opts: @test_opts,
-        synthesis_model: "anthropic/claude-opus-4-6"
+        synthesis_model: "anthropic/claude-opus-4.6"
       )
 
-      assert_receive {:model_used, "anthropic/claude-opus-4-6"}
+      assert_receive {:model_used, "anthropic/claude-opus-4.6"}
     end
 
     test "defaults to most capable model when none specified" do
