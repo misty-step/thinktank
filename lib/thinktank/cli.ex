@@ -7,7 +7,7 @@ defmodule Thinktank.CLI do
   JSON output, meaningful exit codes, no interactive prompts.
   """
 
-  alias Thinktank.{Dispatch.Quick, Output, Router, Synthesis}
+  alias Thinktank.{Dispatch.Deep, Dispatch.Quick, Output, Router, Synthesis}
 
   # Verified against OpenRouter API (March 2026)
   # curl -s https://openrouter.ai/api/v1/models | jq '.data[].id'
@@ -222,9 +222,49 @@ defmodule Thinktank.CLI do
     end
   end
 
-  defp run(_opts) do
-    IO.puts(:stderr, "Error: deep mode not yet implemented")
-    System.halt(@exit_codes.generic_error)
+  defp run(%{mode: :deep} = opts) do
+    case resolve_perspectives(opts) do
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        System.halt(@exit_codes.input_error)
+
+      {:ok, perspectives} ->
+        output_dir = opts.output || generate_output_dir()
+        roles = Enum.map(perspectives, & &1.role)
+        Output.init_run(output_dir, roles)
+
+        results = Deep.dispatch(perspectives, opts.instruction, paths: opts.paths)
+        successes = for {:ok, role, text} <- results, do: {role, text}
+
+        for {role, text} <- successes do
+          Output.write_perspective(output_dir, role, text)
+        end
+
+        unless opts.no_synthesis or successes == [] do
+          case Synthesis.synthesize(successes, opts.instruction) do
+            {:ok, synthesis_text} ->
+              Output.write_synthesis(output_dir, synthesis_text)
+
+            {:error, _} ->
+              IO.puts(:stderr, "Warning: synthesis failed after retries")
+          end
+        end
+
+        Output.complete_run(output_dir)
+
+        if opts.json do
+          IO.puts(Jason.encode!(Output.result_envelope(output_dir)))
+        else
+          IO.puts("Output: #{output_dir}")
+        end
+
+        if successes == [] do
+          IO.puts(:stderr, "Error: all perspective dispatches failed")
+          System.halt(@exit_codes.generic_error)
+        else
+          System.halt(@exit_codes.success)
+        end
+    end
   end
 
   defp resolve_perspectives(opts) do
