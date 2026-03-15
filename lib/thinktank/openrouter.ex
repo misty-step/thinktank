@@ -58,10 +58,24 @@ defmodule Thinktank.OpenRouter do
   end
 
   defp require_key(opts) do
-    case Keyword.get(opts, :api_key, System.get_env("OPENROUTER_API_KEY")) do
-      nil -> {:error, %{category: :missing_api_key, message: "OPENROUTER_API_KEY not set"}}
-      "" -> {:error, %{category: :missing_api_key, message: "OPENROUTER_API_KEY is empty"}}
-      key -> {:ok, key}
+    key =
+      Keyword.get_lazy(opts, :api_key, fn ->
+        System.get_env("THINKTANK_OPENROUTER_API_KEY") || System.get_env("OPENROUTER_API_KEY")
+      end)
+
+    case key do
+      nil ->
+        {:error,
+         %{
+           category: :missing_api_key,
+           message: "Set THINKTANK_OPENROUTER_API_KEY or OPENROUTER_API_KEY"
+         }}
+
+      "" ->
+        {:error, %{category: :missing_api_key, message: "API key is empty"}}
+
+      key ->
+        {:ok, key}
     end
   end
 
