@@ -32,9 +32,9 @@ mix escript.build
 # Test
 mix test
 
-# Format (required before push)
-mix format
-mix format --check-formatted
+# Format: auto-fix locally, check in CI
+mix format                    # Apply formatting
+mix format --check-formatted  # Verify (CI gate)
 
 # Compile with warnings-as-errors
 mix compile --warnings-as-errors
@@ -73,13 +73,14 @@ govulncheck -scan=module
 - **Default models live in** `lib/thinktank/cli.ex` `@default_models`
 - **Go registry**: `internal/models/models.go` — legacy source of truth until #250 archives Go
 - **Pre-commit hook**: `scripts/validate-elixir-models.sh` rejects Elixir commits with model IDs not in Go registry
-- **If models are stale**: WebSearch OpenRouter models page, update both, then use the ID
+- **If models are stale**: WebSearch OpenRouter models page, update `lib/thinktank/cli.ex` and `internal/models/models.go`, then use the ID
 
 ### Pre-commit Hooks
 ```bash
 pre-commit install  # One-time setup
 ```
-Hooks: gitleaks, trailing-whitespace, go-fmt, go-vet, mix-format, validate-elixir-models.
+Hooks: gitleaks, trailing-whitespace, mix-format, validate-elixir-models.
+Legacy (until #250): go-fmt, go-vet.
 
 ## References
 
