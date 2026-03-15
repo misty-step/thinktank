@@ -181,6 +181,74 @@ defmodule Thinktank.RouterTest do
                  openrouter_opts: @test_opts
                )
     end
+
+    test "returns {:error, :no_models} when available_models is empty" do
+      assert {:error, :no_models} =
+               Router.generate_perspectives(
+                 "Review this",
+                 ["lib/app.ex"],
+                 available_models: [],
+                 openrouter_opts: @test_opts
+               )
+    end
+
+    test "returns {:error, :no_models} when no opts provided" do
+      assert {:error, :no_models} = Router.generate_perspectives("Review this", ["lib/app.ex"])
+    end
+
+    test "falls back to defaults when response lacks perspectives key" do
+      Req.Test.stub(Router, fn conn ->
+        Req.Test.json(conn, %{
+          "choices" => [%{"message" => %{"content" => Jason.encode!(%{"wrong_key" => []})}}]
+        })
+      end)
+
+      {:ok, perspectives} =
+        Router.generate_perspectives(
+          "Review this",
+          ["lib/app.ex"],
+          available_models: @available_models,
+          openrouter_opts: @test_opts
+        )
+
+      assert length(perspectives) == length(@available_models)
+    end
+
+    test "skips malformed perspective items from LLM response" do
+      Req.Test.stub(Router, fn conn ->
+        perspectives = %{
+          "perspectives" => [
+            %{
+              "role" => "valid",
+              "model" => "anthropic/claude-sonnet-4-6",
+              "system_prompt" => "ok",
+              "priority" => 1
+            },
+            %{
+              "role" => 123,
+              "model" => "anthropic/claude-sonnet-4-6",
+              "system_prompt" => "bad type"
+            },
+            %{"missing" => "keys"}
+          ]
+        }
+
+        Req.Test.json(conn, %{
+          "choices" => [%{"message" => %{"content" => Jason.encode!(perspectives)}}]
+        })
+      end)
+
+      {:ok, perspectives} =
+        Router.generate_perspectives(
+          "Review this",
+          ["lib/app.ex"],
+          available_models: @available_models,
+          openrouter_opts: @test_opts
+        )
+
+      assert length(perspectives) == 1
+      assert hd(perspectives).role == "valid"
+    end
   end
 
   describe "manual_perspectives/2" do
@@ -196,6 +264,10 @@ defmodule Thinktank.RouterTest do
         assert p.model in @available_models
         assert String.contains?(p.system_prompt, p.role)
       end
+    end
+
+    test "returns [] when available_models is empty" do
+      assert [] == Router.manual_perspectives(["analyst"], [])
     end
 
     test "round-robins models across roles" do

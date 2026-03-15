@@ -20,6 +20,19 @@ defmodule Thinktank.PerspectiveTest do
              } = Perspective.from_map(map)
     end
 
+    test "returns nil for malformed map" do
+      assert nil == Perspective.from_map(%{"missing" => "keys"})
+    end
+
+    test "returns nil when values have wrong types" do
+      assert nil ==
+               Perspective.from_map(%{
+                 "role" => 123,
+                 "model" => "some/model",
+                 "system_prompt" => "ok"
+               })
+    end
+
     test "defaults priority to 0" do
       map = %{
         "role" => "analyst",

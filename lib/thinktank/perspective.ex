@@ -22,8 +22,9 @@ defmodule Thinktank.Perspective do
 
   Expects keys: "role", "model", "system_prompt", and optionally "priority".
   """
-  @spec from_map(map()) :: t()
-  def from_map(%{"role" => role, "model" => model, "system_prompt" => prompt} = map) do
+  @spec from_map(map()) :: t() | nil
+  def from_map(%{"role" => role, "model" => model, "system_prompt" => prompt} = map)
+      when is_binary(role) and is_binary(model) and is_binary(prompt) do
     %__MODULE__{
       role: role,
       model: model,
@@ -31,4 +32,6 @@ defmodule Thinktank.Perspective do
       priority: Map.get(map, "priority", 0)
     }
   end
+
+  def from_map(_), do: nil
 end
