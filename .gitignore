@@ -28,10 +28,12 @@ Thumbs.db
 # Logs
 *.log
 
-# Environment
+# Environment and credentials
 .env
+agent_config/auth.json
 
 # Temporary files
+/tmp/
 *.bak*
 *~
 *.backup
