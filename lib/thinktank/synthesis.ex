@@ -12,8 +12,8 @@ defmodule Thinktank.Synthesis do
 
   alias Thinktank.OpenRouter
 
-  # Most capable Anthropic model with 1M context — verified via OpenRouter API
-  @default_model "anthropic/claude-sonnet-4.6"
+  # Strong reasoning, 1M context, $2/$12 per M — verified via OpenRouter API
+  @default_model "google/gemini-3.1-pro-preview"
   @max_attempts 3
   @default_backoff_base 1000
 
