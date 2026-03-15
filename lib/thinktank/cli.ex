@@ -7,6 +7,15 @@ defmodule Thinktank.CLI do
   JSON output, meaningful exit codes, no interactive prompts.
   """
 
+  alias Thinktank.{Dispatch.Quick, Output, Router}
+
+  @default_models [
+    "anthropic/claude-sonnet-4",
+    "google/gemini-2.5-flash",
+    "openai/gpt-4.1",
+    "deepseek/deepseek-chat-v3-0324:free"
+  ]
+
   @exit_codes %{
     success: 0,
     generic_error: 1,
@@ -166,9 +175,63 @@ defmodule Thinktank.CLI do
     System.halt(@exit_codes.success)
   end
 
+  defp run(%{mode: :quick} = opts) do
+    case resolve_perspectives(opts) do
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        System.halt(@exit_codes.input_error)
+
+      {:ok, perspectives} ->
+        output_dir = opts.output || generate_output_dir()
+        roles = Enum.map(perspectives, & &1.role)
+        Output.init_run(output_dir, roles)
+
+        results = Quick.dispatch(perspectives, opts.instruction, paths: opts.paths)
+        successes = for {:ok, role, text} <- results, do: {role, text}
+
+        for {role, text} <- successes do
+          Output.write_perspective(output_dir, role, text)
+        end
+
+        Output.complete_run(output_dir)
+
+        if opts.json do
+          IO.puts(Jason.encode!(Output.result_envelope(output_dir)))
+        else
+          IO.puts("Output: #{output_dir}")
+        end
+
+        if successes == [] do
+          IO.puts(:stderr, "Error: all perspective dispatches failed")
+          System.halt(@exit_codes.generic_error)
+        else
+          System.halt(@exit_codes.success)
+        end
+    end
+  end
+
   defp run(_opts) do
-    IO.puts(:stderr, "Error: not yet implemented")
+    IO.puts(:stderr, "Error: deep mode not yet implemented")
     System.halt(@exit_codes.generic_error)
+  end
+
+  defp resolve_perspectives(opts) do
+    models = if opts.models != [], do: opts.models, else: @default_models
+
+    if opts.roles != [] do
+      {:ok, Router.manual_perspectives(opts.roles, models)}
+    else
+      Router.generate_perspectives(opts.instruction, opts.paths,
+        available_models: models,
+        perspectives: opts.perspectives
+      )
+    end
+  end
+
+  defp generate_output_dir do
+    timestamp = DateTime.utc_now() |> Calendar.strftime("%Y%m%d-%H%M%S")
+    suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
+    Path.join(System.tmp_dir!(), "thinktank-#{timestamp}-#{suffix}")
   end
 
   defp print_usage do
