@@ -338,8 +338,10 @@ defmodule Thinktank.CLI do
 
   defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
 
-  @doc false
-  def agent_config_dir do
+  # Resolve agent config directory for deep mode Pi agents.
+  # Checks THINKTANK_AGENT_CONFIG env var first, then CWD/agent_config.
+  # Returns nil when no config directory is found (Deep runs without it).
+  defp agent_config_dir do
     case System.get_env("THINKTANK_AGENT_CONFIG") do
       nil ->
         dir = Path.join(File.cwd!(), "agent_config")
