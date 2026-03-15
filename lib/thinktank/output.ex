@@ -66,6 +66,26 @@ defmodule Thinktank.Output do
   end
 
   @doc """
+  Write synthesis output and update manifest.
+  """
+  @spec write_synthesis(Path.t(), String.t()) :: :ok
+  def write_synthesis(output_dir, content) do
+    filename = "synthesis.md"
+    File.write!(Path.join(output_dir, filename), content)
+
+    manifest = read_manifest(output_dir)
+
+    write_manifest(
+      output_dir,
+      Map.put(manifest, "synthesis", %{
+        "status" => "complete",
+        "file" => filename,
+        "completed_at" => now_iso8601()
+      })
+    )
+  end
+
+  @doc """
   Finalize the run. Sets status to "complete" if all perspectives
   finished, "partial" otherwise.
   """
@@ -101,12 +121,23 @@ defmodule Thinktank.Output do
         %{role: p["role"], status: p["status"], file: p["file"]}
       end)
 
-    %{
+    base = %{
       output_dir: output_dir,
       status: manifest["status"],
       perspectives: perspectives,
       files: files
     }
+
+    case manifest["synthesis"] do
+      %{"file" => file} when is_binary(file) ->
+        Map.put(base, :synthesis, %{
+          status: manifest["synthesis"]["status"],
+          file: file
+        })
+
+      _ ->
+        base
+    end
   end
 
   @doc """

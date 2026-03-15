@@ -4,7 +4,7 @@ defmodule Thinktank.RouterTest do
   alias Thinktank.{Router, Perspective}
 
   @available_models [
-    "anthropic/claude-sonnet-4-6",
+    "anthropic/claude-sonnet-4.6",
     "openai/gpt-5.4",
     "moonshotai/kimi-k2.5"
   ]
@@ -16,7 +16,7 @@ defmodule Thinktank.RouterTest do
       "perspectives" => [
         %{
           "role" => "security auditor",
-          "model" => "anthropic/claude-sonnet-4-6",
+          "model" => "anthropic/claude-sonnet-4.6",
           "system_prompt" => "You are a security auditor focused on vulnerabilities.",
           "priority" => 1
         },
@@ -51,7 +51,7 @@ defmodule Thinktank.RouterTest do
         },
         %{
           "role" => "reviewer",
-          "model" => "anthropic/claude-sonnet-4-6",
+          "model" => "anthropic/claude-sonnet-4.6",
           "system_prompt" => "You review.",
           "priority" => 2
         }
@@ -120,7 +120,7 @@ defmodule Thinktank.RouterTest do
         )
 
       assert length(perspectives) == 1
-      assert hd(perspectives).model == "anthropic/claude-sonnet-4-6"
+      assert hd(perspectives).model == "anthropic/claude-sonnet-4.6"
     end
 
     test "falls back to default council on API error" do
@@ -220,13 +220,13 @@ defmodule Thinktank.RouterTest do
           "perspectives" => [
             %{
               "role" => "valid",
-              "model" => "anthropic/claude-sonnet-4-6",
+              "model" => "anthropic/claude-sonnet-4.6",
               "system_prompt" => "ok",
               "priority" => 1
             },
             %{
               "role" => 123,
-              "model" => "anthropic/claude-sonnet-4-6",
+              "model" => "anthropic/claude-sonnet-4.6",
               "system_prompt" => "bad type"
             },
             %{"missing" => "keys"}

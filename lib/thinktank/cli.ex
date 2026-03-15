@@ -7,13 +7,15 @@ defmodule Thinktank.CLI do
   JSON output, meaningful exit codes, no interactive prompts.
   """
 
-  alias Thinktank.{Dispatch.Quick, Output, Router}
+  alias Thinktank.{Dispatch.Quick, Output, Router, Synthesis}
 
+  # Verified against OpenRouter API (March 2026)
+  # curl -s https://openrouter.ai/api/v1/models | jq '.data[].id'
   @default_models [
-    "anthropic/claude-sonnet-4",
-    "google/gemini-2.5-flash",
-    "openai/gpt-4.1",
-    "deepseek/deepseek-chat-v3-0324:free"
+    "anthropic/claude-sonnet-4.6",
+    "openai/gpt-5.4",
+    "google/gemini-3.1-pro-preview",
+    "deepseek/deepseek-v3.2"
   ]
 
   @exit_codes %{
@@ -191,6 +193,16 @@ defmodule Thinktank.CLI do
 
         for {role, text} <- successes do
           Output.write_perspective(output_dir, role, text)
+        end
+
+        unless opts.no_synthesis or successes == [] do
+          case Synthesis.synthesize(successes, opts.instruction) do
+            {:ok, synthesis_text} ->
+              Output.write_synthesis(output_dir, synthesis_text)
+
+            {:error, _} ->
+              IO.puts(:stderr, "Warning: synthesis failed after retries")
+          end
         end
 
         Output.complete_run(output_dir)

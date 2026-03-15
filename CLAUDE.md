@@ -55,10 +55,18 @@ govulncheck -scan=module
 - **Direct function testing**: Use dependency injection, not subprocess tests
 - **Dual logging**: ConsoleWriter for users, structured JSON for debugging
 
+### Model IDs — Mechanical Enforcement
+- **Single source of truth**: `internal/models/models.go` — ALL model IDs come from here
+- **NEVER write a model ID from memory** — always read models.go first
+- **Pre-commit hook**: `scripts/validate-elixir-models.sh` rejects Elixir commits with model IDs not in Go registry
+- **If models.go is stale**: WebSearch OpenRouter models page, update models.go, then use the ID
+- **Validation**: `scripts/validate-elixir-models.sh` (run manually or via pre-commit)
+
 ### Adding New Models
 1. Edit `internal/models/models.go` → add to `ModelDefinitions` map
 2. Run `go test ./internal/models && go test ./...`
-3. Test: `thinktank instructions.txt ./src --dry-run`
+3. Run `scripts/validate-elixir-models.sh` to verify cross-codebase consistency
+4. Test: `thinktank instructions.txt ./src --dry-run`
 
 ### TUI/Terminal Output (internal/logutil)
 - Use `runewidth.StringWidth()` for alignment, not `len()` (Unicode width ≠ bytes)

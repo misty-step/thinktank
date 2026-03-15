@@ -20,3 +20,13 @@ repos:
     -   id: go-fmt
     -   id: go-vet
         exclude: ^internal/(e2e|lint)/
+
+# Elixir model ID validation — prevents stale/deprecated model IDs
+-   repo: local
+    hooks:
+    -   id: validate-elixir-models
+        name: validate-elixir-models
+        entry: scripts/validate-elixir-models.sh
+        language: script
+        files: \.ex$
+        pass_filenames: false
