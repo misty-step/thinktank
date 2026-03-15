@@ -47,6 +47,7 @@ defmodule Thinktank.Dispatch.Quick do
     |> Enum.map(fn
       {{:ok, result}, _p} -> result
       {{:exit, :timeout}, p} -> {:error, p.role, %{category: :timeout}}
+      {{:exit, reason}, p} -> {:error, p.role, %{category: :crash, message: inspect(reason)}}
     end)
   end
 
