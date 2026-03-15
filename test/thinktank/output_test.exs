@@ -139,6 +139,48 @@ defmodule Thinktank.OutputTest do
     end
   end
 
+  describe "write_synthesis/2" do
+    test "writes synthesis file and updates manifest", %{tmp_dir: tmp} do
+      output_dir = Path.join(tmp, "syn1")
+      Output.init_run(output_dir, ["a", "b"])
+      Output.write_perspective(output_dir, "a", "content a")
+
+      synthesis = "## Agreement\nBoth agree.\n## Disagreement\nNone."
+      assert :ok = Output.write_synthesis(output_dir, synthesis)
+
+      assert File.read!(Path.join(output_dir, "synthesis.md")) == synthesis
+
+      manifest = read_manifest(output_dir)
+      assert manifest["synthesis"]["status"] == "complete"
+      assert manifest["synthesis"]["file"] == "synthesis.md"
+      assert is_binary(manifest["synthesis"]["completed_at"])
+    end
+  end
+
+  describe "result_envelope with synthesis" do
+    test "includes synthesis in envelope when present", %{tmp_dir: tmp} do
+      output_dir = Path.join(tmp, "re2")
+      Output.init_run(output_dir, ["a"])
+      Output.write_perspective(output_dir, "a", "content a")
+      Output.write_synthesis(output_dir, "synthesis content")
+      Output.complete_run(output_dir)
+
+      envelope = Output.result_envelope(output_dir)
+      assert envelope.synthesis.status == "complete"
+      assert envelope.synthesis.file == "synthesis.md"
+    end
+
+    test "omits synthesis from envelope when not present", %{tmp_dir: tmp} do
+      output_dir = Path.join(tmp, "re3")
+      Output.init_run(output_dir, ["a"])
+      Output.write_perspective(output_dir, "a", "content a")
+      Output.complete_run(output_dir)
+
+      envelope = Output.result_envelope(output_dir)
+      refute Map.has_key?(envelope, :synthesis)
+    end
+  end
+
   describe "slugify/1" do
     test "converts role names to filesystem-safe slugs" do
       assert Output.slugify("Security Analyst") == "security-analyst"
