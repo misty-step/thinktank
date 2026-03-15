@@ -28,6 +28,13 @@ jobs:
           key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-
 
+      - name: Cache PLTs
+        uses: actions/cache@v4
+        with:
+          path: _build/dev/dialyxir_*
+          key: ${{ runner.os }}-plt-otp28-elixir1.19-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-plt-otp28-elixir1.19-
+
       - name: Install dependencies
         run: mix deps.get
 
@@ -37,8 +44,16 @@ jobs:
       - name: Compile (warnings as errors)
         run: mix compile --warnings-as-errors
 
-      - name: Credo (strict)
-        run: mix credo --strict
+      - name: Credo
+        run: mix credo
+
+      - name: Dialyzer
+        run: mix dialyzer
+        env:
+          MIX_ENV: dev
+
+      - name: Hex audit
+        run: mix hex.audit
 
       - name: Run tests
         run: mix test

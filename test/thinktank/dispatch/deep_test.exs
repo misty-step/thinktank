@@ -293,6 +293,83 @@ defmodule Thinktank.Dispatch.DeepTest do
       assert shell_cmd =~ "You'\\''re an expert."
       assert shell_cmd =~ "what'\\''s the issue?"
     end
+
+    test "passes through backticks in prompt" do
+      perspectives = [
+        %Perspective{role: "test", model: "m", system_prompt: "Check `main` function."}
+      ]
+
+      test_pid = self()
+
+      runner = fn _cmd, args, _opts ->
+        send(test_pid, {:args, args})
+        {"done", 0}
+      end
+
+      Deep.dispatch(perspectives, "review `lib/app.ex`", runner: runner)
+
+      assert_receive {:args, ["-c", shell_cmd]}
+      assert shell_cmd =~ "`main`"
+      assert shell_cmd =~ "`lib/app.ex`"
+    end
+
+    test "passes through dollar signs (single-quoted)" do
+      perspectives = [
+        %Perspective{role: "test", model: "m", system_prompt: "Check $HOME variable."}
+      ]
+
+      test_pid = self()
+
+      runner = fn _cmd, args, _opts ->
+        send(test_pid, {:args, args})
+        {"done", 0}
+      end
+
+      Deep.dispatch(perspectives, "expand $PATH", runner: runner)
+
+      assert_receive {:args, ["-c", shell_cmd]}
+      assert shell_cmd =~ "$HOME"
+      assert shell_cmd =~ "$PATH"
+    end
+
+    test "preserves newlines in prompt" do
+      system = "Line one.\nLine two.\nLine three."
+
+      perspectives = [
+        %Perspective{role: "test", model: "m", system_prompt: system}
+      ]
+
+      test_pid = self()
+
+      runner = fn _cmd, args, _opts ->
+        send(test_pid, {:args, args})
+        {"done", 0}
+      end
+
+      Deep.dispatch(perspectives, "go", runner: runner)
+
+      assert_receive {:args, ["-c", shell_cmd]}
+      assert shell_cmd =~ "Line one.\nLine two.\nLine three."
+    end
+
+    test "handles empty prompt" do
+      perspectives = [
+        %Perspective{role: "test", model: "m", system_prompt: ""}
+      ]
+
+      test_pid = self()
+
+      runner = fn _cmd, args, _opts ->
+        send(test_pid, {:args, args})
+        {"done", 0}
+      end
+
+      Deep.dispatch(perspectives, "", runner: runner)
+
+      assert_receive {:args, ["-c", shell_cmd]}
+      assert shell_cmd =~ "--model 'm'"
+      assert shell_cmd =~ "-p '"
+    end
   end
 
   # Flush all messages with a given tag, collecting the payloads

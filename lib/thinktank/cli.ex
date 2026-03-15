@@ -57,11 +57,13 @@ defmodule Thinktank.CLI do
     ]
   ]
 
+  @spec exit_codes() :: %{atom() => non_neg_integer()}
   def exit_codes, do: @exit_codes
 
   @doc """
   Escript entry point.
   """
+  @spec main([String.t()]) :: no_return()
   def main(args) do
     result =
       case parse_args(args) do
@@ -89,6 +91,12 @@ defmodule Thinktank.CLI do
   end
 
   @doc false
+  @spec parse_args([String.t()]) ::
+          {:ok, map()}
+          | {:error, String.t()}
+          | {:help, keyword()}
+          | {:version, keyword()}
+          | {:needs_stdin, keyword()}
   def parse_args(args) do
     {parsed, rest, invalid} = OptionParser.parse(args, @option_spec)
 
@@ -114,6 +122,7 @@ defmodule Thinktank.CLI do
   @doc """
   Returns the JSON string for dry-run output.
   """
+  @spec dry_run_output(map()) :: String.t()
   def dry_run_output(opts) do
     Jason.encode!(%{
       mode: "dry_run",
@@ -153,6 +162,7 @@ defmodule Thinktank.CLI do
     }
   end
 
+  @spec run(map()) :: no_return()
   defp run(%{dry_run: true} = opts) do
     if opts.json do
       IO.puts(dry_run_output(opts))
@@ -181,6 +191,7 @@ defmodule Thinktank.CLI do
     end)
   end
 
+  @spec dispatch_and_finalize(map(), function()) :: no_return()
   defp dispatch_and_finalize(opts, dispatch_fn) do
     case resolve_perspectives(opts) do
       {:error, reason} ->
@@ -227,6 +238,7 @@ defmodule Thinktank.CLI do
     end
   end
 
+  @spec exit_on_results([{String.t(), String.t()}]) :: no_return()
   defp exit_on_results([]) do
     IO.puts(:stderr, "Error: all perspective dispatches failed")
     System.halt(@exit_codes.generic_error)

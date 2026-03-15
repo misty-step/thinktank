@@ -8,6 +8,8 @@ defmodule Thinktank.OpenRouter do
 
   @base_url "https://openrouter.ai/api/v1"
 
+  @spec chat(String.t(), String.t(), String.t(), keyword()) ::
+          {:ok, String.t() | nil} | {:error, map()}
   def chat(model, system_prompt, user_prompt, opts \\ []) do
     with {:ok, key} <- require_key(opts) do
       build_req(key, opts)
@@ -19,6 +21,8 @@ defmodule Thinktank.OpenRouter do
     end
   end
 
+  @spec chat_structured(String.t(), String.t(), String.t(), map(), keyword()) ::
+          {:ok, map()} | {:error, map()}
   def chat_structured(model, system_prompt, user_prompt, json_schema, opts \\ []) do
     with {:ok, key} <- require_key(opts) do
       body = %{

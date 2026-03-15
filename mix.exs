@@ -12,7 +12,7 @@ defmodule Thinktank.MixProject do
       deps: deps(),
       escript: escript(),
       dialyzer: [plt_add_apps: [:mix]],
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [tool: ExCoveralls, summary: [threshold: 80]]
     ]
   end
 

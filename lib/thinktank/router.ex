@@ -140,6 +140,7 @@ defmodule Thinktank.Router do
   end
 
   @doc false
+  @spec default_perspectives([String.t()]) :: [Perspective.t()]
   def default_perspectives(available_models) do
     available_models
     |> Enum.with_index()

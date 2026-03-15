@@ -171,5 +171,29 @@ defmodule Thinktank.SynthesisTest do
       assert {:ok, "Sparse output"} =
                Synthesis.synthesize(@perspectives, "review this", openrouter_opts: @test_opts)
     end
+
+    test "handles empty perspectives list — still calls the API" do
+      test_pid = self()
+
+      Req.Test.stub(Synthesis, fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        send(test_pid, {:called, Jason.decode!(body)})
+        Req.Test.json(conn, %{"choices" => [%{"message" => %{"content" => "synthesized"}}]})
+      end)
+
+      assert {:ok, "synthesized"} =
+               Synthesis.synthesize([], "empty question", openrouter_opts: @test_opts)
+
+      assert_receive {:called, body}
+      assert body["messages"] |> length() == 2
+    end
+  end
+
+  describe "default_model/0" do
+    test "returns a non-empty string" do
+      model = Synthesis.default_model()
+      assert is_binary(model)
+      assert model != ""
+    end
   end
 end

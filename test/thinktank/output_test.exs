@@ -181,12 +181,43 @@ defmodule Thinktank.OutputTest do
     end
   end
 
+  describe "write_perspective/3 — unknown role" do
+    test "role not in manifest does not crash, perspectives list unchanged", %{tmp_dir: tmp} do
+      output_dir = Path.join(tmp, "unk1")
+      Output.init_run(output_dir, ["a", "b"])
+
+      # Write with a role that was never in the manifest
+      assert :ok = Output.write_perspective(output_dir, "unknown-role", "content")
+
+      # File is still written
+      assert File.exists?(Path.join(output_dir, "unknown-role.md"))
+
+      # Manifest perspectives list unchanged (no new entries, no crashes)
+      manifest = read_manifest(output_dir)
+      assert length(manifest["perspectives"]) == 2
+      assert Enum.all?(manifest["perspectives"], &(&1["status"] == "pending"))
+      assert manifest["perspectives_completed"] == 0
+    end
+  end
+
   describe "slugify/1" do
     test "converts role names to filesystem-safe slugs" do
       assert Output.slugify("Security Analyst") == "security-analyst"
       assert Output.slugify("performance_engineer") == "performance-engineer"
       assert Output.slugify("AI/ML Expert") == "ai-ml-expert"
       assert Output.slugify("  spaced  out  ") == "spaced-out"
+    end
+
+    test "empty string returns empty string" do
+      assert Output.slugify("") == ""
+    end
+
+    test "unicode characters are stripped" do
+      assert Output.slugify("café résumé") == "caf-r-sum"
+    end
+
+    test "consecutive special chars collapse to single hyphen" do
+      assert Output.slugify("a///b---c   d") == "a-b-c-d"
     end
   end
 

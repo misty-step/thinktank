@@ -279,5 +279,31 @@ defmodule Thinktank.RouterTest do
       assigned = Enum.map(perspectives, & &1.model)
       assert assigned == ["model-1", "model-2", "model-3", "model-1"]
     end
+
+    test "single model is round-robined to all roles" do
+      roles = ["auditor", "reviewer", "architect"]
+      models = ["the-only-model"]
+
+      perspectives = Router.manual_perspectives(roles, models)
+
+      assert length(perspectives) == 3
+      assert Enum.all?(perspectives, &(&1.model == "the-only-model"))
+      assert Enum.map(perspectives, & &1.role) == roles
+    end
+  end
+
+  describe "default_perspectives/1" do
+    test "returns one perspective per model" do
+      models = ["model-a", "model-b", "model-c"]
+      perspectives = Router.default_perspectives(models)
+
+      assert length(perspectives) == 3
+      assert Enum.all?(perspectives, &match?(%Perspective{}, &1))
+      assert Enum.map(perspectives, & &1.model) == models
+    end
+
+    test "returns empty list for empty models" do
+      assert Router.default_perspectives([]) == []
+    end
   end
 end

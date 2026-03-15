@@ -104,10 +104,19 @@ defmodule Thinktank.Output do
     })
   end
 
+  @type perspective_summary :: %{role: String.t(), status: String.t(), file: String.t() | nil}
+
+  @type envelope :: %{
+          output_dir: Path.t(),
+          status: String.t(),
+          perspectives: [perspective_summary()],
+          files: [String.t()]
+        }
+
   @doc """
   Build a result envelope for `--json` stdout output.
   """
-  @spec result_envelope(Path.t()) :: map()
+  @spec result_envelope(Path.t()) :: envelope()
   def result_envelope(output_dir) do
     manifest = read_manifest(output_dir)
 
