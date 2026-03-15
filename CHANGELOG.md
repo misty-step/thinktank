@@ -1,5 +1,17 @@
 # Changelog
 
+## [6.1.0](https://github.com/misty-step/thinktank/compare/v6.0.0...v6.1.0) (2026-03-15)
+
+
+### Features
+
+* add Credo linter to Elixir pipeline ([#260](https://github.com/misty-step/thinktank/issues/260)) ([#272](https://github.com/misty-step/thinktank/issues/272)) ([ed3b8c9](https://github.com/misty-step/thinktank/commit/ed3b8c94ce95a74c0aaddeb65f2017141c89aeaa))
+
+
+### Bug Fixes
+
+* remove trufflehog base/head overrides that break on push events ([#270](https://github.com/misty-step/thinktank/issues/270)) ([09e37c8](https://github.com/misty-step/thinktank/commit/09e37c8aaf8b3031de5317e66db28dba2da186b5))
+
 ## [6.0.0](https://github.com/misty-step/thinktank/compare/v5.0.0...v6.0.0) (2026-03-15)
 
 
