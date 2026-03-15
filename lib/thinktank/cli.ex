@@ -128,22 +128,13 @@ defmodule Thinktank.CLI do
   end
 
   defp try_stdin(parsed) do
-    if stdin_piped?() do
-      case IO.read(:stdio, :eof) do
-        data when is_binary(data) ->
-          trimmed = String.trim(data)
-
-          if trimmed == "" do
-            {:error, "instruction argument required"}
-          else
-            {:ok, build_opts(trimmed, parsed)}
-          end
-
-        _ ->
-          {:error, "instruction argument required"}
-      end
+    with true <- stdin_piped?(),
+         data when is_binary(data) <- IO.read(:stdio, :eof),
+         trimmed = String.trim(data),
+         false <- trimmed == "" do
+      {:ok, build_opts(trimmed, parsed)}
     else
-      {:error, "instruction argument required"}
+      _ -> {:error, "instruction argument required"}
     end
   end
 
@@ -178,51 +169,19 @@ defmodule Thinktank.CLI do
   end
 
   defp run(%{mode: :quick} = opts) do
-    case resolve_perspectives(opts) do
-      {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
-        System.halt(@exit_codes.input_error)
-
-      {:ok, perspectives} ->
-        output_dir = opts.output || generate_output_dir()
-        roles = Enum.map(perspectives, & &1.role)
-        Output.init_run(output_dir, roles)
-
-        results = Quick.dispatch(perspectives, opts.instruction, paths: opts.paths)
-        successes = for {:ok, role, text} <- results, do: {role, text}
-
-        for {role, text} <- successes do
-          Output.write_perspective(output_dir, role, text)
-        end
-
-        unless opts.no_synthesis or successes == [] do
-          case Synthesis.synthesize(successes, opts.instruction) do
-            {:ok, synthesis_text} ->
-              Output.write_synthesis(output_dir, synthesis_text)
-
-            {:error, _} ->
-              IO.puts(:stderr, "Warning: synthesis failed after retries")
-          end
-        end
-
-        Output.complete_run(output_dir)
-
-        if opts.json do
-          IO.puts(Jason.encode!(Output.result_envelope(output_dir)))
-        else
-          IO.puts("Output: #{output_dir}")
-        end
-
-        if successes == [] do
-          IO.puts(:stderr, "Error: all perspective dispatches failed")
-          System.halt(@exit_codes.generic_error)
-        else
-          System.halt(@exit_codes.success)
-        end
-    end
+    dispatch_and_finalize(opts, fn perspectives, instruction, paths ->
+      Quick.dispatch(perspectives, instruction, paths: paths)
+    end)
   end
 
   defp run(%{mode: :deep} = opts) do
+    dispatch_and_finalize(opts, fn perspectives, instruction, paths ->
+      deep_opts = [paths: paths, agent_config_dir: agent_config_dir()]
+      Deep.dispatch(perspectives, instruction, deep_opts)
+    end)
+  end
+
+  defp dispatch_and_finalize(opts, dispatch_fn) do
     case resolve_perspectives(opts) do
       {:error, reason} ->
         IO.puts(:stderr, "Error: #{reason}")
@@ -233,40 +192,47 @@ defmodule Thinktank.CLI do
         roles = Enum.map(perspectives, & &1.role)
         Output.init_run(output_dir, roles)
 
-        deep_opts = [paths: opts.paths, agent_config_dir: agent_config_dir()]
-        results = Deep.dispatch(perspectives, opts.instruction, deep_opts)
+        results = dispatch_fn.(perspectives, opts.instruction, opts.paths)
         successes = for {:ok, role, text} <- results, do: {role, text}
 
         for {role, text} <- successes do
           Output.write_perspective(output_dir, role, text)
         end
 
-        unless opts.no_synthesis or successes == [] do
-          case Synthesis.synthesize(successes, opts.instruction) do
-            {:ok, synthesis_text} ->
-              Output.write_synthesis(output_dir, synthesis_text)
-
-            {:error, _} ->
-              IO.puts(:stderr, "Warning: synthesis failed after retries")
-          end
-        end
-
+        maybe_synthesize(opts, successes, output_dir)
         Output.complete_run(output_dir)
-
-        if opts.json do
-          IO.puts(Jason.encode!(Output.result_envelope(output_dir)))
-        else
-          IO.puts("Output: #{output_dir}")
-        end
-
-        if successes == [] do
-          IO.puts(:stderr, "Error: all perspective dispatches failed")
-          System.halt(@exit_codes.generic_error)
-        else
-          System.halt(@exit_codes.success)
-        end
+        emit_result(opts, output_dir)
+        exit_on_results(successes)
     end
   end
+
+  defp maybe_synthesize(opts, successes, output_dir) do
+    if opts.no_synthesis or successes == [],
+      do: :noop,
+      else: do_synthesize(opts, successes, output_dir)
+  end
+
+  defp do_synthesize(opts, successes, output_dir) do
+    case Synthesis.synthesize(successes, opts.instruction) do
+      {:ok, text} -> Output.write_synthesis(output_dir, text)
+      {:error, _} -> IO.puts(:stderr, "Warning: synthesis failed after retries")
+    end
+  end
+
+  defp emit_result(opts, output_dir) do
+    if opts.json do
+      IO.puts(Jason.encode!(Output.result_envelope(output_dir)))
+    else
+      IO.puts("Output: #{output_dir}")
+    end
+  end
+
+  defp exit_on_results([]) do
+    IO.puts(:stderr, "Error: all perspective dispatches failed")
+    System.halt(@exit_codes.generic_error)
+  end
+
+  defp exit_on_results(_successes), do: System.halt(@exit_codes.success)
 
   defp resolve_perspectives(opts) do
     models = if opts.models != [], do: opts.models, else: @default_models
