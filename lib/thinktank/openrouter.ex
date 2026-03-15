@@ -58,10 +58,24 @@ defmodule Thinktank.OpenRouter do
   end
 
   defp require_key(opts) do
-    case Keyword.get(opts, :api_key, System.get_env("OPENROUTER_API_KEY")) do
-      nil -> {:error, %{category: :missing_api_key, message: "OPENROUTER_API_KEY not set"}}
-      "" -> {:error, %{category: :missing_api_key, message: "OPENROUTER_API_KEY is empty"}}
-      key -> {:ok, key}
+    key =
+      Keyword.get_lazy(opts, :api_key, fn ->
+        non_empty_env("THINKTANK_OPENROUTER_API_KEY") || non_empty_env("OPENROUTER_API_KEY")
+      end)
+
+    case key do
+      nil ->
+        {:error,
+         %{
+           category: :missing_api_key,
+           message: "Set THINKTANK_OPENROUTER_API_KEY or OPENROUTER_API_KEY"
+         }}
+
+      "" ->
+        {:error, %{category: :missing_api_key, message: "API key is empty"}}
+
+      key ->
+        {:ok, key}
     end
   end
 
@@ -98,6 +112,14 @@ defmodule Thinktank.OpenRouter do
 
   defp wrap_json({:ok, parsed}, _raw), do: {:ok, parsed}
   defp wrap_json({:error, _}, raw), do: {:error, %{category: :invalid_json, raw: raw}}
+
+  defp non_empty_env(name) do
+    case System.get_env(name) do
+      nil -> nil
+      "" -> nil
+      val -> val
+    end
+  end
 
   defp error_message(%{"error" => %{"message" => msg}}) when is_binary(msg), do: msg
   defp error_message(body) when is_binary(body), do: body
