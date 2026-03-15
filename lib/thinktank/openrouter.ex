@@ -60,7 +60,7 @@ defmodule Thinktank.OpenRouter do
   defp require_key(opts) do
     key =
       Keyword.get_lazy(opts, :api_key, fn ->
-        System.get_env("THINKTANK_OPENROUTER_API_KEY") || System.get_env("OPENROUTER_API_KEY")
+        non_empty_env("THINKTANK_OPENROUTER_API_KEY") || non_empty_env("OPENROUTER_API_KEY")
       end)
 
     case key do
@@ -112,6 +112,14 @@ defmodule Thinktank.OpenRouter do
 
   defp wrap_json({:ok, parsed}, _raw), do: {:ok, parsed}
   defp wrap_json({:error, _}, raw), do: {:error, %{category: :invalid_json, raw: raw}}
+
+  defp non_empty_env(name) do
+    case System.get_env(name) do
+      nil -> nil
+      "" -> nil
+      val -> val
+    end
+  end
 
   defp error_message(%{"error" => %{"message" => msg}}) when is_binary(msg), do: msg
   defp error_message(body) when is_binary(body), do: body

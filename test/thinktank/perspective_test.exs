@@ -33,6 +33,26 @@ defmodule Thinktank.PerspectiveTest do
                })
     end
 
+    test "returns nil for negative priority" do
+      assert nil ==
+               Perspective.from_map(%{
+                 "role" => "analyst",
+                 "model" => "some/model",
+                 "system_prompt" => "ok",
+                 "priority" => -1
+               })
+    end
+
+    test "returns nil for non-integer priority" do
+      assert nil ==
+               Perspective.from_map(%{
+                 "role" => "analyst",
+                 "model" => "some/model",
+                 "system_prompt" => "ok",
+                 "priority" => "high"
+               })
+    end
+
     test "defaults priority to 0" do
       map = %{
         "role" => "analyst",

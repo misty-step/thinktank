@@ -25,12 +25,13 @@ defmodule Thinktank.Perspective do
   @spec from_map(map()) :: t() | nil
   def from_map(%{"role" => role, "model" => model, "system_prompt" => prompt} = map)
       when is_binary(role) and is_binary(model) and is_binary(prompt) do
-    %__MODULE__{
-      role: role,
-      model: model,
-      system_prompt: prompt,
-      priority: Map.get(map, "priority", 0)
-    }
+    priority = Map.get(map, "priority", 0)
+
+    if is_integer(priority) and priority >= 0 do
+      %__MODULE__{role: role, model: model, system_prompt: prompt, priority: priority}
+    else
+      nil
+    end
   end
 
   def from_map(_), do: nil
