@@ -29,7 +29,7 @@ defmodule Thinktank.OutputTest do
 
       manifest = read_manifest(output_dir)
       assert is_binary(manifest["started_at"])
-      assert manifest["version"] == "5.0.0-dev"
+      assert manifest["version"] == Thinktank.MixProject.project()[:version]
     end
   end
 
