@@ -21,13 +21,44 @@ defmodule Thinktank.CLI do
     cancelled: 10
   }
 
+  @option_spec [
+    strict: [
+      help: :boolean,
+      version: :boolean,
+      paths: :keep,
+      quick: :boolean,
+      deep: :boolean,
+      json: :boolean,
+      output: :string,
+      models: :string,
+      roles: :string,
+      dry_run: :boolean,
+      no_synthesis: :boolean,
+      perspectives: :integer
+    ],
+    aliases: [
+      h: :help,
+      v: :version,
+      q: :quick,
+      d: :deep,
+      o: :output,
+      n: :perspectives
+    ]
+  ]
+
   def exit_codes, do: @exit_codes
 
   @doc """
   Escript entry point.
   """
   def main(args) do
-    case parse_args(args) do
+    result =
+      case parse_args(args) do
+        {:error, "instruction argument required"} -> try_stdin(args)
+        other -> other
+      end
+
+    case result do
       {:help, _} ->
         print_usage()
         System.halt(@exit_codes.success)
@@ -48,31 +79,7 @@ defmodule Thinktank.CLI do
 
   @doc false
   def parse_args(args) do
-    {parsed, rest, invalid} =
-      OptionParser.parse(args,
-        strict: [
-          help: :boolean,
-          version: :boolean,
-          paths: :keep,
-          quick: :boolean,
-          deep: :boolean,
-          json: :boolean,
-          output: :string,
-          models: :string,
-          roles: :string,
-          dry_run: :boolean,
-          no_synthesis: :boolean,
-          perspectives: :integer
-        ],
-        aliases: [
-          h: :help,
-          v: :version,
-          q: :quick,
-          d: :deep,
-          o: :output,
-          n: :perspectives
-        ]
-      )
+    {parsed, rest, invalid} = OptionParser.parse(args, @option_spec)
 
     cond do
       invalid != [] ->
@@ -85,39 +92,11 @@ defmodule Thinktank.CLI do
       parsed[:version] ->
         {:version, parsed}
 
+      rest == [] ->
+        {:error, "instruction argument required"}
+
       true ->
-        case read_instruction(rest) do
-          {:ok, instruction} ->
-            {:ok, build_opts(instruction, parsed)}
-
-          {:error, _} = err ->
-            err
-        end
-    end
-  end
-
-  @doc """
-  Reads the instruction from positional args or stdin (if piped).
-  """
-  def read_instruction(rest) when rest != [] do
-    {:ok, Enum.join(rest, " ")}
-  end
-
-  def read_instruction([]) do
-    if stdin_piped?() do
-      case IO.read(:stdio, :eof) do
-        {:error, _} ->
-          {:error, "instruction argument required"}
-
-        :eof ->
-          {:error, "instruction argument required"}
-
-        data when is_binary(data) ->
-          trimmed = String.trim(data)
-          if trimmed == "", do: {:error, "instruction argument required"}, else: {:ok, trimmed}
-      end
-    else
-      {:error, "instruction argument required"}
+        {:ok, build_opts(Enum.join(rest, " "), parsed)}
     end
   end
 
@@ -137,13 +116,34 @@ defmodule Thinktank.CLI do
     })
   end
 
+  defp try_stdin(args) do
+    if stdin_piped?() do
+      case IO.read(:stdio, :eof) do
+        data when is_binary(data) ->
+          trimmed = String.trim(data)
+
+          if trimmed == "" do
+            {:error, "instruction argument required"}
+          else
+            {parsed, _rest, _invalid} = OptionParser.parse(args, @option_spec)
+            {:ok, build_opts(trimmed, parsed)}
+          end
+
+        _ ->
+          {:error, "instruction argument required"}
+      end
+    else
+      {:error, "instruction argument required"}
+    end
+  end
+
   defp build_opts(instruction, parsed) do
     %{
       instruction: instruction,
       paths: parsed |> Keyword.get_values(:paths) |> Enum.map(&Path.expand/1),
       mode: if(parsed[:quick], do: :quick, else: :deep),
       json: parsed[:json] || false,
-      output: parsed[:output],
+      output: if(parsed[:output], do: Path.expand(parsed[:output])),
       models: parse_csv(parsed[:models]),
       roles: parse_csv(parsed[:roles]),
       dry_run: parsed[:dry_run] || false,
@@ -224,10 +224,8 @@ defmodule Thinktank.CLI do
   defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
 
   defp stdin_piped? do
-    case :io.getopts(:standard_io) do
-      opts when is_list(opts) -> opts[:binary] == true
-      _ -> false
-    end
+    # test -t 0 returns 0 when fd 0 (stdin) is a terminal, 1 when piped
+    match?({_, 1}, System.cmd("test", ["-t", "0"], stderr_to_stdout: true))
   rescue
     _ -> false
   end

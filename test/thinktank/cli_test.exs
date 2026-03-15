@@ -54,9 +54,9 @@ defmodule Thinktank.CLITest do
       assert opts.json == true
     end
 
-    test "parses --output flag" do
+    test "parses --output flag and expands path" do
       {:ok, opts} = CLI.parse_args(["test", "--output", "./results"])
-      assert opts.output == "./results"
+      assert opts.output == Path.expand("./results")
     end
 
     test "parses --models as comma-separated list" do
@@ -91,17 +91,6 @@ defmodule Thinktank.CLITest do
 
     test "returns error for unknown flags" do
       assert {:error, "unknown flag: --bogus"} = CLI.parse_args(["test", "--bogus"])
-    end
-  end
-
-  describe "read_instruction/1" do
-    test "returns instruction from positional args" do
-      assert {:ok, "hello world"} = CLI.read_instruction(["hello", "world"])
-    end
-
-    test "returns error when no args and no stdin" do
-      # With no positional args and a non-piped stdin, should error
-      assert {:error, "instruction argument required"} = CLI.read_instruction([])
     end
   end
 
