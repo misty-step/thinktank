@@ -14,39 +14,43 @@ defmodule Thinktank.Router do
 
   @router_model "google/gemini-3-flash-preview"
 
-  @perspective_schema %{
+  @perspective_item_schema %{
     "type" => "object",
     "properties" => %{
-      "perspectives" => %{
-        "type" => "array",
-        "minItems" => 3,
-        "maxItems" => 5,
-        "items" => %{
-          "type" => "object",
-          "properties" => %{
-            "role" => %{
-              "type" => "string",
-              "description" => "Expert role name (e.g. 'security auditor')"
-            },
-            "model" => %{
-              "type" => "string",
-              "description" => "Model ID from the available_models list"
-            },
-            "system_prompt" => %{
-              "type" => "string",
-              "description" => "System prompt tailored to this expert's perspective"
-            },
-            "priority" => %{
-              "type" => "integer",
-              "description" => "Dispatch priority (1 = highest)"
-            }
-          },
-          "required" => ["role", "model", "system_prompt", "priority"]
-        }
+      "role" => %{
+        "type" => "string",
+        "description" => "Expert role name (e.g. 'security auditor')"
+      },
+      "model" => %{
+        "type" => "string",
+        "description" => "Model ID from the available_models list"
+      },
+      "system_prompt" => %{
+        "type" => "string",
+        "description" => "System prompt tailored to this expert's perspective"
+      },
+      "priority" => %{
+        "type" => "integer",
+        "description" => "Dispatch priority (1 = highest)"
       }
     },
-    "required" => ["perspectives"]
+    "required" => ["role", "model", "system_prompt", "priority"]
   }
+
+  defp perspective_schema(count) do
+    %{
+      "type" => "object",
+      "properties" => %{
+        "perspectives" => %{
+          "type" => "array",
+          "minItems" => count,
+          "maxItems" => count,
+          "items" => @perspective_item_schema
+        }
+      },
+      "required" => ["perspectives"]
+    }
+  end
 
   @doc """
   Generate diverse perspectives for a research question.
@@ -82,7 +86,13 @@ defmodule Thinktank.Router do
     system = system_prompt()
     user = user_prompt(instruction, file_paths, available, count)
 
-    case OpenRouter.chat_structured(@router_model, system, user, @perspective_schema, or_opts) do
+    case OpenRouter.chat_structured(
+           @router_model,
+           system,
+           user,
+           perspective_schema(count),
+           or_opts
+         ) do
       {:ok, %{"perspectives" => raw}} when is_list(raw) ->
         perspectives =
           raw
