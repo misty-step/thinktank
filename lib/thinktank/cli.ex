@@ -187,8 +187,9 @@ defmodule Thinktank.CLI do
         Output.init_run(output_dir, roles)
 
         results = Quick.dispatch(perspectives, opts.instruction, paths: opts.paths)
+        successes = for {:ok, role, text} <- results, do: {role, text}
 
-        for {:ok, role, text} <- results do
+        for {role, text} <- successes do
           Output.write_perspective(output_dir, role, text)
         end
 
@@ -200,7 +201,12 @@ defmodule Thinktank.CLI do
           IO.puts("Output: #{output_dir}")
         end
 
-        System.halt(@exit_codes.success)
+        if successes == [] do
+          IO.puts(:stderr, "Error: all perspective dispatches failed")
+          System.halt(@exit_codes.generic_error)
+        else
+          System.halt(@exit_codes.success)
+        end
     end
   end
 
@@ -224,7 +230,8 @@ defmodule Thinktank.CLI do
 
   defp generate_output_dir do
     timestamp = DateTime.utc_now() |> Calendar.strftime("%Y%m%d-%H%M%S")
-    Path.join(System.tmp_dir!(), "thinktank-#{timestamp}")
+    suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
+    Path.join(System.tmp_dir!(), "thinktank-#{timestamp}-#{suffix}")
   end
 
   defp print_usage do
