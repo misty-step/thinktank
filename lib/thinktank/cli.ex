@@ -10,10 +10,10 @@ defmodule Thinktank.CLI do
   alias Thinktank.{Dispatch.Quick, Output, Router, Synthesis}
 
   @default_models [
-    "anthropic/claude-sonnet-4",
-    "google/gemini-2.5-flash",
-    "openai/gpt-4.1",
-    "deepseek/deepseek-chat-v3-0324:free"
+    "anthropic/claude-sonnet-4-6",
+    "google/gemini-3-flash-preview",
+    "openai/gpt-5.4",
+    "google/gemini-3.1-pro-preview"
   ]
 
   @exit_codes %{

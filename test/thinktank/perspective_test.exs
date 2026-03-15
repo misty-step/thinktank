@@ -56,7 +56,7 @@ defmodule Thinktank.PerspectiveTest do
     test "defaults priority to 0" do
       map = %{
         "role" => "analyst",
-        "model" => "openai/gpt-4o",
+        "model" => "openai/gpt-5.4",
         "system_prompt" => "Analyze."
       }
 

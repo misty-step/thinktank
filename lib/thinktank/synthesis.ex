@@ -12,7 +12,7 @@ defmodule Thinktank.Synthesis do
 
   alias Thinktank.OpenRouter
 
-  @default_model "anthropic/claude-sonnet-4"
+  @default_model "anthropic/claude-sonnet-4-6"
   @max_attempts 3
   @default_backoff_base 1000
 
