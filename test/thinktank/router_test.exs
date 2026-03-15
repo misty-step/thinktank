@@ -1,7 +1,7 @@
 defmodule Thinktank.RouterTest do
   use ExUnit.Case, async: true
 
-  alias Thinktank.{Router, Perspective}
+  alias Thinktank.{Perspective, Router}
 
   @available_models [
     "anthropic/claude-sonnet-4.6",
@@ -81,7 +81,7 @@ defmodule Thinktank.RouterTest do
                  openrouter_opts: @test_opts
                )
 
-      assert length(perspectives) >= 1
+      assert perspectives != []
       assert Enum.all?(perspectives, &match?(%Perspective{}, &1))
 
       first = hd(perspectives)

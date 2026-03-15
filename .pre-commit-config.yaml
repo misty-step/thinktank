@@ -23,6 +23,16 @@ repos:
         files: \.exs?$
         pass_filenames: false
 
+# Elixir linting — catches style/complexity issues before commit
+-   repo: local
+    hooks:
+    -   id: mix-credo
+        name: mix-credo
+        entry: mix credo --strict
+        language: system
+        files: \.exs?$
+        pass_filenames: false
+
 # Elixir model ID validation — prevents stale/deprecated model IDs
 -   repo: local
     hooks:
