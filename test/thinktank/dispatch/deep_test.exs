@@ -104,14 +104,15 @@ defmodule Thinktank.Dispatch.DeepTest do
   end
 
   describe "dispatch/3 — timeout handling" do
-    test "returns timeout error for slow agents" do
+    test "returns timeout error with partial output for slow agents" do
       perspectives = [perspective("slow", "model-a")]
 
-      runner = fn _cmd, _args, _opts -> {"partial output", :timeout} end
+      runner = fn _cmd, _args, _opts -> {"partial output before timeout", :timeout} end
 
       [result] = Deep.dispatch(perspectives, "test", runner: runner)
       assert {:error, "slow", error} = result
       assert error.category == :timeout
+      assert error.output == "partial output before timeout"
     end
   end
 
@@ -175,7 +176,10 @@ defmodule Thinktank.Dispatch.DeepTest do
         {"done", 0}
       end
 
-      Deep.dispatch(perspectives, "review", runner: runner, paths: ["/src/auth.ex", "/src/router.ex"])
+      Deep.dispatch(perspectives, "review",
+        runner: runner,
+        paths: ["/src/auth.ex", "/src/router.ex"]
+      )
 
       assert_receive {:args, args}
       prompt_idx = Enum.find_index(args, &(&1 == "-p"))
@@ -218,6 +222,21 @@ defmodule Thinktank.Dispatch.DeepTest do
       assert_receive {:opts, opts}
       env = Keyword.get(opts, :env, [])
       refute Enum.any?(env, fn {k, _v} -> k == "PI_CODING_AGENT_DIR" end)
+    end
+
+    test "forwards timeout to runner cmd_opts" do
+      perspectives = [perspective("analyst", "test-model")]
+      test_pid = self()
+
+      runner = fn _cmd, _args, opts ->
+        send(test_pid, {:opts, opts})
+        {"done", 0}
+      end
+
+      Deep.dispatch(perspectives, "test", runner: runner, timeout: 60_000)
+
+      assert_receive {:opts, opts}
+      assert Keyword.get(opts, :timeout) == 60_000
     end
   end
 

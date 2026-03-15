@@ -39,8 +39,9 @@ defmodule Thinktank.Dispatch.Deep do
         end)
       end)
 
+    # Grace period: let MuonTrap's timeout fire first for cleaner error reporting
     tasks
-    |> Task.yield_many(timeout)
+    |> Task.yield_many(timeout + 5_000)
     |> Enum.zip(perspectives)
     |> Enum.map(&collect_result/1)
   end
@@ -76,8 +77,8 @@ defmodule Thinktank.Dispatch.Deep do
       {output, 0} ->
         {:ok, perspective.role, output}
 
-      {_output, :timeout} ->
-        {:error, perspective.role, %{category: :timeout}}
+      {output, :timeout} ->
+        {:error, perspective.role, %{category: :timeout, output: output}}
 
       {output, exit_code} when is_integer(exit_code) ->
         {:error, perspective.role, %{category: :crash, exit_code: exit_code, output: output}}
@@ -97,7 +98,8 @@ defmodule Thinktank.Dispatch.Deep do
   end
 
   defp build_cmd_opts(opts) do
-    base = [stderr_to_stdout: true]
+    timeout = opts[:timeout] || @default_timeout
+    base = [stderr_to_stdout: true, timeout: timeout]
 
     case opts[:agent_config_dir] do
       nil -> base

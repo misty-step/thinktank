@@ -8,6 +8,7 @@ defmodule Thinktank.Application do
     children = [
       {Task.Supervisor, name: Thinktank.AgentSupervisor}
     ]
+
     opts = [strategy: :one_for_one, name: Thinktank.Supervisor]
     Supervisor.start_link(children, opts)
   end
