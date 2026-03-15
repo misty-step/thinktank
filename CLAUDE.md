@@ -45,15 +45,6 @@ mix dialyzer
 
 **Required env:** `OPENROUTER_API_KEY` or `THINKTANK_OPENROUTER_API_KEY`
 
-### Legacy Go (archiving — see #250)
-
-```bash
-go build ./... && go test -race ./...
-golangci-lint run ./...
-./scripts/check-coverage.sh   # 79% minimum
-govulncheck -scan=module
-```
-
 ## Quality & Pitfalls
 
 ### Definition of Done
@@ -71,21 +62,21 @@ govulncheck -scan=module
 
 ### Model IDs — Mechanical Enforcement
 - **Default models live in** `lib/thinktank/cli.ex` `@default_models`
-- **Go registry**: `internal/models/models.go` — legacy source of truth until #250 archives Go
-- **Pre-commit hook**: `scripts/validate-elixir-models.sh` rejects Elixir commits with model IDs not in Go registry
-- **If models are stale**: WebSearch OpenRouter models page, update `lib/thinktank/cli.ex` and `internal/models/models.go`, then use the ID
+- **Pre-commit hook**: `scripts/validate-elixir-models.sh` validates against live OpenRouter API
+- **If models are stale**: WebSearch OpenRouter models page, update `lib/thinktank/cli.ex`
 
 ### Pre-commit Hooks
 ```bash
 pre-commit install  # One-time setup
 ```
 Hooks: gitleaks, trailing-whitespace, mix-format, validate-elixir-models.
-Legacy (until #250): go-fmt, go-vet.
 
 ## References
 
 - [README.md](README.md) — Usage, CLI flags, model list
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — License policy, detailed setup
-- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — Common issues
 - [.groom/BACKLOG.md](.groom/BACKLOG.md) — Prioritized backlog
 - [.groom/plan-*.md](.groom/) — Sprint plans
+
+## History
+
+Go v4 codebase archived on the [`v4-archive`](https://github.com/misty-step/thinktank/tree/v4-archive) branch.

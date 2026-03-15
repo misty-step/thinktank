@@ -1,175 +1,3 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-# Binary executable named architect, but not the directory
-/architect
-/thinktank
-
-# Test binary, built with `go test -c`
-*.test
-
-# Test output directories
-**/thinktank_20*
-
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-*.html
-
-# Dependency directories
-vendor/
-
-# Go workspace file
-go.work
-
-# IDE specific files
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Application logs
-*.log
-
-# OS specific files
-.DS_Store
-Thumbs.db
-
-# Temporary files
-*.bak*
-*~
-*.backup
-*.old
-*.swp
-*.swo
-test-results/
-thinktank-output/
-architect_output/
-architect_output_tasks/
-consultation-report/
-*-TASK.md
-*-PLAN.md
-CONSULT-REQUEST.md
-CONSULTANT-PLAN.md
-BUG.md
-BUGFIXPLAN.md
-TASK-PROMPT.md
-diff.md
-CODE_REVIEW.md
-thinktank_*/
-**/thinktank_*/
-
-# Profiling data
-profile_data/
-
-# Generated analysis reports
-reports/
-
-# Generated benchmark data
-benchmarks/*/
-# Keep benchmark documentation
-!benchmarks/README.md
-!benchmarks/*.sh
-
-# Build artifacts
-main
-quality-gates
-build/coverage/
-build/test/
-build/tmp/
-
-# Test files
-test.txt
-
-# Load testing configuration (contains API keys)
-scripts/load-testing/config.sh
-
-# Log files
-*.log
-override-audit.log
-
-# Test binaries and coverage files
-*.test
-*coverage*.out
-
-# Dashboard temp files
-docs/quality-dashboard/workflow-runs.json
-
-# Glance files (temporary notes)
-**/glance.md
-
-# Debug files
-DEBUG-*.md
-*_instructions.txt
-test_output_*.md
-
-# CI analysis and investigation files
-CI-FAILURE-*.md
-CI-RESOLUTION-*.md
-CI-ANALYSIS-*.md
-CI-LINT-FAILURE-ANALYSIS.md
-
-# Coverage analysis and mission reports
-COVERAGE-*.md
-
-# Temporary analysis and synthesis files
-CRITICAL-ANALYSIS-RESULTS.md
-MERGE-BLOCKERS-RESOLVED.md
-REVIEW-CONTEXT.md
-UNIFIED-SYNTHESIS.md
-SYNTHESIS-COMPARISON.md
-TICKET-CONTEXT.md
-execute-instructions.md
-
-# Ward log files
-.ward-warnings.log
-
-# Development symlinks
-docs/prompts
-
-# Development artifacts and patches
-dev/
-
-**/.claude/settings.local.json
-coverage.out
-*.out.tmp
-coverage.out.tmp
-*coverage*.out
-*coverage*.html
-baseline.out
-temp.out
-
-# Coverage cache
-.cache/
-
-test-instructions.txt
-
-/docs/leyline/
-*.out
-
-# AI Model Synthesis files (temporary analysis)
-AI_MODEL_SYNTHESIS.md
-*_SYNTHESIS.md
-
-# Additional temporary files
-main
-*.tmp
-.artifacts/
-internal/cli/testdata/
-
-# Task and TODO temporary files (but NOT the main project files)
-task.md
-TODO-*.md
-TASK-*.md
-# Note: TODO.md and BACKLOG.md are legitimate project files and should NOT be ignored
-
-.env
-
-.flywheel/
-.pi/state/
-
 # Elixir / Erlang
 /_build/
 /deps/
@@ -178,3 +6,47 @@ TASK-*.md
 erl_crash.dump
 *.ez
 thinktank-*.tar
+
+# Escript binary
+/thinktank
+
+# Test output directories
+**/thinktank_20*
+**/thinktank_*/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment and credentials
+.env
+agent_config/auth.json
+
+# Temporary files
+/tmp/
+*.bak*
+*~
+*.backup
+*.old
+*.tmp
+
+# Coverage (Elixir reports go to /cover/ which is already ignored)
+*.coverdata
+
+# Artifacts and caches
+.artifacts/
+.cache/
+.flywheel/
+.pi/state/
+
+# Claude settings
+**/.claude/settings.local.json

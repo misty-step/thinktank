@@ -15,7 +15,7 @@ Agent-first research tool that gets multiple AI perspectives on a question or pr
 - **Grounded analysis only.** Models always see the actual context — no hallucination-prone "describe your problem" workflows.
 - **One key, many minds.** OpenRouter as the single gateway means zero vendor lock-in and instant access to new models as they ship.
 - **CLI-native composability.** Pipes, scripts, automation. A building block in larger agent workflows, not an island.
-- **Minimal moving parts.** Single binary, single env var, single config file. Complexity in the model layer, simplicity in the tool layer.
+- **Minimal moving parts.** Single binary, single env var. Complexity in the model layer, simplicity in the tool layer.
 
 ## Philosophy
 
@@ -23,70 +23,57 @@ Agent-first research tool that gets multiple AI perspectives on a question or pr
 - Synthesis > aggregation. Combining outputs into coherent insight is harder and more valuable than concatenation.
 - Resilience over speed. Retry transient failures, degrade gracefully, never lose results.
 - Ship what matters. Model registry freshness and output quality outweigh feature count.
-- Go idioms: interfaces for testability, table-driven tests, explicit error handling, no globals.
+- Elixir idioms: pattern matching, `with` chains for multi-step errors, deep modules with small public APIs.
 
 ## Domain Glossary
 
 | Term | Definition |
 |------|-----------|
-| Council | The set of models used in multi-model (synthesis) mode |
-| Synthesis | Post-processing step that combines multiple model outputs into one response |
-| Orchestrator | `internal/thinktank/orchestrator/` — coordinates parallel model calls |
-| ModelProc | `internal/thinktank/modelproc/` — handles a single model's API call lifecycle |
-| ConsoleWriter | `internal/logutil/` — dual-output: TUI for humans, structured JSON for machines |
+| Perspective | A `{role, model, prompt}` struct assigned by the router |
+| Router | `lib/thinktank/router.ex` — LLM-powered perspective generation |
+| Quick mode | `lib/thinktank/dispatch/quick.ex` — parallel OpenRouter API calls |
+| Deep mode | `lib/thinktank/dispatch/deep.ex` — Pi subprocess orchestration via MuonTrap |
+| Synthesis | `lib/thinktank/synthesis.ex` — combines multiple model outputs into one response |
+| Output | `lib/thinktank/output.ex` — kill-safe artifact writer with atomic manifest |
 | OpenRouter | Single API gateway used for all model access (one key, unified interface) |
-| Dry-run | Preview mode: shows files and token count without making API calls |
+| Dry-run | Preview mode: shows plan without making API calls |
 
 ## Quality Bar
 
-- [ ] `go test -race ./...` passes (race detection required)
-- [ ] `golangci-lint run ./...` clean (zero violations)
-- [ ] `./scripts/check-coverage.sh` ≥79% coverage
-- [ ] `govulncheck -scan=module` clean (no known vulnerabilities)
+- [ ] `mix test` passes
+- [ ] `mix format --check-formatted` clean
+- [ ] `mix compile --warnings-as-errors` clean
 - [ ] Conventional commit messages (`feat:`, `fix:`, `docs:`, `chore:`)
 
 ## Patterns to Follow
 
-### Dependency Injection for Testability
-```go
-// Don't use globals. Pass dependencies as interfaces.
-type Processor struct {
-    apiClient  APIClient
-    logger     logutil.LoggerInterface
-    console    logutil.ConsoleWriter
-}
+### Pattern Matching over Conditionals
+```elixir
+def handle({:ok, result}), do: process(result)
+def handle({:error, reason}), do: {:error, reason}
 ```
 
-### Table-Driven Tests
-```go
-tests := []struct {
-    name     string
-    input    string
-    expected string
-}{
-    {"empty input", "", ""},
-    {"normal case", "foo", "bar"},
-}
-for _, tt := range tests {
-    t.Run(tt.name, func(t *testing.T) { ... })
-}
+### With Chains for Multi-step Errors
+```elixir
+with {:ok, perspectives} <- Router.generate_perspectives(instruction, paths),
+     {:ok, results} <- Quick.dispatch(perspectives, instruction),
+     {:ok, synthesis} <- Synthesis.synthesize(results, instruction) do
+  {:ok, synthesis}
+end
 ```
 
-### Error Handling
-```go
-// Never suppress errors with _
-// Wrap with context
-if err != nil {
-    return fmt.Errorf("failed to process model %s: %w", modelID, err)
-}
+### Explicit Error Handling
+```elixir
+# Never suppress errors — handle every {:error, _} explicitly
+case OpenRouter.chat(messages, model) do
+  {:ok, response} -> {:ok, response}
+  {:error, reason} -> {:error, "model #{model} failed: #{reason}"}
+end
 ```
 
-## Lessons Learned
+## History
 
-| Decision | Outcome | Lesson |
-|----------|---------|--------|
-| — | — | No retro data yet |
+Go v4 codebase archived on the [`v4-archive`](https://github.com/misty-step/thinktank/tree/v4-archive) branch (tag: `v4.0.0`).
 
 ---
-*Last updated: 2026-03-14*
-*Updated during: /groom session*
+*Last updated: 2026-03-15*

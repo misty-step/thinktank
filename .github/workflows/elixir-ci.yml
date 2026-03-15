@@ -1,24 +1,6 @@
 name: Elixir CI
 
-on:
-  push:
-    branches: [master]
-    paths:
-      - 'mix.exs'
-      - 'mix.lock'
-      - 'lib/**'
-      - 'test/**'
-      - 'config/**'
-      - '.github/workflows/elixir-ci.yml'
-  pull_request:
-    branches: [master]
-    paths:
-      - 'mix.exs'
-      - 'mix.lock'
-      - 'lib/**'
-      - 'test/**'
-      - 'config/**'
-      - '.github/workflows/elixir-ci.yml'
+on: [push, pull_request]
 
 permissions:
   contents: read
