@@ -13,8 +13,8 @@ defmodule Thinktank.CLITest do
                CLI.parse_args(["review", "this", "code"])
     end
 
-    test "returns error when no instruction provided" do
-      assert {:error, "instruction argument required"} = CLI.parse_args([])
+    test "returns :needs_stdin when no instruction provided" do
+      assert {:needs_stdin, _parsed} = CLI.parse_args([])
     end
 
     test "parses --help flag" do
@@ -41,12 +41,12 @@ defmodule Thinktank.CLITest do
 
     test "parses --paths flag" do
       {:ok, opts} = CLI.parse_args(["test", "--paths", "./src"])
-      assert opts.paths == ["./src"]
+      assert opts.paths == [Path.expand("./src")]
     end
 
     test "parses multiple --paths flags" do
       {:ok, opts} = CLI.parse_args(["test", "--paths", "./src", "--paths", "./lib"])
-      assert opts.paths == ["./src", "./lib"]
+      assert opts.paths == [Path.expand("./src"), Path.expand("./lib")]
     end
 
     test "parses --json flag" do
@@ -54,9 +54,9 @@ defmodule Thinktank.CLITest do
       assert opts.json == true
     end
 
-    test "parses --output flag" do
+    test "parses --output flag and expands path" do
       {:ok, opts} = CLI.parse_args(["test", "--output", "./results"])
-      assert opts.output == "./results"
+      assert opts.output == Path.expand("./results")
     end
 
     test "parses --models as comma-separated list" do
@@ -91,6 +91,34 @@ defmodule Thinktank.CLITest do
 
     test "returns error for unknown flags" do
       assert {:error, "unknown flag: --bogus"} = CLI.parse_args(["test", "--bogus"])
+    end
+  end
+
+  describe "exit_codes/0" do
+    test "defines all 11 exit codes" do
+      codes = CLI.exit_codes()
+      assert codes.success == 0
+      assert codes.generic_error == 1
+      assert codes.auth_error == 2
+      assert codes.rate_limit == 3
+      assert codes.invalid_request == 4
+      assert codes.server_error == 5
+      assert codes.network_error == 6
+      assert codes.input_error == 7
+      assert codes.content_filtered == 8
+      assert codes.insufficient_credits == 9
+      assert codes.cancelled == 10
+    end
+  end
+
+  describe "dry_run JSON output" do
+    test "produces valid JSON envelope" do
+      {:ok, opts} = CLI.parse_args(["test instruction", "--dry-run", "--json"])
+      json = CLI.dry_run_output(opts)
+      assert {:ok, decoded} = Jason.decode(json)
+      assert decoded["mode"] == "dry_run"
+      assert decoded["instruction"] == "test instruction"
+      assert is_list(decoded["paths"])
     end
   end
 end
