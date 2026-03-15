@@ -68,8 +68,7 @@ defmodule Thinktank.OpenRouter do
   defp handle_response({:ok, %{status: 200, body: body}}, extractor), do: extractor.(body)
 
   defp handle_response({:ok, %{status: 401, body: body}}, _),
-    do:
-      {:error, %{category: :auth, message: get_in(body, ["error", "message"]) || "unauthorized"}}
+    do: {:error, %{category: :auth, message: error_message(body) || "unauthorized"}}
 
   defp handle_response({:ok, %{status: 429} = resp}, _),
     do:
@@ -80,9 +79,7 @@ defmodule Thinktank.OpenRouter do
        }}
 
   defp handle_response({:ok, %{status: status, body: body}}, _),
-    do:
-      {:error,
-       %{category: :api_error, status: status, message: get_in(body, ["error", "message"])}}
+    do: {:error, %{category: :api_error, status: status, message: error_message(body)}}
 
   defp handle_response({:error, reason}, _),
     do: {:error, %{category: :transport, message: inspect(reason)}}
@@ -92,11 +89,17 @@ defmodule Thinktank.OpenRouter do
   end
 
   defp extract_json(body) do
-    raw = get_in(body, ["choices", Access.at(0), "message", "content"])
-
-    case Jason.decode(raw) do
-      {:ok, parsed} -> {:ok, parsed}
-      {:error, _} -> {:error, %{category: :invalid_json, raw: raw}}
+    case get_in(body, ["choices", Access.at(0), "message", "content"]) do
+      nil -> {:error, %{category: :invalid_json, raw: nil}}
+      raw when is_binary(raw) -> Jason.decode(raw) |> wrap_json(raw)
+      other -> {:error, %{category: :invalid_json, raw: other}}
     end
   end
+
+  defp wrap_json({:ok, parsed}, _raw), do: {:ok, parsed}
+  defp wrap_json({:error, _}, raw), do: {:error, %{category: :invalid_json, raw: raw}}
+
+  defp error_message(%{"error" => %{"message" => msg}}) when is_binary(msg), do: msg
+  defp error_message(body) when is_binary(body), do: body
+  defp error_message(_), do: nil
 end

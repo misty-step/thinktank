@@ -100,6 +100,38 @@ defmodule Thinktank.OpenRouterTest do
       assert {:error, %{category: :invalid_json}} =
                OpenRouter.chat_structured("test-model", "system", "user", %{}, @test_opts)
     end
+
+    test "returns {:error, :invalid_json} when content is nil" do
+      Req.Test.stub(OpenRouter, fn conn ->
+        Req.Test.json(conn, %{"choices" => [%{"message" => %{"content" => nil}}]})
+      end)
+
+      assert {:error, %{category: :invalid_json, raw: nil}} =
+               OpenRouter.chat_structured("test-model", "system", "user", %{}, @test_opts)
+    end
+
+    test "returns {:error, :invalid_json} when choices is empty" do
+      Req.Test.stub(OpenRouter, fn conn ->
+        Req.Test.json(conn, %{"choices" => []})
+      end)
+
+      assert {:error, %{category: :invalid_json, raw: nil}} =
+               OpenRouter.chat_structured("test-model", "system", "user", %{}, @test_opts)
+    end
+  end
+
+  describe "error body handling" do
+    test "handles plain text error body on 500" do
+      Req.Test.stub(OpenRouter, fn conn ->
+        conn
+        |> Plug.Conn.put_status(502)
+        |> Plug.Conn.put_resp_content_type("text/plain")
+        |> Plug.Conn.send_resp(502, "Bad Gateway")
+      end)
+
+      assert {:error, %{category: :api_error, status: 502, message: "Bad Gateway"}} =
+               OpenRouter.chat("test-model", "system", "user", @test_opts)
+    end
   end
 
   describe "headers" do
