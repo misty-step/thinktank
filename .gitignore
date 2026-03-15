@@ -12,7 +12,6 @@ thinktank-*.tar
 
 # Test output directories
 **/thinktank_20*
-thinktank_*/
 **/thinktank_*/
 
 # IDE
