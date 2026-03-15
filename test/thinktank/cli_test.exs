@@ -111,6 +111,22 @@ defmodule Thinktank.CLITest do
     end
   end
 
+  describe "agent_config_dir/0" do
+    test "discovers agent_config in project root" do
+      dir = CLI.agent_config_dir()
+      assert dir != nil
+      assert File.dir?(dir)
+      assert String.ends_with?(dir, "agent_config")
+    end
+
+    test "respects THINKTANK_AGENT_CONFIG env override" do
+      System.put_env("THINKTANK_AGENT_CONFIG", "/tmp/custom-config")
+      assert CLI.agent_config_dir() == "/tmp/custom-config"
+    after
+      System.delete_env("THINKTANK_AGENT_CONFIG")
+    end
+  end
+
   describe "dry_run JSON output" do
     test "produces valid JSON envelope" do
       {:ok, opts} = CLI.parse_args(["test instruction", "--dry-run", "--json"])

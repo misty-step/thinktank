@@ -233,7 +233,8 @@ defmodule Thinktank.CLI do
         roles = Enum.map(perspectives, & &1.role)
         Output.init_run(output_dir, roles)
 
-        results = Deep.dispatch(perspectives, opts.instruction, paths: opts.paths)
+        deep_opts = [paths: opts.paths, agent_config_dir: agent_config_dir()]
+        results = Deep.dispatch(perspectives, opts.instruction, deep_opts)
         successes = for {:ok, role, text} <- results, do: {role, text}
 
         for {role, text} <- successes do
@@ -336,6 +337,18 @@ defmodule Thinktank.CLI do
   defp parse_csv(str), do: str |> String.split(",") |> Enum.map(&String.trim/1)
 
   defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
+
+  @doc false
+  def agent_config_dir do
+    case System.get_env("THINKTANK_AGENT_CONFIG") do
+      nil ->
+        dir = Path.join(File.cwd!(), "agent_config")
+        if File.dir?(dir), do: dir
+
+      dir ->
+        dir
+    end
+  end
 
   defp stdin_piped? do
     # :io.columns/1 returns {:error, :enotsup} when stdin is not a terminal
