@@ -60,6 +60,10 @@ mix dialyzer
 - **Kill-safe output**: Atomic manifest writes (tmp + rename) in `Output`
 - **Defensive deserialization**: Type guards and nil filtering for LLM structured output
 
+### Elixir Style
+- Pattern match over conditionals; `with` chains for multi-step error handling
+- Table-driven tests via `for` comprehensions
+
 ### Model IDs — Mechanical Enforcement
 - **Default models live in** `lib/thinktank/cli.ex` `@default_models`
 - **Pre-commit hook**: `scripts/validate-elixir-models.sh` validates against live OpenRouter API
