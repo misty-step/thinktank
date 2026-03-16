@@ -83,7 +83,7 @@ defmodule Thinktank.Dispatch.Deep do
     escaped_prompt = prompt |> String.replace("'", "'\\''")
     escaped_model = model |> String.replace("'", "'\\''")
 
-    "pi --no-session --no-skills --model '#{escaped_model}'" <>
+    "exec pi --no-session --no-skills --model '#{escaped_model}'" <>
       " --tools #{@default_tools} -p '#{escaped_prompt}' < /dev/null"
   end
 
@@ -118,6 +118,9 @@ defmodule Thinktank.Dispatch.Deep do
     _ -> false
   end
 
+  # Escript fallback: System.cmd does NOT provide OS-level kill-safety.
+  # On timeout, the Elixir task is killed but the OS process (pi) may
+  # survive. MuonTrap path (mix/release) provides true kill-safety.
   defp system_cmd(cmd, args, opts) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     env = Keyword.get(opts, :env, [])

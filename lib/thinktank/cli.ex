@@ -108,7 +108,10 @@ defmodule Thinktank.CLI do
         {:needs_stdin, parsed}
 
       true ->
-        {:ok, build_opts(Enum.join(rest, " "), parsed)}
+        case parse_tier(parsed[:tier]) do
+          {:ok, tier} -> {:ok, build_opts(Enum.join(rest, " "), parsed, tier)}
+          {:error, _} = err -> err
+        end
     end
   end
 
@@ -134,14 +137,16 @@ defmodule Thinktank.CLI do
     with true <- stdin_piped?(),
          data when is_binary(data) <- IO.read(:stdio, :eof),
          trimmed = String.trim(data),
-         false <- trimmed == "" do
-      {:ok, build_opts(trimmed, parsed)}
+         false <- trimmed == "",
+         {:ok, tier} <- parse_tier(parsed[:tier]) do
+      {:ok, build_opts(trimmed, parsed, tier)}
     else
+      {:error, _} = err -> err
       _ -> {:error, "instruction argument required"}
     end
   end
 
-  defp build_opts(instruction, parsed) do
+  defp build_opts(instruction, parsed, tier) do
     %{
       instruction: instruction,
       paths: parsed |> Keyword.get_values(:paths) |> Enum.map(&Path.expand/1),
@@ -153,7 +158,7 @@ defmodule Thinktank.CLI do
       dry_run: parsed[:dry_run] || false,
       no_synthesis: parsed[:no_synthesis] || false,
       perspectives: parsed[:perspectives] || 4,
-      tier: parse_tier(parsed[:tier])
+      tier: tier
     }
   end
 
@@ -308,13 +313,13 @@ defmodule Thinktank.CLI do
     """)
   end
 
-  defp parse_tier(nil), do: :standard
-  defp parse_tier("cheap"), do: :cheap
-  defp parse_tier("standard"), do: :standard
-  defp parse_tier("premium"), do: :premium
+  defp parse_tier(nil), do: {:ok, :standard}
+  defp parse_tier("cheap"), do: {:ok, :cheap}
+  defp parse_tier("standard"), do: {:ok, :standard}
+  defp parse_tier("premium"), do: {:ok, :premium}
 
   defp parse_tier(other),
-    do: raise("invalid tier: #{other} (must be cheap, standard, or premium)")
+    do: {:error, "invalid tier: #{other} (must be cheap, standard, or premium)"}
 
   defp parse_csv(nil), do: []
   defp parse_csv(str), do: str |> String.split(",") |> Enum.map(&String.trim/1)

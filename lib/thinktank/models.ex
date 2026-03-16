@@ -47,6 +47,7 @@ defmodule Thinktank.Models do
   @spec models_for_tier(tier()) :: [String.t()]
   def models_for_tier(tier), do: @tiers[tier].models
 
+  @doc false
   @spec tier_for_model(String.t()) :: tier() | nil
   def tier_for_model(model_id) do
     Enum.find_value(@tiers, fn {tier, %{models: models}} ->
@@ -60,6 +61,7 @@ defmodule Thinktank.Models do
   @spec synthesis_model(tier()) :: String.t()
   def synthesis_model(tier), do: @tiers[tier].synthesis
 
+  @doc false
   @spec all_model_ids() :: [String.t()]
   def all_model_ids do
     @tiers |> Map.values() |> Enum.flat_map(& &1.models) |> Enum.uniq()

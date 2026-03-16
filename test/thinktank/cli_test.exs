@@ -99,6 +99,10 @@ defmodule Thinktank.CLITest do
       assert opts.tier == :cheap
     end
 
+    test "returns error for invalid tier" do
+      assert {:error, "invalid tier: bogus" <> _} = CLI.parse_args(["test", "--tier", "bogus"])
+    end
+
     test "parses --dry-run flag" do
       {:ok, opts} = CLI.parse_args(["test", "--dry-run"])
       assert opts.dry_run == true

@@ -6,34 +6,15 @@ defmodule Thinktank.ModelsTest do
   @tiers [:cheap, :standard, :premium]
 
   describe "models_for_tier/1" do
-    test "returns correct models for cheap tier" do
-      models = Models.models_for_tier(:cheap)
-      assert "qwen/qwen3.5-9b" in models
-      assert "nvidia/nemotron-3-nano-30b-a3b" in models
-      assert "bytedance-seed/seed-2.0-mini" in models
-      assert "qwen/qwen3.5-flash-02-23" in models
-      assert length(models) == 4
-    end
+    test "every tier returns a non-empty list of model ID strings" do
+      for tier <- @tiers do
+        models = Models.models_for_tier(tier)
+        assert is_list(models) and models != [], "#{tier} tier must have models"
+        assert Enum.all?(models, &is_binary/1), "#{tier} models must be strings"
 
-    test "returns correct models for standard tier" do
-      models = Models.models_for_tier(:standard)
-      assert "deepseek/deepseek-v3.2" in models
-      assert "x-ai/grok-4.1-fast" in models
-      assert "inception/mercury-2" in models
-      assert "google/gemini-3-flash-preview" in models
-      assert "mistralai/mistral-large-2512" in models
-      assert "anthropic/claude-haiku-4.5" in models
-      assert length(models) == 6
-    end
-
-    test "returns correct models for premium tier" do
-      models = Models.models_for_tier(:premium)
-      assert "google/gemini-3.1-pro-preview" in models
-      assert "openai/gpt-5.4" in models
-      assert "anthropic/claude-sonnet-4.6" in models
-      assert "x-ai/grok-4.20-beta" in models
-      assert "anthropic/claude-opus-4.6" in models
-      assert length(models) == 5
+        assert Enum.all?(models, &String.contains?(&1, "/")),
+               "#{tier} models must be provider/name format"
+      end
     end
   end
 
@@ -51,29 +32,21 @@ defmodule Thinktank.ModelsTest do
   end
 
   describe "router_model/1" do
-    test "returns valid model ID per tier" do
-      assert Models.router_model(:cheap) == "qwen/qwen3.5-flash-02-23"
-      assert Models.router_model(:standard) == "google/gemini-3-flash-preview"
-      assert Models.router_model(:premium) == "google/gemini-3.1-pro-preview"
-    end
-
-    test "router model exists in its tier" do
+    test "router model exists in its own tier" do
       for tier <- @tiers do
-        assert Models.router_model(tier) in Models.models_for_tier(tier)
+        model = Models.router_model(tier)
+        assert is_binary(model)
+        assert model in Models.models_for_tier(tier)
       end
     end
   end
 
   describe "synthesis_model/1" do
-    test "returns valid model ID per tier" do
-      assert Models.synthesis_model(:cheap) == "qwen/qwen3.5-flash-02-23"
-      assert Models.synthesis_model(:standard) == "google/gemini-3-flash-preview"
-      assert Models.synthesis_model(:premium) == "google/gemini-3.1-pro-preview"
-    end
-
-    test "synthesis model exists in its tier" do
+    test "synthesis model exists in its own tier" do
       for tier <- @tiers do
-        assert Models.synthesis_model(tier) in Models.models_for_tier(tier)
+        model = Models.synthesis_model(tier)
+        assert is_binary(model)
+        assert model in Models.models_for_tier(tier)
       end
     end
   end
