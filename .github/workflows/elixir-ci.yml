@@ -57,8 +57,8 @@ jobs:
       - name: Hex audit
         run: mix hex.audit
 
-      - name: Run tests
-        run: mix test
+      - name: Run tests with coverage
+        run: mix coveralls
 
       - name: Build escript
         run: mix escript.build
