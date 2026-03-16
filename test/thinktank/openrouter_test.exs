@@ -127,6 +127,19 @@ defmodule Thinktank.OpenRouterTest do
       assert {:error, %{category: :invalid_json, raw: nil}} =
                OpenRouter.chat_structured("test-model", "system", "user", %{}, @test_opts)
     end
+
+    test "returns {:error, :invalid_json} when decoded JSON is not a map" do
+      Req.Test.stub(OpenRouter, fn conn ->
+        Req.Test.json(conn, %{
+          "choices" => [%{"message" => %{"content" => "[1, 2, 3]"}}],
+          "usage" => %{"prompt_tokens" => 5, "completion_tokens" => 5, "total_tokens" => 10},
+          "cost" => 0.0001
+        })
+      end)
+
+      assert {:error, %{category: :invalid_json, raw: [1, 2, 3]}} =
+               OpenRouter.chat_structured("test-model", "system", "user", %{}, @test_opts)
+    end
   end
 
   describe "error body handling" do

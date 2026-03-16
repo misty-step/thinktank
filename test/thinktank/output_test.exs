@@ -120,15 +120,15 @@ defmodule Thinktank.OutputTest do
       content = "## Security Analysis\n\nNo critical vulnerabilities found."
       assert :ok = Output.write_perspective(output_dir, "security-analyst", content, usage())
 
-      # File written
-      path = Path.join(output_dir, "security-analyst.md")
+      # File written (priority-prefixed)
+      path = Path.join(output_dir, "1-security-analyst.md")
       assert File.read!(path) == content
 
       # Manifest updated — model preserved
       manifest = read_manifest(output_dir)
       sa = Enum.find(manifest["perspectives"], &(&1["role"] == "security-analyst"))
       assert sa["status"] == "complete"
-      assert sa["file"] == "security-analyst.md"
+      assert sa["file"] == "1-security-analyst.md"
       assert is_binary(sa["completed_at"])
       assert is_binary(sa["model"])
 
@@ -365,19 +365,45 @@ defmodule Thinktank.OutputTest do
     end
   end
 
-  describe "write_perspective/4 — unknown role" do
-    test "role not in manifest does not crash, perspectives list unchanged", %{tmp_dir: tmp} do
+  describe "write_perspective/4 — edge cases" do
+    test "unknown role does not crash, perspectives list unchanged", %{tmp_dir: tmp} do
       output_dir = Path.join(tmp, "unk1")
       Output.init_run(output_dir, perspectives(["a", "b"]), nil)
 
       assert :ok = Output.write_perspective(output_dir, "unknown-role", "content", nil)
 
-      assert File.exists?(Path.join(output_dir, "unknown-role.md"))
+      assert File.exists?(Path.join(output_dir, "0-unknown-role.md"))
 
       manifest = read_manifest(output_dir)
       assert length(manifest["perspectives"]) == 2
       assert Enum.all?(manifest["perspectives"], &(&1["status"] == "pending"))
       assert manifest["perspectives_completed"] == 0
+    end
+
+    test "duplicate roles get separate files and independent completion", %{tmp_dir: tmp} do
+      output_dir = Path.join(tmp, "dup1")
+
+      # Two perspectives with the same role but different priorities
+      dupes = [
+        %Perspective{role: "analyst", model: "model-a", system_prompt: "First.", priority: 1},
+        %Perspective{role: "analyst", model: "model-b", system_prompt: "Second.", priority: 2}
+      ]
+
+      Output.init_run(output_dir, dupes, nil)
+
+      Output.write_perspective(output_dir, "analyst", "first output", usage(10, 20, 0.001))
+      manifest = read_manifest(output_dir)
+      assert manifest["perspectives_completed"] == 1
+      assert File.exists?(Path.join(output_dir, "1-analyst.md"))
+
+      Output.write_perspective(output_dir, "analyst", "second output", usage(30, 40, 0.002))
+      manifest = read_manifest(output_dir)
+      assert manifest["perspectives_completed"] == 2
+      assert File.exists?(Path.join(output_dir, "2-analyst.md"))
+
+      # Both files have distinct content
+      assert File.read!(Path.join(output_dir, "1-analyst.md")) == "first output"
+      assert File.read!(Path.join(output_dir, "2-analyst.md")) == "second output"
     end
   end
 

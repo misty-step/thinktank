@@ -102,13 +102,13 @@ defmodule Thinktank.Router do
           |> Enum.filter(&(&1.model in available))
 
         if perspectives == [] do
-          {:ok, default_perspectives(available), nil}
+          {:ok, default_perspectives(available), usage}
         else
           {:ok, perspectives, usage}
         end
 
-      {:ok, _, _usage} ->
-        {:ok, default_perspectives(available), nil}
+      {:ok, _, usage} ->
+        {:ok, default_perspectives(available), usage}
 
       {:error, _} ->
         {:ok, default_perspectives(available), nil}

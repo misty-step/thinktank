@@ -137,7 +137,8 @@ defmodule Thinktank.OpenRouter do
     end
   end
 
-  defp wrap_json({:ok, parsed}, _raw), do: {:ok, parsed}
+  defp wrap_json({:ok, parsed}, _raw) when is_map(parsed), do: {:ok, parsed}
+  defp wrap_json({:ok, non_map}, _raw), do: {:error, %{category: :invalid_json, raw: non_map}}
   defp wrap_json({:error, _}, raw), do: {:error, %{category: :invalid_json, raw: raw}}
 
   defp non_empty_env(name) do

@@ -51,23 +51,29 @@ defmodule Thinktank.Output do
   """
   @spec write_perspective(Path.t(), String.t(), String.t(), map() | nil) :: :ok
   def write_perspective(output_dir, role, content, usage) do
-    filename = slugify(role) <> ".md"
-    File.write!(Path.join(output_dir, filename), content)
-
     manifest = read_manifest(output_dir)
 
-    perspectives =
-      Enum.map(manifest["perspectives"], fn p ->
-        if p["role"] == role do
-          %{
-            p
-            | "status" => "complete",
-              "file" => filename,
-              "completed_at" => now_iso8601(),
-              "usage" => normalize_usage(usage)
-          }
+    # Match first pending perspective with this role to handle duplicate roles.
+    # Priority-prefixed filename prevents file collisions.
+    target =
+      Enum.find(manifest["perspectives"], &(&1["role"] == role and &1["status"] == "pending"))
+
+    priority = if target, do: target["priority"], else: 0
+    filename = "#{priority}-#{slugify(role)}.md"
+    File.write!(Path.join(output_dir, filename), content)
+
+    {perspectives, _matched} =
+      Enum.map_reduce(manifest["perspectives"], false, fn p, matched ->
+        if not matched and p["role"] == role and p["status"] == "pending" do
+          {%{
+             p
+             | "status" => "complete",
+               "file" => filename,
+               "completed_at" => now_iso8601(),
+               "usage" => normalize_usage(usage)
+           }, true}
         else
-          p
+          {p, matched}
         end
       end)
 
