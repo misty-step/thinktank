@@ -1,5 +1,18 @@
 # Changelog
 
+## [6.2.0](https://github.com/misty-step/thinktank/compare/v6.1.0...v6.2.0) (2026-03-16)
+
+
+### Features
+
+* **ci:** enforce 80% coverage threshold with ExCoveralls ([#276](https://github.com/misty-step/thinktank/issues/276)) ([b714aca](https://github.com/misty-step/thinktank/commit/b714aca930209b2f34cfed9d7c08055297dfa1ee))
+
+
+### Bug Fixes
+
+* **ci:** correct Dialyzer PLT cache path glob ([#275](https://github.com/misty-step/thinktank/issues/275)) ([83a1ea4](https://github.com/misty-step/thinktank/commit/83a1ea4444895770d980b7662a04d5acd7fad30a)), closes [#261](https://github.com/misty-step/thinktank/issues/261)
+* **deep:** resolve escript stdin hang and restore post-merge hook ([#273](https://github.com/misty-step/thinktank/issues/273)) ([488d199](https://github.com/misty-step/thinktank/commit/488d1992e25b96bb16b01ca951215e2e5ed8e016))
+
 ## [6.1.0](https://github.com/misty-step/thinktank/compare/v6.0.0...v6.1.0) (2026-03-15)
 
 
