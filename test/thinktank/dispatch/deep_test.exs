@@ -372,6 +372,43 @@ defmodule Thinktank.Dispatch.DeepTest do
     end
   end
 
+  describe "muontrap_available?/0" do
+    test "returns a boolean" do
+      result = Deep.muontrap_available?()
+      assert is_boolean(result)
+    end
+  end
+
+  describe "default_runner/0" do
+    test "returns a function" do
+      runner = Deep.default_runner()
+      assert is_function(runner, 3)
+    end
+  end
+
+  describe "system_cmd/3 — escript fallback runner" do
+    test "returns {output, 0} for successful commands" do
+      {output, exit_code} = Deep.system_cmd("echo", ["hello"], [])
+      assert exit_code == 0
+      assert String.trim(output) == "hello"
+    end
+
+    test "returns non-zero exit code for failed commands" do
+      {_output, exit_code} = Deep.system_cmd("sh", ["-c", "exit 42"], [])
+      assert exit_code == 42
+    end
+
+    test "forwards env to subprocess" do
+      {output, 0} = Deep.system_cmd("sh", ["-c", "echo $TEST_VAR"], env: [{"TEST_VAR", "works"}])
+      assert String.trim(output) == "works"
+    end
+
+    test "returns timeout tuple when command exceeds timeout" do
+      {_output, status} = Deep.system_cmd("sleep", ["10"], timeout: 100)
+      assert status == :timeout
+    end
+  end
+
   # Flush all messages with a given tag, collecting the payloads
   defp flush_tagged(tag), do: flush_tagged(tag, [])
 

@@ -106,22 +106,25 @@ defmodule Thinktank.Dispatch.Deep do
     end
   end
 
-  # MuonTrap's priv binary is unavailable in escripts — fall back to System.cmd.
-  defp default_runner do
+  @doc false
+  def default_runner do
     if muontrap_available?(), do: &MuonTrap.cmd/3, else: &system_cmd/3
   end
 
-  defp muontrap_available? do
+  @doc false
+  def muontrap_available? do
     path = MuonTrap.muontrap_path()
     File.exists?(path)
   rescue
     _ -> false
   end
 
-  # Escript fallback: System.cmd does NOT provide OS-level kill-safety.
-  # On timeout, the Elixir task is killed but the OS process (pi) may
-  # survive. MuonTrap path (mix/release) provides true kill-safety.
-  defp system_cmd(cmd, args, opts) do
+  @doc """
+  Escript fallback runner. System.cmd does NOT provide OS-level kill-safety.
+  On timeout, the Elixir task is killed but the OS process may survive.
+  MuonTrap path (mix/release) provides true kill-safety.
+  """
+  def system_cmd(cmd, args, opts) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     env = Keyword.get(opts, :env, [])
 
