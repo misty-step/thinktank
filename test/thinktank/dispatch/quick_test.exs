@@ -21,7 +21,9 @@ defmodule Thinktank.Dispatch.QuickTest do
     %{"model" => model} = Jason.decode!(body)
 
     Req.Test.json(conn, %{
-      "choices" => [%{"message" => %{"content" => "Response from #{model}"}}]
+      "choices" => [%{"message" => %{"content" => "Response from #{model}"}}],
+      "usage" => %{"prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30},
+      "cost" => 0.001
     })
   end
 
@@ -30,7 +32,9 @@ defmodule Thinktank.Dispatch.QuickTest do
     %{"messages" => [_, %{"content" => user_prompt}]} = Jason.decode!(body)
 
     Req.Test.json(conn, %{
-      "choices" => [%{"message" => %{"content" => user_prompt}}]
+      "choices" => [%{"message" => %{"content" => user_prompt}}],
+      "usage" => %{"prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30},
+      "cost" => 0.001
     })
   end
 
@@ -48,10 +52,10 @@ defmodule Thinktank.Dispatch.QuickTest do
       results = Quick.dispatch(perspectives, "test instruction", openrouter_opts: @or_opts)
 
       assert length(results) == 4
-      assert {:ok, "analyst-1", "Response from model-a"} in results
-      assert {:ok, "analyst-2", "Response from model-b"} in results
-      assert {:ok, "analyst-3", "Response from model-c"} in results
-      assert {:ok, "analyst-4", "Response from model-d"} in results
+      assert Enum.any?(results, &match?({:ok, "analyst-1", "Response from model-a", _}, &1))
+      assert Enum.any?(results, &match?({:ok, "analyst-2", "Response from model-b", _}, &1))
+      assert Enum.any?(results, &match?({:ok, "analyst-3", "Response from model-c", _}, &1))
+      assert Enum.any?(results, &match?({:ok, "analyst-4", "Response from model-d", _}, &1))
     end
 
     test "sends only instruction when no paths provided" do
@@ -64,7 +68,7 @@ defmodule Thinktank.Dispatch.QuickTest do
           openrouter_opts: @or_opts
         )
 
-      assert {:ok, "analyst", "what do you think?"} = result
+      assert {:ok, "analyst", "what do you think?", _usage} = result
     end
 
     test "inlines file contents in prompt when paths provided", %{tmp_dir: tmp} do
@@ -81,7 +85,7 @@ defmodule Thinktank.Dispatch.QuickTest do
           openrouter_opts: @or_opts
         )
 
-      assert {:ok, "analyst", content} = result
+      assert {:ok, "analyst", content, _usage} = result
       assert content =~ "review this"
       assert content =~ "defmodule Main"
     end
@@ -103,7 +107,9 @@ defmodule Thinktank.Dispatch.QuickTest do
           |> Req.Test.json(%{"error" => %{"message" => "boom"}})
         else
           Req.Test.json(conn, %{
-            "choices" => [%{"message" => %{"content" => "ok"}}]
+            "choices" => [%{"message" => %{"content" => "ok"}}],
+            "usage" => %{"prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30},
+            "cost" => 0.001
           })
         end
       end)
@@ -111,7 +117,7 @@ defmodule Thinktank.Dispatch.QuickTest do
       results = Quick.dispatch(perspectives, "test", openrouter_opts: @or_opts)
 
       assert length(results) == 3
-      oks = Enum.filter(results, &match?({:ok, _, _}, &1))
+      oks = Enum.filter(results, &match?({:ok, _, _, _}, &1))
       errors = Enum.filter(results, &match?({:error, _, _}, &1))
       assert length(oks) == 2
       assert length(errors) == 1
@@ -143,7 +149,9 @@ defmodule Thinktank.Dispatch.QuickTest do
         send(test_pid, {:system_prompt, sys})
 
         Req.Test.json(conn, %{
-          "choices" => [%{"message" => %{"content" => "ok"}}]
+          "choices" => [%{"message" => %{"content" => "ok"}}],
+          "usage" => %{"prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30},
+          "cost" => 0.001
         })
       end)
 
@@ -172,7 +180,7 @@ defmodule Thinktank.Dispatch.QuickTest do
           openrouter_opts: @or_opts
         )
 
-      assert {:ok, _, content} = result
+      assert {:ok, _, content, _usage} = result
       assert content =~ "small content"
       refute content =~ String.duplicate("x", 100)
     end
@@ -190,7 +198,7 @@ defmodule Thinktank.Dispatch.QuickTest do
           openrouter_opts: @or_opts
         )
 
-      assert {:ok, _, "review"} = result
+      assert {:ok, _, "review", _usage} = result
     end
   end
 

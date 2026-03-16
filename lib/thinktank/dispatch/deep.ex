@@ -7,11 +7,11 @@ defmodule Thinktank.Dispatch.Deep do
   available (mix/release) for OS-level kill-safety; falls back to
   System.cmd for escripts where MuonTrap's priv binary is inaccessible.
 
-  Returns the same result tuples as `Dispatch.Quick` so the caller
-  (CLI) doesn't care which mode ran.
+  Returns the same result tuples as `Dispatch.Quick` (with `nil` usage)
+  so the caller (CLI) doesn't care which mode ran.
   """
 
-  @type result :: {:ok, String.t(), String.t()} | {:error, String.t(), map()}
+  @type result :: {:ok, String.t(), String.t(), map() | nil} | {:error, String.t(), map()}
 
   @default_timeout :timer.minutes(30)
   @default_tools "read,bash,grep,find"
@@ -19,7 +19,8 @@ defmodule Thinktank.Dispatch.Deep do
   @doc """
   Dispatch Pi agent subprocesses for each perspective.
 
-  Returns a list of `{:ok, role, text}` or `{:error, role, error_map}` tuples.
+  Returns a list of `{:ok, role, text, usage}` or `{:error, role, error_map}` tuples.
+  Usage is `nil` for deep mode (Pi subprocesses don't report API usage).
 
   Options:
     - `:paths` — file paths for agent context (starting points)
@@ -65,7 +66,7 @@ defmodule Thinktank.Dispatch.Deep do
 
     case runner.("sh", ["-c", shell_cmd], cmd_opts) do
       {output, 0} ->
-        {:ok, perspective.role, output}
+        {:ok, perspective.role, output, nil}
 
       {output, :timeout} ->
         {:error, perspective.role, %{category: :timeout, output: output}}

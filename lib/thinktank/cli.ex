@@ -7,16 +7,7 @@ defmodule Thinktank.CLI do
   JSON output, meaningful exit codes, no interactive prompts.
   """
 
-  alias Thinktank.{Dispatch.Deep, Dispatch.Quick, Output, Router, Synthesis}
-
-  # Verified against OpenRouter API (March 2026)
-  # curl -s https://openrouter.ai/api/v1/models | jq '.data[].id'
-  @default_models [
-    "anthropic/claude-sonnet-4.6",
-    "openai/gpt-5.4",
-    "google/gemini-3.1-pro-preview",
-    "deepseek/deepseek-v3.2"
-  ]
+  alias Thinktank.{Dispatch.Deep, Dispatch.Quick, Models, Output, Router, Synthesis}
 
   @exit_codes %{
     success: 0,
@@ -45,7 +36,8 @@ defmodule Thinktank.CLI do
       roles: :string,
       dry_run: :boolean,
       no_synthesis: :boolean,
-      perspectives: :integer
+      perspectives: :integer,
+      tier: :string
     ],
     aliases: [
       h: :help,
@@ -53,7 +45,8 @@ defmodule Thinktank.CLI do
       q: :quick,
       d: :deep,
       o: :output,
-      n: :perspectives
+      n: :perspectives,
+      t: :tier
     ]
   ]
 
@@ -130,6 +123,7 @@ defmodule Thinktank.CLI do
       paths: opts.paths,
       perspectives: opts.perspectives,
       dispatch_mode: to_string(opts.mode),
+      tier: to_string(opts.tier),
       models: opts.models,
       roles: opts.roles,
       no_synthesis: opts.no_synthesis
@@ -158,7 +152,8 @@ defmodule Thinktank.CLI do
       roles: parse_csv(parsed[:roles]),
       dry_run: parsed[:dry_run] || false,
       no_synthesis: parsed[:no_synthesis] || false,
-      perspectives: parsed[:perspectives] || 4
+      perspectives: parsed[:perspectives] || 4,
+      tier: parse_tier(parsed[:tier])
     }
   end
 
@@ -198,19 +193,19 @@ defmodule Thinktank.CLI do
         IO.puts(:stderr, "Error: #{reason}")
         System.halt(@exit_codes.input_error)
 
-      {:ok, perspectives} ->
+      {:ok, perspectives, router_usage} ->
         output_dir = opts.output || generate_output_dir()
-        roles = Enum.map(perspectives, & &1.role)
-        Output.init_run(output_dir, roles)
+        Output.init_run(output_dir, perspectives, router_usage)
 
         results = dispatch_fn.(perspectives, opts.instruction, opts.paths)
-        successes = for {:ok, role, text} <- results, do: {role, text}
+        successes = for {:ok, role, text, usage} <- results, do: {role, text, usage}
 
-        for {role, text} <- successes do
-          Output.write_perspective(output_dir, role, text)
+        for {role, text, usage} <- successes do
+          Output.write_perspective(output_dir, role, text, usage)
         end
 
-        maybe_synthesize(opts, successes, output_dir)
+        synthesis_successes = for {role, text, _usage} <- successes, do: {role, text}
+        maybe_synthesize(opts, synthesis_successes, output_dir)
         Output.complete_run(output_dir)
         emit_result(opts, output_dir)
         exit_on_results(successes)
@@ -224,8 +219,8 @@ defmodule Thinktank.CLI do
   end
 
   defp do_synthesize(opts, successes, output_dir) do
-    case Synthesis.synthesize(successes, opts.instruction) do
-      {:ok, text} -> Output.write_synthesis(output_dir, text)
+    case Synthesis.synthesize(successes, opts.instruction, tier: opts.tier) do
+      {:ok, text, usage} -> Output.write_synthesis(output_dir, text, usage)
       {:error, _} -> IO.puts(:stderr, "Warning: synthesis failed after retries")
     end
   end
@@ -238,7 +233,7 @@ defmodule Thinktank.CLI do
     end
   end
 
-  @spec exit_on_results([{String.t(), String.t()}]) :: no_return()
+  @spec exit_on_results([{String.t(), String.t(), map() | nil}]) :: no_return()
   defp exit_on_results([]) do
     IO.puts(:stderr, "Error: all perspective dispatches failed")
     System.halt(@exit_codes.generic_error)
@@ -247,14 +242,15 @@ defmodule Thinktank.CLI do
   defp exit_on_results(_successes), do: System.halt(@exit_codes.success)
 
   defp resolve_perspectives(opts) do
-    models = if opts.models != [], do: opts.models, else: @default_models
+    models = if opts.models != [], do: opts.models, else: Models.models_for_tier(opts.tier)
 
     if opts.roles != [] do
-      {:ok, Router.manual_perspectives(opts.roles, models)}
+      {:ok, Router.manual_perspectives(opts.roles, models), nil}
     else
       Router.generate_perspectives(opts.instruction, opts.paths,
         available_models: models,
-        perspectives: opts.perspectives
+        perspectives: opts.perspectives,
+        tier: opts.tier
       )
     end
   end
@@ -280,9 +276,10 @@ defmodule Thinktank.CLI do
       --paths PATH     Files/dirs for agent context (repeatable)
       --quick, -q      Quick mode: parallel API calls, no tools
       --deep, -d       Deep mode: Pi agent subprocesses (default)
+      --tier, -t TIER  Model tier: cheap, standard, premium (default: standard)
       --json           Output structured JSON to stdout
       --output, -o     Output directory (default: auto-generated)
-      --models LIST    Comma-separated model list (overrides router)
+      --models LIST    Comma-separated model list (overrides tier)
       --roles LIST     Comma-separated roles (bypasses router)
       --perspectives N Number of perspectives (default: 4)
       --dry-run        Show plan without executing
@@ -305,11 +302,19 @@ defmodule Thinktank.CLI do
 
     EXAMPLES
       thinktank "review this auth flow" --paths ./src/auth
-      thinktank "suggest project names" --quick
-      thinktank "audit for security issues" --paths ./src --perspectives 5
-      echo "compare approaches" | thinktank --models claude-opus-4-6,gpt-5.4 --quick
+      thinktank "suggest project names" --quick --tier cheap
+      thinktank "audit for security issues" --tier premium --perspectives 5
+      echo "compare approaches" | thinktank --quick
     """)
   end
+
+  defp parse_tier(nil), do: :standard
+  defp parse_tier("cheap"), do: :cheap
+  defp parse_tier("standard"), do: :standard
+  defp parse_tier("premium"), do: :premium
+
+  defp parse_tier(other),
+    do: raise("invalid tier: #{other} (must be cheap, standard, or premium)")
 
   defp parse_csv(nil), do: []
   defp parse_csv(str), do: str |> String.split(",") |> Enum.map(&String.trim/1)

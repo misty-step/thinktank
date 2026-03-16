@@ -79,6 +79,26 @@ defmodule Thinktank.CLITest do
       assert opts.perspectives == 4
     end
 
+    test "defaults tier to standard" do
+      {:ok, opts} = CLI.parse_args(["test"])
+      assert opts.tier == :standard
+    end
+
+    test "parses --tier cheap" do
+      {:ok, opts} = CLI.parse_args(["test", "--tier", "cheap"])
+      assert opts.tier == :cheap
+    end
+
+    test "parses --tier premium" do
+      {:ok, opts} = CLI.parse_args(["test", "--tier", "premium"])
+      assert opts.tier == :premium
+    end
+
+    test "parses -t alias for tier" do
+      {:ok, opts} = CLI.parse_args(["test", "-t", "cheap"])
+      assert opts.tier == :cheap
+    end
+
     test "parses --dry-run flag" do
       {:ok, opts} = CLI.parse_args(["test", "--dry-run"])
       assert opts.dry_run == true
@@ -137,6 +157,7 @@ defmodule Thinktank.CLITest do
       assert is_list(decoded["models"])
       assert is_list(decoded["roles"])
       assert is_boolean(decoded["no_synthesis"])
+      assert decoded["tier"] == "standard"
     end
 
     test "paths are included when provided" do

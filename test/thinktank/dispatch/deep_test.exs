@@ -47,7 +47,7 @@ defmodule Thinktank.Dispatch.DeepTest do
       runner = fn _cmd, _args, _opts -> {"## Security Analysis\nAll clear.", 0} end
 
       [result] = Deep.dispatch(perspectives, "audit this", runner: runner)
-      assert {:ok, "security", "## Security Analysis\nAll clear."} = result
+      assert {:ok, "security", "## Security Analysis\nAll clear.", nil} = result
     end
 
     test "returns {:error, role, error_map} for crashed agents" do
@@ -81,7 +81,7 @@ defmodule Thinktank.Dispatch.DeepTest do
       results = Deep.dispatch(perspectives, "test", runner: runner)
 
       assert length(results) == 3
-      oks = Enum.filter(results, &match?({:ok, _, _}, &1))
+      oks = Enum.filter(results, &match?({:ok, _, _, _}, &1))
       errors = Enum.filter(results, &match?({:error, _, _}, &1))
       assert length(oks) == 2
       assert length(errors) == 1
