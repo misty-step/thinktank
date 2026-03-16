@@ -32,8 +32,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            _build/dev/dialyze_erlang-*_elixir-*_deps-dev.plt
-            ~/.mix/dialyxir_erlang-*.plt
+            _build/dev/dialyxir_erlang-*_elixir-*_deps-dev.plt
+            _build/dev/dialyxir_erlang-*_elixir-*_deps-dev.plt.hash
           key: ${{ runner.os }}-plt-otp28-elixir1.19-${{ hashFiles('**/mix.lock') }}
           restore-keys: ${{ runner.os }}-plt-otp28-elixir1.19-
 
