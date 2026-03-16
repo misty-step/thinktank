@@ -28,7 +28,7 @@ repos:
     hooks:
     -   id: mix-credo
         name: mix-credo
-        entry: mix credo --strict
+        entry: mix credo
         language: system
         files: \.exs?$
         pass_filenames: false

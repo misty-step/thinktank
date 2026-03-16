@@ -45,10 +45,10 @@ defmodule Thinktank.SynthesisTest do
   end
 
   describe "synthesize/3" do
-    test "returns {:ok, text} containing all required sections" do
+    test "returns {:ok, text, usage} containing all required sections" do
       Req.Test.stub(Synthesis, synthesis_response(full_synthesis_text()))
 
-      assert {:ok, text} =
+      assert {:ok, text, _usage} =
                Synthesis.synthesize(@perspectives, "review this auth flow",
                  openrouter_opts: @test_opts
                )
@@ -108,7 +108,7 @@ defmodule Thinktank.SynthesisTest do
         end
       end)
 
-      assert {:ok, _text} =
+      assert {:ok, _text, _usage} =
                Synthesis.synthesize(@perspectives, "review this",
                  openrouter_opts: @test_opts,
                  backoff_base: 1
@@ -150,7 +150,7 @@ defmodule Thinktank.SynthesisTest do
       assert_receive {:model_used, "anthropic/claude-opus-4.6"}
     end
 
-    test "defaults to most capable model when none specified" do
+    test "defaults to standard tier model when none specified" do
       test_pid = self()
 
       Req.Test.stub(Synthesis, fn conn ->
@@ -162,14 +162,50 @@ defmodule Thinktank.SynthesisTest do
       Synthesis.synthesize(@perspectives, "review this", openrouter_opts: @test_opts)
 
       assert_receive {:model_used, model}
-      assert model == Synthesis.default_model()
+      assert model == Thinktank.Models.synthesis_model(:standard)
     end
 
-    test "returns {:ok, text} with whatever the model produces" do
+    test "returns {:ok, text, usage} with whatever the model produces" do
       Req.Test.stub(Synthesis, synthesis_response("Sparse output"))
 
-      assert {:ok, "Sparse output"} =
+      assert {:ok, "Sparse output", _usage} =
                Synthesis.synthesize(@perspectives, "review this", openrouter_opts: @test_opts)
+    end
+
+    test "handles empty perspectives list — still calls the API" do
+      test_pid = self()
+
+      Req.Test.stub(Synthesis, fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        send(test_pid, {:called, Jason.decode!(body)})
+        Req.Test.json(conn, %{"choices" => [%{"message" => %{"content" => "synthesized"}}]})
+      end)
+
+      assert {:ok, "synthesized", _usage} =
+               Synthesis.synthesize([], "empty question", openrouter_opts: @test_opts)
+
+      assert_receive {:called, body}
+      assert body["messages"] |> length() == 2
+    end
+  end
+
+  describe "tier-based model selection" do
+    test "uses tier model when no explicit synthesis_model given" do
+      test_pid = self()
+
+      Req.Test.stub(Synthesis, fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        send(test_pid, {:model_used, Jason.decode!(body)["model"]})
+        Req.Test.json(conn, %{"choices" => [%{"message" => %{"content" => "ok"}}]})
+      end)
+
+      Synthesis.synthesize(@perspectives, "review this",
+        openrouter_opts: @test_opts,
+        tier: :cheap
+      )
+
+      assert_receive {:model_used, model}
+      assert model == Thinktank.Models.synthesis_model(:cheap)
     end
   end
 end

@@ -13,12 +13,12 @@ defmodule Thinktank.Dispatch.Quick do
   @timeout :timer.minutes(5)
   @max_file_bytes 100_000
 
-  @type result :: {:ok, String.t(), String.t()} | {:error, String.t(), map()}
+  @type result :: {:ok, String.t(), String.t(), map() | nil} | {:error, String.t(), map()}
 
   @doc """
   Dispatch parallel API calls for each perspective.
 
-  Returns a list of `{:ok, role, text}` or `{:error, role, error_map}` tuples
+  Returns a list of `{:ok, role, text, usage}` or `{:error, role, error_map}` tuples
   in the same order as the input perspectives.
 
   Options:
@@ -35,7 +35,7 @@ defmodule Thinktank.Dispatch.Quick do
     |> Task.async_stream(
       fn p ->
         case OpenRouter.chat(p.model, p.system_prompt, prompt, or_opts) do
-          {:ok, text} -> {:ok, p.role, text}
+          {:ok, text, usage} -> {:ok, p.role, text, usage}
           {:error, err} -> {:error, p.role, err}
         end
       end,

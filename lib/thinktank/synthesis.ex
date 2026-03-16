@@ -10,10 +10,8 @@ defmodule Thinktank.Synthesis do
   Retries up to 3 times with exponential backoff on failure.
   """
 
-  alias Thinktank.OpenRouter
+  alias Thinktank.{Models, OpenRouter}
 
-  # Strong reasoning, 1M context, $2/$12 per M — verified via OpenRouter API
-  @default_model "google/gemini-3.1-pro-preview"
   @max_attempts 3
   @default_backoff_base 1000
 
@@ -37,24 +35,22 @@ defmodule Thinktank.Synthesis do
   Actionable next steps, grounded in the evidence from perspectives. Prioritize by impact.\
   """
 
-  @doc "The default synthesis model."
-  @spec default_model() :: String.t()
-  def default_model, do: @default_model
-
   @doc """
   Synthesize perspective outputs into structured insight.
 
   Takes a list of `{role, text}` tuples and the original instruction.
 
   Options:
-    - `:synthesis_model` — model to use (defaults to `#{@default_model}`)
+    - `:synthesis_model` — explicit model override
+    - `:tier` — model tier (default `:standard`), used when no `:synthesis_model` given
     - `:openrouter_opts` — keyword opts forwarded to `OpenRouter.chat/4`
     - `:backoff_base` — base backoff in ms (default 1000, set low in tests)
   """
   @spec synthesize([{String.t(), String.t()}], String.t(), keyword()) ::
-          {:ok, String.t()} | {:error, map()}
+          {:ok, String.t(), OpenRouter.usage()} | {:error, map()}
   def synthesize(perspectives, instruction, opts \\ []) do
-    model = opts[:synthesis_model] || @default_model
+    tier = Keyword.get(opts, :tier, :standard)
+    model = opts[:synthesis_model] || Models.synthesis_model(tier)
     or_opts = opts[:openrouter_opts] || []
     backoff_base = opts[:backoff_base] || @default_backoff_base
     user_prompt = build_user_prompt(perspectives, instruction)
@@ -68,8 +64,8 @@ defmodule Thinktank.Synthesis do
 
   defp retry(model, prompt, or_opts, backoff_base, attempt) do
     case OpenRouter.chat(model, @system_prompt, prompt, or_opts) do
-      {:ok, _text} = ok ->
-        ok
+      {:ok, text, usage} ->
+        {:ok, text, usage}
 
       {:error, _} = err ->
         if attempt < @max_attempts do

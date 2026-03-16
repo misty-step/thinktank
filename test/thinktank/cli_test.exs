@@ -79,6 +79,30 @@ defmodule Thinktank.CLITest do
       assert opts.perspectives == 4
     end
 
+    test "defaults tier to standard" do
+      {:ok, opts} = CLI.parse_args(["test"])
+      assert opts.tier == :standard
+    end
+
+    test "parses --tier cheap" do
+      {:ok, opts} = CLI.parse_args(["test", "--tier", "cheap"])
+      assert opts.tier == :cheap
+    end
+
+    test "parses --tier premium" do
+      {:ok, opts} = CLI.parse_args(["test", "--tier", "premium"])
+      assert opts.tier == :premium
+    end
+
+    test "parses -t alias for tier" do
+      {:ok, opts} = CLI.parse_args(["test", "-t", "cheap"])
+      assert opts.tier == :cheap
+    end
+
+    test "returns error for invalid tier" do
+      assert {:error, "invalid tier: bogus" <> _} = CLI.parse_args(["test", "--tier", "bogus"])
+    end
+
     test "parses --dry-run flag" do
       {:ok, opts} = CLI.parse_args(["test", "--dry-run"])
       assert opts.dry_run == true
@@ -111,14 +135,59 @@ defmodule Thinktank.CLITest do
     end
   end
 
-  describe "dry_run JSON output" do
-    test "produces valid JSON envelope" do
+  describe "parse_args/1 — edge cases" do
+    test "empty models string parses to single empty string" do
+      {:ok, opts} = CLI.parse_args(["test", "--models", ""])
+      assert opts.models == [""]
+    end
+
+    test "--deep flag explicitly sets deep mode" do
+      {:ok, opts} = CLI.parse_args(["test", "--deep"])
+      assert opts.mode == :deep
+    end
+  end
+
+  describe "dry_run_output/1" do
+    test "produces valid JSON with all expected fields" do
       {:ok, opts} = CLI.parse_args(["test instruction", "--dry-run", "--json"])
       json = CLI.dry_run_output(opts)
       assert {:ok, decoded} = Jason.decode(json)
+
       assert decoded["mode"] == "dry_run"
       assert decoded["instruction"] == "test instruction"
       assert is_list(decoded["paths"])
+      assert is_integer(decoded["perspectives"])
+      assert is_binary(decoded["dispatch_mode"])
+      assert is_list(decoded["models"])
+      assert is_list(decoded["roles"])
+      assert is_boolean(decoded["no_synthesis"])
+      assert decoded["tier"] == "standard"
+    end
+
+    test "paths are included when provided" do
+      {:ok, opts} = CLI.parse_args(["test", "--dry-run", "--paths", "./src"])
+      json = CLI.dry_run_output(opts)
+      decoded = Jason.decode!(json)
+
+      assert decoded["paths"] == [Path.expand("./src")]
+    end
+
+    test "models and roles are included when provided" do
+      {:ok, opts} =
+        CLI.parse_args([
+          "test",
+          "--dry-run",
+          "--models",
+          "model-a,model-b",
+          "--roles",
+          "auditor,reviewer"
+        ])
+
+      json = CLI.dry_run_output(opts)
+      decoded = Jason.decode!(json)
+
+      assert decoded["models"] == ["model-a", "model-b"]
+      assert decoded["roles"] == ["auditor", "reviewer"]
     end
   end
 end

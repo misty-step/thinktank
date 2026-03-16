@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Extract model ID strings from Elixir source files
-PROVIDERS="anthropic\|openai\|google\|deepseek\|meta-llama\|mistralai\|qwen\|moonshotai"
+PROVIDERS="anthropic\|openai\|google\|deepseek\|meta-llama\|mistralai\|qwen\|moonshotai\|nvidia\|bytedance-seed\|inception\|x-ai"
 ELIXIR_MODELS=$(grep -rho "\"\\(${PROVIDERS}\\)/[a-z0-9._-]*\"" \
   "$REPO_ROOT/lib/" \
   2>/dev/null \

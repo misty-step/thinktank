@@ -8,6 +8,15 @@ defmodule Thinktank.OpenRouter do
 
   @base_url "https://openrouter.ai/api/v1"
 
+  @type usage :: %{
+          prompt_tokens: non_neg_integer(),
+          completion_tokens: non_neg_integer(),
+          total_tokens: non_neg_integer(),
+          cost: float()
+        }
+
+  @spec chat(String.t(), String.t(), String.t(), keyword()) ::
+          {:ok, String.t() | nil, usage()} | {:error, map()}
   def chat(model, system_prompt, user_prompt, opts \\ []) do
     with {:ok, key} <- require_key(opts) do
       build_req(key, opts)
@@ -19,6 +28,8 @@ defmodule Thinktank.OpenRouter do
     end
   end
 
+  @spec chat_structured(String.t(), String.t(), String.t(), map(), keyword()) ::
+          {:ok, map(), usage()} | {:error, map()}
   def chat_structured(model, system_prompt, user_prompt, json_schema, opts \\ []) do
     with {:ok, key} <- require_key(opts) do
       body = %{
@@ -79,7 +90,12 @@ defmodule Thinktank.OpenRouter do
     end
   end
 
-  defp handle_response({:ok, %{status: 200, body: body}}, extractor), do: extractor.(body)
+  defp handle_response({:ok, %{status: 200, body: body}}, extractor) do
+    case extractor.(body) do
+      {:ok, content} -> {:ok, content, extract_usage(body)}
+      {:error, _} = err -> err
+    end
+  end
 
   defp handle_response({:ok, %{status: 401, body: body}}, _),
     do: {:error, %{category: :auth, message: error_message(body) || "unauthorized"}}
@@ -98,6 +114,17 @@ defmodule Thinktank.OpenRouter do
   defp handle_response({:error, reason}, _),
     do: {:error, %{category: :transport, message: inspect(reason)}}
 
+  defp extract_usage(body) do
+    usage = body["usage"] || %{}
+
+    %{
+      prompt_tokens: usage["prompt_tokens"] || 0,
+      completion_tokens: usage["completion_tokens"] || 0,
+      total_tokens: usage["total_tokens"] || 0,
+      cost: (body["cost"] || 0) * 1.0
+    }
+  end
+
   defp extract_text(body) do
     {:ok, get_in(body, ["choices", Access.at(0), "message", "content"])}
   end
@@ -110,7 +137,8 @@ defmodule Thinktank.OpenRouter do
     end
   end
 
-  defp wrap_json({:ok, parsed}, _raw), do: {:ok, parsed}
+  defp wrap_json({:ok, parsed}, _raw) when is_map(parsed), do: {:ok, parsed}
+  defp wrap_json({:ok, non_map}, _raw), do: {:error, %{category: :invalid_json, raw: non_map}}
   defp wrap_json({:error, _}, raw), do: {:error, %{category: :invalid_json, raw: raw}}
 
   defp non_empty_env(name) do

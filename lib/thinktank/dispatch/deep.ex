@@ -3,15 +3,15 @@ defmodule Thinktank.Dispatch.Deep do
   Deep mode dispatch via Pi agent subprocesses.
 
   Spawns N Pi agents in parallel under Task.Supervisor, each with a
-  unique perspective, model, and system prompt. MuonTrap wraps each
-  subprocess: if the parent dies (SIGTERM, crash), all children are
-  killed at the OS level.
+  unique perspective, model, and system prompt. Uses MuonTrap when
+  available (mix/release) for OS-level kill-safety; falls back to
+  System.cmd for escripts where MuonTrap's priv binary is inaccessible.
 
-  Returns the same result tuples as `Dispatch.Quick` so the caller
-  (CLI) doesn't care which mode ran.
+  Returns the same result tuples as `Dispatch.Quick` (with `nil` usage)
+  so the caller (CLI) doesn't care which mode ran.
   """
 
-  @type result :: {:ok, String.t(), String.t()} | {:error, String.t(), map()}
+  @type result :: {:ok, String.t(), String.t(), map() | nil} | {:error, String.t(), map()}
 
   @default_timeout :timer.minutes(30)
   @default_tools "read,bash,grep,find"
@@ -19,17 +19,18 @@ defmodule Thinktank.Dispatch.Deep do
   @doc """
   Dispatch Pi agent subprocesses for each perspective.
 
-  Returns a list of `{:ok, role, text}` or `{:error, role, error_map}` tuples.
+  Returns a list of `{:ok, role, text, usage}` or `{:error, role, error_map}` tuples.
+  Usage is `nil` for deep mode (Pi subprocesses don't report API usage).
 
   Options:
     - `:paths` — file paths for agent context (starting points)
-    - `:runner` — `fn cmd, args, opts -> {output, exit_status}` (default: `&MuonTrap.cmd/3`)
+    - `:runner` — `fn cmd, args, opts -> {output, exit_status}` (default: auto-detected)
     - `:agent_config_dir` — path for PI_CODING_AGENT_DIR env var
     - `:timeout` — per-agent timeout in ms (default: 30 min)
   """
   @spec dispatch([Thinktank.Perspective.t()], String.t(), keyword()) :: [result()]
   def dispatch(perspectives, instruction, opts \\ []) do
-    runner = opts[:runner] || (&MuonTrap.cmd/3)
+    runner = opts[:runner] || default_runner()
     timeout = opts[:timeout] || @default_timeout
 
     tasks =
@@ -39,7 +40,6 @@ defmodule Thinktank.Dispatch.Deep do
         end)
       end)
 
-    # Grace period: let MuonTrap's timeout fire first for cleaner error reporting
     tasks
     |> Task.yield_many(timeout + 5_000)
     |> Enum.zip(perspectives)
@@ -60,22 +60,13 @@ defmodule Thinktank.Dispatch.Deep do
   defp run_agent(perspective, instruction, opts, runner) do
     prompt = build_prompt(perspective.system_prompt, instruction, opts[:paths] || [])
 
-    args = [
-      "--no-session",
-      "--no-skills",
-      "--model",
-      perspective.model,
-      "--tools",
-      @default_tools,
-      "-p",
-      prompt
-    ]
-
+    # Pi hangs when Erlang ports keep stdin open — wrap via sh to close it.
+    shell_cmd = build_shell_cmd(perspective.model, prompt)
     cmd_opts = build_cmd_opts(opts)
 
-    case runner.("pi", args, cmd_opts) do
+    case runner.("sh", ["-c", shell_cmd], cmd_opts) do
       {output, 0} ->
-        {:ok, perspective.role, output}
+        {:ok, perspective.role, output, nil}
 
       {output, :timeout} ->
         {:error, perspective.role, %{category: :timeout, output: output}}
@@ -86,6 +77,14 @@ defmodule Thinktank.Dispatch.Deep do
   rescue
     e ->
       {:error, perspective.role, %{category: :crash, message: Exception.message(e)}}
+  end
+
+  defp build_shell_cmd(model, prompt) do
+    escaped_prompt = prompt |> String.replace("'", "'\\''")
+    escaped_model = model |> String.replace("'", "'\\''")
+
+    "exec pi --no-session --no-skills --model '#{escaped_model}'" <>
+      " --tools #{@default_tools} -p '#{escaped_prompt}' < /dev/null"
   end
 
   defp build_prompt(system_prompt, instruction, []) do
@@ -104,6 +103,36 @@ defmodule Thinktank.Dispatch.Deep do
     case opts[:agent_config_dir] do
       nil -> base
       dir -> Keyword.put(base, :env, [{"PI_CODING_AGENT_DIR", dir}])
+    end
+  end
+
+  # MuonTrap's priv binary is unavailable in escripts — fall back to System.cmd.
+  defp default_runner do
+    if muontrap_available?(), do: &MuonTrap.cmd/3, else: &system_cmd/3
+  end
+
+  defp muontrap_available? do
+    path = MuonTrap.muontrap_path()
+    File.exists?(path)
+  rescue
+    _ -> false
+  end
+
+  # Escript fallback: System.cmd does NOT provide OS-level kill-safety.
+  # On timeout, the Elixir task is killed but the OS process (pi) may
+  # survive. MuonTrap path (mix/release) provides true kill-safety.
+  defp system_cmd(cmd, args, opts) do
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    env = Keyword.get(opts, :env, [])
+
+    task =
+      Task.async(fn ->
+        System.cmd(cmd, args, stderr_to_stdout: true, env: env)
+      end)
+
+    case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {output, exit_code}} -> {output, exit_code}
+      nil -> {"", :timeout}
     end
   end
 end

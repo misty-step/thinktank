@@ -7,7 +7,9 @@ defmodule Thinktank.OpenRouterTest do
 
   defp success_plug(conn) do
     Req.Test.json(conn, %{
-      "choices" => [%{"message" => %{"content" => "Hello from the model"}}]
+      "choices" => [%{"message" => %{"content" => "Hello from the model"}}],
+      "usage" => %{"prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30},
+      "cost" => 0.00015
     })
   end
 
@@ -15,7 +17,9 @@ defmodule Thinktank.OpenRouterTest do
     Req.Test.json(conn, %{
       "choices" => [
         %{"message" => %{"content" => Jason.encode!(%{"name" => "Alice", "age" => 30})}}
-      ]
+      ],
+      "usage" => %{"prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30},
+      "cost" => 0.00015
     })
   end
 
@@ -36,15 +40,20 @@ defmodule Thinktank.OpenRouterTest do
     fn conn ->
       {:ok, body, conn} = Plug.Conn.read_body(conn)
       send(test_pid, {:request, conn, body})
-      Req.Test.json(conn, %{"choices" => [%{"message" => %{"content" => "ok"}}]})
+
+      Req.Test.json(conn, %{
+        "choices" => [%{"message" => %{"content" => "ok"}}],
+        "usage" => %{"prompt_tokens" => 1, "completion_tokens" => 1, "total_tokens" => 2},
+        "cost" => 0.0001
+      })
     end
   end
 
   describe "chat/4" do
-    test "returns {:ok, text} on success" do
+    test "returns {:ok, text, usage} on success" do
       Req.Test.stub(OpenRouter, &success_plug/1)
 
-      assert {:ok, "Hello from the model"} =
+      assert {:ok, "Hello from the model", _usage} =
                OpenRouter.chat("test-model", "system prompt", "user prompt", @test_opts)
     end
 
@@ -80,7 +89,7 @@ defmodule Thinktank.OpenRouterTest do
   end
 
   describe "chat_structured/5" do
-    test "returns {:ok, parsed_map} on success" do
+    test "returns {:ok, parsed_map, usage} on success" do
       Req.Test.stub(OpenRouter, &structured_plug/1)
 
       schema = %{
@@ -88,7 +97,7 @@ defmodule Thinktank.OpenRouterTest do
         "properties" => %{"name" => %{"type" => "string"}, "age" => %{"type" => "integer"}}
       }
 
-      assert {:ok, %{"name" => "Alice", "age" => 30}} =
+      assert {:ok, %{"name" => "Alice", "age" => 30}, _usage} =
                OpenRouter.chat_structured("test-model", "system", "user", schema, @test_opts)
     end
 
@@ -118,6 +127,19 @@ defmodule Thinktank.OpenRouterTest do
       assert {:error, %{category: :invalid_json, raw: nil}} =
                OpenRouter.chat_structured("test-model", "system", "user", %{}, @test_opts)
     end
+
+    test "returns {:error, :invalid_json} when decoded JSON is not a map" do
+      Req.Test.stub(OpenRouter, fn conn ->
+        Req.Test.json(conn, %{
+          "choices" => [%{"message" => %{"content" => "[1, 2, 3]"}}],
+          "usage" => %{"prompt_tokens" => 5, "completion_tokens" => 5, "total_tokens" => 10},
+          "cost" => 0.0001
+        })
+      end)
+
+      assert {:error, %{category: :invalid_json, raw: [1, 2, 3]}} =
+               OpenRouter.chat_structured("test-model", "system", "user", %{}, @test_opts)
+    end
   end
 
   describe "error body handling" do
@@ -131,6 +153,33 @@ defmodule Thinktank.OpenRouterTest do
 
       assert {:error, %{category: :api_error, status: 502, message: "Bad Gateway"}} =
                OpenRouter.chat("test-model", "system", "user", @test_opts)
+    end
+  end
+
+  describe "usage extraction" do
+    test "returns usage data from response" do
+      Req.Test.stub(OpenRouter, &success_plug/1)
+
+      assert {:ok, _, usage} =
+               OpenRouter.chat("test-model", "system", "user", @test_opts)
+
+      assert usage.prompt_tokens == 10
+      assert usage.completion_tokens == 20
+      assert usage.total_tokens == 30
+      assert usage.cost == 0.00015
+    end
+
+    test "returns zero usage when usage field is missing" do
+      Req.Test.stub(OpenRouter, fn conn ->
+        Req.Test.json(conn, %{
+          "choices" => [%{"message" => %{"content" => "no usage here"}}]
+        })
+      end)
+
+      assert {:ok, "no usage here", usage} =
+               OpenRouter.chat("test-model", "system", "user", @test_opts)
+
+      assert usage == %{prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cost: 0.0}
     end
   end
 

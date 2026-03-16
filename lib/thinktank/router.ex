@@ -10,9 +10,7 @@ defmodule Thinktank.Router do
   if the router call fails or returns no valid perspectives.
   """
 
-  alias Thinktank.{OpenRouter, Perspective}
-
-  @router_model "google/gemini-3-flash-preview"
+  alias Thinktank.{Models, OpenRouter, Perspective}
 
   @perspective_item_schema %{
     "type" => "object",
@@ -58,10 +56,11 @@ defmodule Thinktank.Router do
   Options:
     - `:available_models` — list of model IDs the router may assign (required, non-empty)
     - `:perspectives` — target count (default 4)
+    - `:tier` — model tier for the router call (default `:standard`)
     - `:openrouter_opts` — keyword opts forwarded to `OpenRouter.chat_structured/5`
   """
   @spec generate_perspectives(String.t(), [String.t()], keyword()) ::
-          {:ok, [Perspective.t()]} | {:error, :no_models}
+          {:ok, [Perspective.t()], OpenRouter.usage() | nil} | {:error, :no_models}
   def generate_perspectives(_instruction, _file_paths, opts \\ [])
 
   def generate_perspectives(_instruction, _file_paths, opts)
@@ -81,19 +80,21 @@ defmodule Thinktank.Router do
 
   defp do_generate(instruction, file_paths, available, opts) do
     count = Keyword.get(opts, :perspectives, 4)
+    tier = Keyword.get(opts, :tier, :standard)
     or_opts = Keyword.get(opts, :openrouter_opts, [])
+    router_model = Models.router_model(tier)
 
     system = system_prompt()
     user = user_prompt(instruction, file_paths, available, count)
 
     case OpenRouter.chat_structured(
-           @router_model,
+           router_model,
            system,
            user,
            perspective_schema(count),
            or_opts
          ) do
-      {:ok, %{"perspectives" => raw}} when is_list(raw) ->
+      {:ok, %{"perspectives" => raw}, usage} when is_list(raw) ->
         perspectives =
           raw
           |> Enum.map(&Perspective.from_map/1)
@@ -101,16 +102,16 @@ defmodule Thinktank.Router do
           |> Enum.filter(&(&1.model in available))
 
         if perspectives == [] do
-          {:ok, default_perspectives(available)}
+          {:ok, default_perspectives(available), usage}
         else
-          {:ok, perspectives}
+          {:ok, perspectives, usage}
         end
 
-      {:ok, _} ->
-        {:ok, default_perspectives(available)}
+      {:ok, _, usage} ->
+        {:ok, default_perspectives(available), usage}
 
       {:error, _} ->
-        {:ok, default_perspectives(available)}
+        {:ok, default_perspectives(available), nil}
     end
   end
 
@@ -140,6 +141,7 @@ defmodule Thinktank.Router do
   end
 
   @doc false
+  @spec default_perspectives([String.t()]) :: [Perspective.t()]
   def default_perspectives(available_models) do
     available_models
     |> Enum.with_index()

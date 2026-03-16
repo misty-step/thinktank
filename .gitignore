@@ -30,6 +30,8 @@ Thumbs.db
 # Environment and credentials
 .env
 agent_config/auth.json
+agent_config/cache/
+agent_config/logs/
 
 # Temporary files
 /tmp/

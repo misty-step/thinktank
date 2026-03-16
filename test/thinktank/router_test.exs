@@ -73,7 +73,7 @@ defmodule Thinktank.RouterTest do
     test "returns list of Perspective structs on success" do
       Req.Test.stub(Router, &router_success_plug/1)
 
-      assert {:ok, perspectives} =
+      assert {:ok, perspectives, _usage} =
                Router.generate_perspectives(
                  "Review this codebase",
                  ["lib/app.ex"],
@@ -94,7 +94,7 @@ defmodule Thinktank.RouterTest do
     test "every perspective uses a model from available_models" do
       Req.Test.stub(Router, &router_success_plug/1)
 
-      {:ok, perspectives} =
+      {:ok, perspectives, _usage} =
         Router.generate_perspectives(
           "Review this codebase",
           ["lib/app.ex"],
@@ -111,7 +111,7 @@ defmodule Thinktank.RouterTest do
     test "filters out perspectives with models not in available_models" do
       Req.Test.stub(Router, &invalid_model_plug/1)
 
-      {:ok, perspectives} =
+      {:ok, perspectives, _usage} =
         Router.generate_perspectives(
           "Review this codebase",
           ["lib/app.ex"],
@@ -126,7 +126,7 @@ defmodule Thinktank.RouterTest do
     test "falls back to default council on API error" do
       Req.Test.stub(Router, &error_plug/1)
 
-      {:ok, perspectives} =
+      {:ok, perspectives, usage} =
         Router.generate_perspectives(
           "Review this codebase",
           ["lib/app.ex"],
@@ -135,6 +135,7 @@ defmodule Thinktank.RouterTest do
         )
 
       assert length(perspectives) == length(@available_models)
+      assert usage == nil
 
       models = Enum.map(perspectives, & &1.model)
       assert Enum.sort(models) == Enum.sort(@available_models)
@@ -159,7 +160,7 @@ defmodule Thinktank.RouterTest do
         })
       end)
 
-      {:ok, perspectives} =
+      {:ok, perspectives, _usage} =
         Router.generate_perspectives(
           "Review this codebase",
           ["lib/app.ex"],
@@ -173,7 +174,7 @@ defmodule Thinktank.RouterTest do
     test "handles empty file_paths" do
       Req.Test.stub(Router, &router_success_plug/1)
 
-      assert {:ok, _perspectives} =
+      assert {:ok, _perspectives, _usage} =
                Router.generate_perspectives(
                  "General question",
                  [],
@@ -203,7 +204,7 @@ defmodule Thinktank.RouterTest do
         })
       end)
 
-      {:ok, perspectives} =
+      {:ok, perspectives, _usage} =
         Router.generate_perspectives(
           "Review this",
           ["lib/app.ex"],
@@ -238,7 +239,7 @@ defmodule Thinktank.RouterTest do
         })
       end)
 
-      {:ok, perspectives} =
+      {:ok, perspectives, _usage} =
         Router.generate_perspectives(
           "Review this",
           ["lib/app.ex"],
@@ -248,6 +249,30 @@ defmodule Thinktank.RouterTest do
 
       assert length(perspectives) == 1
       assert hd(perspectives).role == "valid"
+    end
+
+    test "uses tier-based router model" do
+      test_pid = self()
+
+      Req.Test.stub(Router, fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        send(test_pid, {:router_model, Jason.decode!(body)["model"]})
+
+        Req.Test.json(conn, %{
+          "choices" => [%{"message" => %{"content" => Jason.encode!(%{"perspectives" => []})}}]
+        })
+      end)
+
+      Router.generate_perspectives(
+        "Review this",
+        ["lib/app.ex"],
+        available_models: @available_models,
+        openrouter_opts: @test_opts,
+        tier: :cheap
+      )
+
+      assert_receive {:router_model, model}
+      assert model == Thinktank.Models.router_model(:cheap)
     end
   end
 
@@ -278,6 +303,32 @@ defmodule Thinktank.RouterTest do
 
       assigned = Enum.map(perspectives, & &1.model)
       assert assigned == ["model-1", "model-2", "model-3", "model-1"]
+    end
+
+    test "single model is round-robined to all roles" do
+      roles = ["auditor", "reviewer", "architect"]
+      models = ["the-only-model"]
+
+      perspectives = Router.manual_perspectives(roles, models)
+
+      assert length(perspectives) == 3
+      assert Enum.all?(perspectives, &(&1.model == "the-only-model"))
+      assert Enum.map(perspectives, & &1.role) == roles
+    end
+  end
+
+  describe "default_perspectives/1" do
+    test "returns one perspective per model" do
+      models = ["model-a", "model-b", "model-c"]
+      perspectives = Router.default_perspectives(models)
+
+      assert length(perspectives) == 3
+      assert Enum.all?(perspectives, &match?(%Perspective{}, &1))
+      assert Enum.map(perspectives, & &1.model) == models
+    end
+
+    test "returns empty list for empty models" do
+      assert Router.default_perspectives([]) == []
     end
   end
 end
