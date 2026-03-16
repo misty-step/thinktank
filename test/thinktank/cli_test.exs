@@ -1,6 +1,8 @@
 defmodule Thinktank.CLITest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureIO
+
   alias Thinktank.CLI
 
   describe "parse_args/1" do
@@ -188,6 +190,163 @@ defmodule Thinktank.CLITest do
 
       assert decoded["models"] == ["model-a", "model-b"]
       assert decoded["roles"] == ["auditor", "reviewer"]
+    end
+  end
+
+  describe "execute/1 — help" do
+    test "prints usage text and returns success exit code" do
+      output =
+        capture_io(fn ->
+          assert CLI.execute({:help, []}) == 0
+        end)
+
+      assert output =~ "thinktank"
+      assert output =~ "USAGE"
+      assert output =~ "--help"
+    end
+  end
+
+  describe "execute/1 — version" do
+    test "prints version string and returns success exit code" do
+      output =
+        capture_io(fn ->
+          assert CLI.execute({:version, []}) == 0
+        end)
+
+      assert output =~ "thinktank "
+    end
+  end
+
+  describe "execute/1 — error" do
+    test "prints error to stderr and returns input_error exit code" do
+      stderr =
+        capture_io(:stderr, fn ->
+          assert CLI.execute({:error, "bad input"}) == 7
+        end)
+
+      assert stderr =~ "Error: bad input"
+      assert stderr =~ "Run 'thinktank --help' for usage."
+    end
+  end
+
+  describe "execute/1 — dry run" do
+    test "text mode prints plan summary and returns success" do
+      {:ok, opts} = CLI.parse_args(["test question", "--dry-run"])
+
+      output =
+        capture_io(fn ->
+          assert CLI.execute({:ok, opts}) == 0
+        end)
+
+      assert output =~ "Dry run: would dispatch 4 perspectives in deep mode"
+      assert output =~ "Instruction: test question"
+    end
+
+    test "text mode includes paths when provided" do
+      {:ok, opts} = CLI.parse_args(["test", "--dry-run", "--paths", "./src"])
+
+      output =
+        capture_io(fn ->
+          assert CLI.execute({:ok, opts}) == 0
+        end)
+
+      assert output =~ "Paths:"
+      assert output =~ "src"
+    end
+
+    test "json mode outputs valid JSON and returns success" do
+      {:ok, opts} = CLI.parse_args(["test question", "--dry-run", "--json"])
+
+      output =
+        capture_io(fn ->
+          assert CLI.execute({:ok, opts}) == 0
+        end)
+
+      assert {:ok, decoded} = Jason.decode(String.trim(output))
+      assert decoded["mode"] == "dry_run"
+      assert decoded["instruction"] == "test question"
+    end
+
+    test "quick mode flag is reflected in dry run" do
+      {:ok, opts} = CLI.parse_args(["test", "--dry-run", "--quick"])
+
+      output =
+        capture_io(fn ->
+          assert CLI.execute({:ok, opts}) == 0
+        end)
+
+      assert output =~ "quick mode"
+    end
+  end
+
+  describe "usage_text/0" do
+    test "includes all sections" do
+      text = CLI.usage_text()
+      assert text =~ "USAGE"
+      assert text =~ "ARGUMENTS"
+      assert text =~ "OPTIONS"
+      assert text =~ "EXIT CODES"
+      assert text =~ "EXAMPLES"
+    end
+
+    test "documents all flags" do
+      text = CLI.usage_text()
+      assert text =~ "--paths"
+      assert text =~ "--quick"
+      assert text =~ "--deep"
+      assert text =~ "--tier"
+      assert text =~ "--json"
+      assert text =~ "--output"
+      assert text =~ "--models"
+      assert text =~ "--roles"
+      assert text =~ "--perspectives"
+      assert text =~ "--dry-run"
+      assert text =~ "--no-synthesis"
+      assert text =~ "--help"
+      assert text =~ "--version"
+    end
+  end
+
+  describe "generate_output_dir/0" do
+    test "returns path under system tmp dir" do
+      dir = CLI.generate_output_dir()
+      assert String.starts_with?(dir, System.tmp_dir!())
+    end
+
+    test "includes thinktank prefix with timestamp and random suffix" do
+      dir = CLI.generate_output_dir()
+      assert Path.basename(dir) =~ ~r/^thinktank-\d{8}-\d{6}-[0-9a-f]{8}$/
+    end
+
+    test "generates unique paths" do
+      dirs = for _ <- 1..5, do: CLI.generate_output_dir()
+      assert length(Enum.uniq(dirs)) == 5
+    end
+  end
+
+  describe "agent_config_dir/0" do
+    test "returns env var path when THINKTANK_AGENT_CONFIG is set" do
+      System.put_env("THINKTANK_AGENT_CONFIG", "/custom/config")
+      assert CLI.agent_config_dir() == "/custom/config"
+    after
+      System.delete_env("THINKTANK_AGENT_CONFIG")
+    end
+
+    test "returns CWD/agent_config when directory exists and no env var" do
+      System.delete_env("THINKTANK_AGENT_CONFIG")
+      dir = CLI.agent_config_dir()
+      assert dir == Path.join(File.cwd!(), "agent_config")
+    end
+
+    test "returns nil when no env var and no agent_config dir exists" do
+      System.delete_env("THINKTANK_AGENT_CONFIG")
+      # Run in a tmp dir that has no agent_config subdirectory
+      tmp = System.tmp_dir!()
+      cwd = File.cwd!()
+      File.cd!(tmp)
+      result = CLI.agent_config_dir()
+      File.cd!(cwd)
+      assert result == nil
     end
   end
 end

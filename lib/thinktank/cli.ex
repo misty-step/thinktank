@@ -54,33 +54,47 @@ defmodule Thinktank.CLI do
   def exit_codes, do: @exit_codes
 
   @doc """
-  Escript entry point.
+  Escript entry point. Parses args, executes, and halts.
   """
   @spec main([String.t()]) :: no_return()
   def main(args) do
-    result =
-      case parse_args(args) do
+    exit_code =
+      args
+      |> parse_args()
+      |> then(fn
         {:needs_stdin, parsed} -> try_stdin(parsed)
         other -> other
-      end
+      end)
+      |> execute()
 
-    case result do
-      {:help, _} ->
-        print_usage()
-        System.halt(@exit_codes.success)
+    System.halt(exit_code)
+  end
 
-      {:version, _} ->
-        IO.puts("thinktank #{version()}")
-        System.halt(@exit_codes.success)
+  @doc """
+  Execute a parsed command. Returns an exit code without halting.
 
-      {:error, message} ->
-        IO.puts(:stderr, "Error: #{message}")
-        IO.puts(:stderr, "Run 'thinktank --help' for usage.")
-        System.halt(@exit_codes.input_error)
+  Testable core — `main/1` is the only function that calls `System.halt/1`.
+  """
+  @spec execute({:ok, map()} | {:error, String.t()} | {:help, keyword()} | {:version, keyword()}) ::
+          non_neg_integer()
+  def execute({:help, _}) do
+    IO.puts(usage_text())
+    @exit_codes.success
+  end
 
-      {:ok, opts} ->
-        run(opts)
-    end
+  def execute({:version, _}) do
+    IO.puts("thinktank #{version()}")
+    @exit_codes.success
+  end
+
+  def execute({:error, message}) do
+    IO.puts(:stderr, "Error: #{message}")
+    IO.puts(:stderr, "Run 'thinktank --help' for usage.")
+    @exit_codes.input_error
+  end
+
+  def execute({:ok, opts}) do
+    run(opts)
   end
 
   @doc false
@@ -162,7 +176,6 @@ defmodule Thinktank.CLI do
     }
   end
 
-  @spec run(map()) :: no_return()
   defp run(%{dry_run: true} = opts) do
     if opts.json do
       IO.puts(dry_run_output(opts))
@@ -175,7 +188,7 @@ defmodule Thinktank.CLI do
       end
     end
 
-    System.halt(@exit_codes.success)
+    @exit_codes.success
   end
 
   defp run(%{mode: :quick} = opts) do
@@ -191,12 +204,11 @@ defmodule Thinktank.CLI do
     end)
   end
 
-  @spec dispatch_and_finalize(map(), function()) :: no_return()
   defp dispatch_and_finalize(opts, dispatch_fn) do
     case resolve_perspectives(opts) do
       {:error, reason} ->
         IO.puts(:stderr, "Error: #{reason}")
-        System.halt(@exit_codes.input_error)
+        @exit_codes.input_error
 
       {:ok, perspectives, router_usage} ->
         output_dir = opts.output || generate_output_dir()
@@ -213,7 +225,7 @@ defmodule Thinktank.CLI do
         maybe_synthesize(opts, synthesis_successes, output_dir)
         Output.complete_run(output_dir)
         emit_result(opts, output_dir)
-        exit_on_results(successes)
+        exit_code_for_results(successes)
     end
   end
 
@@ -238,13 +250,12 @@ defmodule Thinktank.CLI do
     end
   end
 
-  @spec exit_on_results([{String.t(), String.t(), map() | nil}]) :: no_return()
-  defp exit_on_results([]) do
+  defp exit_code_for_results([]) do
     IO.puts(:stderr, "Error: all perspective dispatches failed")
-    System.halt(@exit_codes.generic_error)
+    @exit_codes.generic_error
   end
 
-  defp exit_on_results(_successes), do: System.halt(@exit_codes.success)
+  defp exit_code_for_results(_successes), do: @exit_codes.success
 
   defp resolve_perspectives(opts) do
     models = if opts.models != [], do: opts.models, else: Models.models_for_tier(opts.tier)
@@ -260,14 +271,22 @@ defmodule Thinktank.CLI do
     end
   end
 
-  defp generate_output_dir do
+  @doc """
+  Generate a unique timestamped output directory path.
+  """
+  @spec generate_output_dir() :: String.t()
+  def generate_output_dir do
     timestamp = DateTime.utc_now() |> Calendar.strftime("%Y%m%d-%H%M%S")
     suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
     Path.join(System.tmp_dir!(), "thinktank-#{timestamp}-#{suffix}")
   end
 
-  defp print_usage do
-    IO.puts("""
+  @doc """
+  Returns the usage help text.
+  """
+  @spec usage_text() :: String.t()
+  def usage_text do
+    """
     thinktank — multi-perspective AI research tool
 
     USAGE
@@ -310,7 +329,7 @@ defmodule Thinktank.CLI do
       thinktank "suggest project names" --quick --tier cheap
       thinktank "audit for security issues" --tier premium --perspectives 5
       echo "compare approaches" | thinktank --quick
-    """)
+    """
   end
 
   defp parse_tier(nil), do: {:ok, :standard}
@@ -326,10 +345,14 @@ defmodule Thinktank.CLI do
 
   defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
 
-  # Resolve agent config directory for deep mode Pi agents.
-  # Checks THINKTANK_AGENT_CONFIG env var first, then CWD/agent_config.
-  # Returns nil when no config directory is found (Deep runs without it).
-  defp agent_config_dir do
+  @doc """
+  Resolve agent config directory for deep mode Pi agents.
+
+  Checks `THINKTANK_AGENT_CONFIG` env var first, then `CWD/agent_config`.
+  Returns `nil` when no config directory is found.
+  """
+  @spec agent_config_dir() :: String.t() | nil
+  def agent_config_dir do
     case System.get_env("THINKTANK_AGENT_CONFIG") do
       nil ->
         dir = Path.join(File.cwd!(), "agent_config")
