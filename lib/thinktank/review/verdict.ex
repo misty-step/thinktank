@@ -124,7 +124,9 @@ defmodule Thinktank.Review.Verdict do
   end
 
   defp check_verdict(verdict) when is_binary(verdict) do
-    if MapSet.member?(@valid_verdicts, verdict), do: :ok, else: {:error, {:invalid_verdict, verdict}}
+    if MapSet.member?(@valid_verdicts, verdict),
+      do: :ok,
+      else: {:error, {:invalid_verdict, verdict}}
   end
 
   defp check_verdict(_), do: {:error, :invalid_verdict}

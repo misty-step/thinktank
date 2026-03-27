@@ -3,6 +3,10 @@ defmodule Thinktank.ProviderSpec do
   Typed provider configuration for workflow execution.
   """
 
+  @valid_adapters %{
+    "openrouter" => :openrouter
+  }
+
   @enforce_keys [:id, :adapter, :credential_env]
   defstruct [:id, :adapter, :credential_env, defaults: %{}]
 
@@ -29,8 +33,16 @@ defmodule Thinktank.ProviderSpec do
 
   def from_pair(id, _raw), do: {:error, "provider #{id} must be a map"}
 
+  defp parse_adapter(adapter) when is_atom(adapter), do: parse_adapter(Atom.to_string(adapter))
+
   defp parse_adapter(adapter) when is_binary(adapter) and adapter != "" do
-    {:ok, String.to_atom(adapter)}
+    case Map.fetch(@valid_adapters, adapter) do
+      {:ok, parsed} ->
+        {:ok, parsed}
+
+      :error ->
+        {:error, "provider adapter must be one of #{Enum.join(Map.keys(@valid_adapters), ", ")}"}
+    end
   end
 
   defp parse_adapter(_), do: {:error, "provider adapter is required"}

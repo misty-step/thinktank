@@ -14,29 +14,36 @@ defmodule Thinktank.Executor.Agentic do
         }
 
   @spec run([AgentSpec.t()], RunContract.t(), map(), Config.t(), keyword()) :: [result()]
-  def run(agents, %RunContract{} = contract, context, %Config{} = config, opts \\ []) do
+  def run(agents, contract, context, config, opts \\ [])
+
+  def run([], %RunContract{}, _context, %Config{}, _opts), do: []
+
+  def run(agents, %RunContract{} = contract, context, %Config{} = config, opts) do
     runner = Keyword.get(opts, :runner) || default_runner()
     timeout = Enum.max(Enum.map(agents, & &1.timeout_ms), fn -> :timer.minutes(30) end)
 
-    tasks =
-      Enum.map(agents, fn agent ->
-        Task.Supervisor.async_nolink(Thinktank.AgentSupervisor, fn ->
-          run_agent(agent, contract, context, config, runner, opts)
-        end)
-      end)
+    concurrency =
+      Keyword.get(opts, :concurrency, length(agents)) |> normalize_concurrency(length(agents))
 
-    tasks
-    |> Task.yield_many(timeout + 5_000)
+    agents
+    |> Task.async_stream(
+      fn agent ->
+        run_agent(agent, contract, context, config, runner, opts)
+      end,
+      max_concurrency: concurrency,
+      timeout: timeout + 5_000,
+      ordered: true,
+      on_timeout: :kill_task
+    )
     |> Enum.zip(agents)
     |> Enum.map(fn
-      {{_task, {:ok, result}}, _agent} ->
+      {{:ok, result}, _agent} ->
         result
 
-      {{task, nil}, agent} ->
-        Task.shutdown(task, :brutal_kill)
+      {{:exit, reason}, agent} when reason in [:timeout, {:timeout, nil}] ->
         %{agent: agent, status: :error, output: "", usage: nil, error: %{category: :timeout}}
 
-      {{_task, {:exit, reason}}, agent} ->
+      {{:exit, reason}, agent} ->
         %{
           agent: agent,
           status: :error,
@@ -64,10 +71,10 @@ defmodule Thinktank.Executor.Agentic do
     prompt = "#{agent.system_prompt}\n\n#{rendered_prompt}"
 
     prompt_file = write_prompt_file(contract, agent, prompt)
-    shell_cmd = build_shell_cmd(agent, prompt_file, tool_list(agent))
+    {cmd, args} = build_command(agent, prompt_file, tool_list(agent))
     cmd_opts = build_cmd_opts(agent, contract, config.providers[agent.provider], opts)
 
-    case runner.("sh", ["-c", shell_cmd], cmd_opts) do
+    case runner.(cmd, args, cmd_opts) do
       {output, 0} ->
         %{agent: agent, status: :ok, output: output, usage: nil, error: nil}
 
@@ -94,16 +101,26 @@ defmodule Thinktank.Executor.Agentic do
       }
   end
 
-  defp build_shell_cmd(agent, prompt_file, tools) do
-    escaped_model = agent.model |> String.replace("'", "'\\''")
-    escaped_prompt_file = prompt_file |> String.replace("'", "'\\''")
-
-    "exec pi --no-session --no-skills --model '#{escaped_model}'" <>
-      " --tools #{Enum.join(tools, ",")} -p @'#{escaped_prompt_file}' < /dev/null"
+  defp build_command(agent, prompt_file, tools) do
+    {"sh",
+     [
+       "-c",
+       "exec < /dev/null; exec \"$@\"",
+       "sh",
+       "pi",
+       "--no-session",
+       "--no-skills",
+       "--model",
+       agent.model,
+       "--tools",
+       Enum.join(tools, ","),
+       "-p",
+       "@#{prompt_file}"
+     ]}
   end
 
   defp build_cmd_opts(agent, contract, provider, opts) do
-    base_env = maybe_agent_config_env(build_agent_home(contract, agent, opts[:agent_config_dir] || Thinktank.CLI.agent_config_dir()))
+    base_env = maybe_agent_config_env(build_agent_home(contract, agent, opts[:agent_config_dir]))
     provider_env = provider_env(provider)
 
     timeout = agent.timeout_ms
@@ -166,6 +183,12 @@ defmodule Thinktank.Executor.Agentic do
     |> String.replace(~r/[^a-z0-9]+/, "-")
     |> String.trim("-")
   end
+
+  defp normalize_concurrency(value, agent_count) when is_integer(value) and value > 0 do
+    min(value, max(agent_count, 1))
+  end
+
+  defp normalize_concurrency(_, agent_count), do: max(agent_count, 1)
 
   defp stringify_keys(map) do
     map

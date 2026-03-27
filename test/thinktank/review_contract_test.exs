@@ -110,9 +110,19 @@ defmodule Thinktank.ReviewContractTest do
             ]
           })
 
-        String.contains?(get_in(payload, ["messages", Access.at(0), "content"]), "research synthesizer") ->
+        String.contains?(
+          get_in(payload, ["messages", Access.at(0), "content"]),
+          "research synthesizer"
+        ) ->
           Req.Test.json(conn, %{
-            "choices" => [%{"message" => %{"content" => "## Agreement\n- Round trip\n\n## Disagreement\n- None\n\n## Confidence\n- High\n\n## Recommendations\n- Proceed"}}]
+            "choices" => [
+              %{
+                "message" => %{
+                  "content" =>
+                    "## Agreement\n- Round trip\n\n## Disagreement\n- None\n\n## Confidence\n- High\n\n## Recommendations\n- Proceed"
+                }
+              }
+            ]
           })
 
         true ->
@@ -135,7 +145,10 @@ defmodule Thinktank.ReviewContractTest do
     contract_path = Path.join(result.output_dir, "contract.json")
 
     assert File.exists?(contract_path)
-    assert {:ok, persisted} = contract_path |> File.read!() |> Jason.decode!() |> RunContract.from_map()
+
+    assert {:ok, persisted} =
+             contract_path |> File.read!() |> Jason.decode!() |> RunContract.from_map()
+
     assert persisted.workflow_id == "research/default"
     assert persisted.adapter_context == %{"pr" => 42, "source" => "test-adapter"}
     assert Enum.any?(result.envelope.artifacts, &(&1["name"] == "contract"))

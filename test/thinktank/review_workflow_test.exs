@@ -39,7 +39,14 @@ defmodule Thinktank.ReviewWorkflowTest do
             }
           ]
         end,
-      stats: %{files_reviewed: 1, files_with_issues: if(verdict == "PASS", do: 0, else: 1), critical: if(severity == "critical", do: 1, else: 0), major: if(severity == "major", do: 1, else: 0), minor: 0, info: 0}
+      stats: %{
+        files_reviewed: 1,
+        files_with_issues: if(verdict == "PASS", do: 0, else: 1),
+        critical: if(severity == "critical", do: 1, else: 0),
+        major: if(severity == "major", do: 1, else: 0),
+        minor: 0,
+        info: 0
+      }
     })
   end
 
@@ -55,16 +62,23 @@ defmodule Thinktank.ReviewWorkflowTest do
     git!(tmp, ["commit", "-m", "base"])
     git!(tmp, ["checkout", "-b", branch_name])
 
-    File.write!(Path.join(tmp, "lib_app.ex"), "defmodule App do\n  def ok(user), do: user.token\nend\n")
+    File.write!(
+      Path.join(tmp, "lib_app.ex"),
+      "defmodule App do\n  def ok(user), do: user.token\nend\n"
+    )
+
     git!(tmp, ["add", "."])
     git!(tmp, ["commit", "-m", "change"])
 
     test_pid = self()
 
-    runner = fn _cmd, ["-c", shell_cmd], _opts ->
-      send(test_pid, {:shell_cmd, shell_cmd})
-      [_, prompt_file] = Regex.run(~r/-p @'([^']+)'/, shell_cmd)
-      prompt = File.read!(prompt_file)
+    runner = fn _cmd, ["-c", shell_cmd | args], _opts ->
+      send(test_pid, {:shell_cmd, shell_cmd, args})
+
+      [_, prompt_file] =
+        Enum.chunk_every(args, 2, 1, :discard) |> Enum.find(fn [flag, _value] -> flag == "-p" end)
+
+      prompt = File.read!(String.trim_leading(prompt_file, "@"))
 
       output =
         cond do
@@ -95,9 +109,11 @@ defmodule Thinktank.ReviewWorkflowTest do
     assert result.context.final_verdict.verdict == "FAIL"
     assert File.exists?(Path.join(result.output_dir, "verdict.json"))
     assert File.exists?(Path.join(result.output_dir, "review.md"))
-    assert_receive {:shell_cmd, shell_cmd}
-    assert shell_cmd =~ "--tools read,grep,find,ls,bash"
-    refute shell_cmd =~ "```diff"
+    assert_receive {:shell_cmd, shell_cmd, args}
+    assert shell_cmd == "exec < /dev/null; exec \"$@\""
+    assert Enum.member?(args, "--tools")
+    assert Enum.member?(args, "read,grep,find,ls,bash")
+    refute Enum.any?(args, &String.contains?(&1, "```diff"))
   end
 
   test "review workflow rejects non-agentic mode requests" do

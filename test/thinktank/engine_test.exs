@@ -51,15 +51,28 @@ defmodule Thinktank.EngineTest do
               "cost" => 0.0001
             })
 
-          String.contains?(get_in(payload, ["messages", Access.at(0), "content"]), "research synthesizer") ->
+          String.contains?(
+            get_in(payload, ["messages", Access.at(0), "content"]),
+            "research synthesizer"
+          ) ->
             Req.Test.json(conn, %{
-              "choices" => [%{"message" => %{"content" => "## Agreement\n- Shared view\n\n## Disagreement\n- None\n\n## Confidence\n- High\n\n## Recommendations\n- Act"}}],
+              "choices" => [
+                %{
+                  "message" => %{
+                    "content" =>
+                      "## Agreement\n- Shared view\n\n## Disagreement\n- None\n\n## Confidence\n- High\n\n## Recommendations\n- Act"
+                  }
+                }
+              ],
               "usage" => %{"prompt_tokens" => 2, "completion_tokens" => 2, "total_tokens" => 4},
               "cost" => 0.0002
             })
 
           true ->
-            send(test_pid, {:agent_prompt, get_in(payload, ["messages", Access.at(1), "content"])})
+            send(
+              test_pid,
+              {:agent_prompt, get_in(payload, ["messages", Access.at(1), "content"])}
+            )
 
             Req.Test.json(conn, %{
               "choices" => [%{"message" => %{"content" => "Reviewer analysis"}}],
@@ -118,13 +131,26 @@ defmodule Thinktank.EngineTest do
               "cost" => 0.0001
             })
 
-          String.contains?(get_in(payload, ["messages", Access.at(0), "content"]), "research synthesizer") ->
+          String.contains?(
+            get_in(payload, ["messages", Access.at(0), "content"]),
+            "research synthesizer"
+          ) ->
             Req.Test.json(conn, %{
-              "choices" => [%{"message" => %{"content" => "## Agreement\n- Context used\n\n## Disagreement\n- None\n\n## Confidence\n- High\n\n## Recommendations\n- Proceed"}}]
+              "choices" => [
+                %{
+                  "message" => %{
+                    "content" =>
+                      "## Agreement\n- Context used\n\n## Disagreement\n- None\n\n## Confidence\n- High\n\n## Recommendations\n- Proceed"
+                  }
+                }
+              ]
             })
 
           true ->
-            send(test_pid, {:agent_prompt, get_in(payload, ["messages", Access.at(1), "content"])})
+            send(
+              test_pid,
+              {:agent_prompt, get_in(payload, ["messages", Access.at(1), "content"])}
+            )
 
             Req.Test.json(conn, %{
               "choices" => [%{"message" => %{"content" => "Context-aware analysis"}}]
@@ -195,7 +221,10 @@ defmodule Thinktank.EngineTest do
       Req.Test.stub(__MODULE__, fn conn ->
         {conn, payload} = decode_request(conn)
 
-        if String.contains?(get_in(payload, ["messages", Access.at(0), "content"]), "research synthesizer") do
+        if String.contains?(
+             get_in(payload, ["messages", Access.at(0), "content"]),
+             "research synthesizer"
+           ) do
           attempts = Agent.get_and_update(counter, fn count -> {count, count + 1} end)
 
           if attempts == 0 do
@@ -204,7 +233,14 @@ defmodule Thinktank.EngineTest do
             |> Req.Test.json(%{"error" => %{"message" => "retry me"}})
           else
             Req.Test.json(conn, %{
-              "choices" => [%{"message" => %{"content" => "## Agreement\n- Retried\n\n## Disagreement\n- None\n\n## Confidence\n- Medium\n\n## Recommendations\n- Done"}}]
+              "choices" => [
+                %{
+                  "message" => %{
+                    "content" =>
+                      "## Agreement\n- Retried\n\n## Disagreement\n- None\n\n## Confidence\n- Medium\n\n## Recommendations\n- Done"
+                  }
+                }
+              ]
             })
           end
         else
@@ -229,6 +265,96 @@ defmodule Thinktank.EngineTest do
       assert Agent.get(counter, & &1) == 2
       assert skipped_stage["status"] == "skipped"
       assert File.exists?(Path.join(result.output_dir, "synthesis.md"))
+    end
+
+    test "returns an input validation error before running" do
+      tmp = unique_tmp_dir("thinktank-missing-input")
+      repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+      File.mkdir_p!(Path.dirname(repo_cfg))
+
+      File.write!(
+        repo_cfg,
+        """
+        workflows:
+          demo/input-check:
+            description: Requires input
+            default_mode: quick
+            stages:
+              - type: prepare
+                kind: research_input
+              - type: route
+                kind: static_agents
+                agents:
+                  - trace
+              - type: fanout
+                kind: agents
+              - type: aggregate
+                kind: research_synthesis
+              - type: emit
+                kind: artifacts
+            input_schema:
+              required:
+                - input_text
+        """
+      )
+
+      assert {:error, {:missing_input_keys, ["input_text"]}, nil} =
+               Engine.run("demo/input-check", %{}, cwd: tmp, mode: :quick)
+    end
+
+    test "rejects remote PR review when local checkout is not aligned to the PR head" do
+      tmp = unique_tmp_dir("thinktank-pr-workspace")
+      git_tmp = unique_tmp_dir("thinktank-pr-git")
+      previous_path = System.get_env("PATH")
+      System.put_env("PATH", "#{git_tmp}:#{previous_path}")
+
+      on_exit(fn -> System.put_env("PATH", previous_path) end)
+
+      File.write!(
+        Path.join(git_tmp, "gh"),
+        """
+        #!/bin/sh
+        if [ "$1" = "pr" ] && [ "$2" = "diff" ]; then
+          printf 'diff --git a/lib/demo.ex b/lib/demo.ex\\n'
+          exit 0
+        fi
+
+        if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
+          printf '{"title":"Demo","author":{"login":"octo"},"headRefName":"feature","headRefOid":"deadbeef","baseRefName":"main","body":""}\\n'
+          exit 0
+        fi
+
+        exit 1
+        """
+      )
+
+      File.chmod!(Path.join(git_tmp, "gh"), 0o755)
+
+      System.cmd("git", ["init"], cd: tmp)
+      System.cmd("git", ["config", "user.email", "test@example.com"], cd: tmp)
+      System.cmd("git", ["config", "user.name", "Test"], cd: tmp)
+
+      System.cmd("git", ["remote", "add", "origin", "git@github.com:misty-step/thinktank.git"],
+        cd: tmp
+      )
+
+      File.write!(Path.join(tmp, "README.md"), "demo")
+      System.cmd("git", ["add", "README.md"], cd: tmp)
+      System.cmd("git", ["commit", "-m", "init"], cd: tmp)
+
+      assert {:error,
+              {:stage_failed, "prepare",
+               {:pr_review_requires_checkout, "misty-step/thinktank", "feature", "deadbeef"}},
+              output_dir} =
+               Engine.run(
+                 "review/cerberus",
+                 %{repo: "misty-step/thinktank", pr: 278},
+                 cwd: tmp,
+                 mode: :deep,
+                 runner: fn _cmd, _args, _opts -> flunk("fanout should not run") end
+               )
+
+      assert is_binary(output_dir)
     end
   end
 end

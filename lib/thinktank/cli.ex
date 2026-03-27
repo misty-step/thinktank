@@ -67,9 +67,8 @@ defmodule Thinktank.CLI do
     System.halt(exit_code)
   end
 
-  @spec execute(
-          {:ok, map()} | {:error, String.t()} | {:help, map()} | {:version, map()}
-        ) :: non_neg_integer()
+  @spec execute({:ok, map()} | {:error, String.t()} | {:help, map()} | {:version, map()}) ::
+          non_neg_integer()
   def execute({:help, _}) do
     IO.puts(usage_text())
     @exit_codes.success
@@ -377,8 +376,12 @@ defmodule Thinktank.CLI do
 
     payload =
       case result.context[:synthesis] do
-        nil -> payload
-        synthesis -> Map.put(payload, :synthesis_file, "synthesis.md") |> Map.put(:synthesis_usage, synthesis.usage)
+        nil ->
+          payload
+
+        synthesis ->
+          Map.put(payload, :synthesis_file, "synthesis.md")
+          |> Map.put(:synthesis_usage, synthesis.usage)
       end
 
     if command.json, do: Jason.encode!(payload), else: render_success(payload)
@@ -408,12 +411,25 @@ defmodule Thinktank.CLI do
     IO.puts(payload)
   end
 
-  defp format_reason({:stage_failed, stage_name, reason}), do: "stage #{stage_name} failed: #{inspect(reason)}"
+  defp format_reason({:stage_failed, stage_name, reason}),
+    do: "stage #{stage_name} failed: #{inspect(reason)}"
+
   defp format_reason({:mode_not_allowed, workflow_id, requested, required}),
     do: "#{workflow_id} requires #{required} mode; got #{requested}"
 
   defp format_reason({:invalid_workflow_mode_config, workflow_id, default_mode, required}),
     do: "#{workflow_id} default_mode #{default_mode} conflicts with execution_mode #{required}"
+
+  defp format_reason({:pr_review_requires_git_workspace, repo}),
+    do: "remote PR review for #{repo} requires running inside a local checkout of that repository"
+
+  defp format_reason({:pr_review_repo_mismatch, repo, remote}),
+    do:
+      "remote PR review for #{repo} requires a matching local checkout; current origin is #{remote}"
+
+  defp format_reason({:pr_review_requires_checkout, repo, head_ref, head_sha}),
+    do:
+      "remote PR review for #{repo} requires the local workspace to be checked out at #{head_ref} (#{head_sha})"
 
   defp format_reason(reason), do: inspect(reason)
 
@@ -428,19 +444,30 @@ defmodule Thinktank.CLI do
   @doc """
   Resolve agent config directory for deep mode Pi agents.
 
-  Checks `THINKTANK_AGENT_CONFIG` env var first, then `CWD/agent_config`.
-  Returns `nil` when no config directory is found.
+  Checks `THINKTANK_AGENT_CONFIG` first.
+  Repository-local `agent_config` requires explicit opt-in via
+  `THINKTANK_TRUST_REPO_AGENT_CONFIG=1`.
   """
   @spec agent_config_dir() :: String.t() | nil
   def agent_config_dir do
     case System.get_env("THINKTANK_AGENT_CONFIG") do
       nil ->
-        dir = Path.join(File.cwd!(), "agent_config")
-        if File.dir?(dir), do: dir
+        maybe_repo_agent_config_dir()
 
       dir ->
         dir
     end
+  end
+
+  defp maybe_repo_agent_config_dir do
+    if trust_repo_agent_config?() do
+      dir = Path.join(File.cwd!(), "agent_config")
+      if File.dir?(dir), do: dir
+    end
+  end
+
+  defp trust_repo_agent_config? do
+    System.get_env("THINKTANK_TRUST_REPO_AGENT_CONFIG") in ["1", "true", "TRUE", "yes", "YES"]
   end
 
   @doc """
@@ -488,7 +515,9 @@ defmodule Thinktank.CLI do
   defp parse_tier("cheap"), do: {:ok, :cheap}
   defp parse_tier("standard"), do: {:ok, :standard}
   defp parse_tier("premium"), do: {:ok, :premium}
-  defp parse_tier(other), do: {:error, "invalid tier: #{other} (must be cheap, standard, or premium)"}
+
+  defp parse_tier(other),
+    do: {:error, "invalid tier: #{other} (must be cheap, standard, or premium)"}
 
   defp parse_csv(nil), do: []
   defp parse_csv(""), do: []

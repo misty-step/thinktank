@@ -80,7 +80,9 @@ defmodule Thinktank.CLITest do
     test "returns :needs_stdin when no input is provided" do
       assert {:needs_stdin, %{workflow_id: "research/default"}} = CLI.parse_args([])
       assert {:needs_stdin, %{workflow_id: "research/default"}} = CLI.parse_args(["research"])
-      assert {:needs_stdin, %{workflow_id: "research/default"}} = CLI.parse_args(["run", "research/default"])
+
+      assert {:needs_stdin, %{workflow_id: "research/default"}} =
+               CLI.parse_args(["run", "research/default"])
     end
 
     test "parses quick and deep executor flags" do
@@ -90,17 +92,25 @@ defmodule Thinktank.CLITest do
 
     test "defaults tier to standard and parses other tiers" do
       assert {:ok, %{input: %{tier: :standard}}} = CLI.parse_args(["research", "test"])
-      assert {:ok, %{input: %{tier: :cheap}}} = CLI.parse_args(["research", "test", "--tier", "cheap"])
-      assert {:ok, %{input: %{tier: :premium}}} = CLI.parse_args(["research", "test", "--tier", "premium"])
+
+      assert {:ok, %{input: %{tier: :cheap}}} =
+               CLI.parse_args(["research", "test", "--tier", "cheap"])
+
+      assert {:ok, %{input: %{tier: :premium}}} =
+               CLI.parse_args(["research", "test", "--tier", "premium"])
     end
 
     test "returns errors for invalid tier and unknown flags" do
-      assert {:error, "invalid tier: bogus" <> _} = CLI.parse_args(["research", "test", "--tier", "bogus"])
+      assert {:error, "invalid tier: bogus" <> _} =
+               CLI.parse_args(["research", "test", "--tier", "bogus"])
+
       assert {:error, "unknown flag: --bogus"} = CLI.parse_args(["research", "test", "--bogus"])
     end
 
     test "parses dry run and output flags" do
-      assert {:ok, command} = CLI.parse_args(["research", "test", "--dry-run", "--output", "./tmp"])
+      assert {:ok, command} =
+               CLI.parse_args(["research", "test", "--dry-run", "--output", "./tmp"])
+
       assert command.dry_run == true
       assert command.output == Path.expand("./tmp")
     end
@@ -108,7 +118,9 @@ defmodule Thinktank.CLITest do
 
   describe "dry_run_output/1" do
     test "renders workflow-oriented JSON" do
-      {:ok, command} = CLI.parse_args(["research", "test prompt", "--dry-run", "--json", "--paths", "./lib"])
+      {:ok, command} =
+        CLI.parse_args(["research", "test prompt", "--dry-run", "--json", "--paths", "./lib"])
+
       decoded = CLI.dry_run_output(command) |> Jason.decode!()
 
       assert decoded["action"] == "run"
@@ -159,6 +171,39 @@ defmodule Thinktank.CLITest do
       assert decoded["workflow"] == "research/default"
       assert decoded["input"]["input_text"] == "test"
     end
+
+    test "workflow commands execute against the built-in config" do
+      list_output =
+        capture_io(fn ->
+          assert CLI.execute({:ok, %{action: :workflows_list, cwd: File.cwd!(), json: false}}) ==
+                   0
+        end)
+
+      assert list_output =~ "review/cerberus"
+
+      show_output =
+        capture_io(fn ->
+          assert CLI.execute(
+                   {:ok,
+                    %{
+                      action: :workflows_show,
+                      workflow_id: "review/cerberus",
+                      cwd: File.cwd!(),
+                      json: false
+                    }}
+                 ) == 0
+        end)
+
+      assert show_output =~ "\"execution_mode\": \"deep\""
+
+      validate_output =
+        capture_io(fn ->
+          assert CLI.execute({:ok, %{action: :workflows_validate, cwd: File.cwd!(), json: false}}) ==
+                   0
+        end)
+
+      assert validate_output =~ "Validated"
+    end
   end
 
   describe "usage_text/0" do
@@ -183,13 +228,23 @@ defmodule Thinktank.CLITest do
       System.delete_env("THINKTANK_AGENT_CONFIG")
     end
 
-    test "returns CWD/agent_config when directory exists and no env var" do
+    test "returns CWD/agent_config only when explicitly trusted" do
       System.delete_env("THINKTANK_AGENT_CONFIG")
+      System.put_env("THINKTANK_TRUST_REPO_AGENT_CONFIG", "1")
       assert CLI.agent_config_dir() == Path.join(File.cwd!(), "agent_config")
+    after
+      System.delete_env("THINKTANK_TRUST_REPO_AGENT_CONFIG")
+    end
+
+    test "returns nil when repo agent_config is not explicitly trusted" do
+      System.delete_env("THINKTANK_AGENT_CONFIG")
+      System.delete_env("THINKTANK_TRUST_REPO_AGENT_CONFIG")
+      assert CLI.agent_config_dir() == nil
     end
 
     test "returns nil when no env var and no agent_config dir exists" do
       System.delete_env("THINKTANK_AGENT_CONFIG")
+      System.delete_env("THINKTANK_TRUST_REPO_AGENT_CONFIG")
       tmp = System.tmp_dir!()
       cwd = File.cwd!()
       File.cd!(tmp)

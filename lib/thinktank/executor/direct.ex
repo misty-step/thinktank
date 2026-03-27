@@ -62,7 +62,8 @@ defmodule Thinktank.Executor.Direct do
           end
 
         other ->
-          {:error, %{category: :unsupported_provider, message: "unsupported provider adapter #{other}"}}
+          {:error,
+           %{category: :unsupported_provider, message: "unsupported provider adapter #{other}"}}
       end
     end)
     |> case do
@@ -139,8 +140,10 @@ defmodule Thinktank.Executor.Direct do
     end
   end
 
-  defp structured_review?(%AgentSpec{tool_profile: "review"}, %RunContract{workflow_id: "review/cerberus"}),
-    do: true
+  defp structured_review?(%AgentSpec{tool_profile: "review"}, %RunContract{
+         workflow_id: "review/cerberus"
+       }),
+       do: true
 
   defp structured_review?(_, _), do: false
 end

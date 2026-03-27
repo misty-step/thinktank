@@ -148,7 +148,9 @@ defmodule Thinktank.Review.Diff do
 
           {:ok, new_path} when new_path != current ->
             record = Map.get(files, current, new_file_record(new_path))
-            {files |> Map.delete(current) |> Map.put(new_path, %{record | path: new_path}), new_path}
+
+            {files |> Map.delete(current) |> Map.put(new_path, %{record | path: new_path}),
+             new_path}
 
           _ ->
             {files, current}

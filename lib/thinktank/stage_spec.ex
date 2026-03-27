@@ -4,6 +4,13 @@ defmodule Thinktank.StageSpec do
   """
 
   @valid_types ~w(prepare route fanout aggregate emit)
+  @valid_kinds %{
+    prepare: MapSet.new(["research_input", "review_diff"]),
+    route: MapSet.new(["research_router", "cerberus_review", "static_agents"]),
+    fanout: MapSet.new(["agents"]),
+    aggregate: MapSet.new(["research_synthesis", "cerberus_verdict"]),
+    emit: MapSet.new(["artifacts"])
+  }
 
   @enforce_keys [:name, :type, :kind]
   defstruct [:name, :type, :kind, when: true, retry: 0, concurrency: nil, options: %{}]
@@ -21,7 +28,7 @@ defmodule Thinktank.StageSpec do
   @spec from_map(map()) :: {:ok, t()} | {:error, String.t()}
   def from_map(%{} = raw) do
     with {:ok, type} <- parse_type(raw["type"]),
-         {:ok, kind} <- require_kind(raw["kind"]) do
+         {:ok, kind} <- parse_kind(type, raw["kind"]) do
       {:ok,
        %__MODULE__{
          name: stage_name(raw, kind),
@@ -48,13 +55,32 @@ defmodule Thinktank.StageSpec do
 
   defp parse_type(type) when is_atom(type) do
     atom_string = Atom.to_string(type)
-    if atom_string in @valid_types, do: {:ok, type}, else: {:error, "stage type must be one of #{@valid_types |> Enum.join(", ")}"}
+
+    if atom_string in @valid_types,
+      do: {:ok, type},
+      else: {:error, "stage type must be one of #{@valid_types |> Enum.join(", ")}"}
   end
 
   defp parse_type(_), do: {:error, "stage type must be one of #{@valid_types |> Enum.join(", ")}"}
 
-  defp require_kind(kind) when is_binary(kind) and kind != "", do: {:ok, kind}
-  defp require_kind(_), do: {:error, "stage kind is required"}
+  defp parse_kind(_type, kind) when not (is_binary(kind) and kind != ""),
+    do: {:error, "stage kind is required"}
+
+  defp parse_kind(type, kind) do
+    if MapSet.member?(Map.fetch!(@valid_kinds, type), kind) do
+      {:ok, kind}
+    else
+      {:error,
+       "stage kind #{kind} is invalid for #{type}; expected one of #{supported_kinds(type) |> Enum.join(", ")}"}
+    end
+  end
+
+  defp supported_kinds(type) do
+    type
+    |> then(&Map.fetch!(@valid_kinds, &1))
+    |> MapSet.to_list()
+    |> Enum.sort()
+  end
 
   defp non_neg_int(value, _default) when is_integer(value) and value >= 0, do: value
 

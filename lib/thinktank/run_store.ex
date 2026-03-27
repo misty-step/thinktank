@@ -121,10 +121,13 @@ defmodule Thinktank.RunStore do
   end
 
   defp resolve_artifact_path(output_dir, filename) do
-    if String.contains?(filename, "/") do
-      Path.join(output_dir, filename)
+    output_root = Path.expand(output_dir)
+    path = Path.expand(filename, output_root)
+
+    if path == output_root or String.starts_with?(path, output_root <> "/") do
+      path
     else
-      Path.join(output_dir, filename)
+      raise ArgumentError, "artifact path escapes output dir: #{filename}"
     end
   end
 

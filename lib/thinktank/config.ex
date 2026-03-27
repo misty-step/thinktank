@@ -17,7 +17,10 @@ defmodule Thinktank.Config do
   @spec load(keyword()) :: {:ok, t()} | {:error, String.t()}
   def load(opts \\ []) do
     cwd = Keyword.get(opts, :cwd, File.cwd!())
-    user_path = Keyword.get(opts, :user_config_path, Path.join(user_config_dir(opts), "config.yml"))
+
+    user_path =
+      Keyword.get(opts, :user_config_path, Path.join(user_config_dir(opts), "config.yml"))
+
     repo_path = Keyword.get(opts, :repo_config_path, Path.join(cwd, ".thinktank/config.yml"))
 
     with {:ok, user_raw} <- load_yaml_if_present(user_path),
@@ -55,7 +58,8 @@ defmodule Thinktank.Config do
          {:ok, agents} <- build_agents(Map.get(raw, "agents", %{})),
          {:ok, workflows} <- build_workflows(Map.get(raw, "workflows", %{})),
          :ok <- validate_references(workflows, agents, providers) do
-      {:ok, %__MODULE__{providers: providers, agents: agents, workflows: workflows, sources: sources}}
+      {:ok,
+       %__MODULE__{providers: providers, agents: agents, workflows: workflows, sources: sources}}
     end
   end
 
@@ -119,6 +123,15 @@ defmodule Thinktank.Config do
         "static_agents" ->
           case validate_named_agents(stage.options["agents"], agents) do
             :ok -> {:cont, :ok}
+            {:error, reason} -> {:halt, {:error, reason}}
+          end
+
+        "cerberus_review" ->
+          with :ok <- validate_named_agents(stage.options["always_include"], agents),
+               :ok <- validate_named_agents(stage.options["include_if_code_changed"], agents),
+               :ok <- validate_named_agents(stage.options["fallback_panel"], agents) do
+            {:cont, :ok}
+          else
             {:error, reason} -> {:halt, {:error, reason}}
           end
 

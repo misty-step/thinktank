@@ -21,7 +21,8 @@ defmodule Thinktank.Builtin do
       },
       "workflows" => %{
         "research/default" => %{
-          "description" => "Multi-perspective research workflow with routing, parallel fanout, and synthesis.",
+          "description" =>
+            "Multi-perspective research workflow with routing, parallel fanout, and synthesis.",
           "input_schema" => %{"required" => ["input_text"]},
           "default_mode" => "quick",
           "execution_mode" => "flexible",
@@ -44,7 +45,8 @@ defmodule Thinktank.Builtin do
           ]
         },
         "review/cerberus" => %{
-          "description" => "Diff-aware multi-agent code review with reviewer routing and verdict aggregation.",
+          "description" =>
+            "Diff-aware multi-agent code review with reviewer routing and verdict aggregation.",
           "input_schema" => %{},
           "default_mode" => "deep",
           "execution_mode" => "deep",

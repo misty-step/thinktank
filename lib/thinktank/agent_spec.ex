@@ -79,6 +79,9 @@ defmodule Thinktank.AgentSpec do
 
   defp parse_tools(nil), do: nil
   defp parse_tools(tools) when is_list(tools), do: Enum.filter(tools, &is_binary/1)
-  defp parse_tools(tools) when is_binary(tools), do: tools |> String.split(",") |> Enum.map(&String.trim/1)
+
+  defp parse_tools(tools) when is_binary(tools),
+    do: tools |> String.split(",") |> Enum.map(&String.trim/1)
+
   defp parse_tools(_), do: nil
 end

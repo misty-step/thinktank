@@ -11,7 +11,8 @@ defmodule Thinktank.ConfigTest do
 
   describe "load/1" do
     test "loads built-in workflows and providers" do
-      assert {:ok, config} = Config.load(cwd: File.cwd!(), user_config_path: "/tmp/does-not-exist.yml")
+      assert {:ok, config} =
+               Config.load(cwd: File.cwd!(), user_config_path: "/tmp/does-not-exist.yml")
 
       assert Map.has_key?(config.providers, "openrouter")
       assert Map.has_key?(config.workflows, "research/default")
@@ -97,6 +98,77 @@ defmodule Thinktank.ConfigTest do
                   - ghost
               - type: fanout
                 kind: agents
+              - type: aggregate
+                kind: research_synthesis
+              - type: emit
+                kind: artifacts
+        """
+      )
+
+      assert {:error, "workflow references unknown agent ghost"} = Config.load(cwd: tmp)
+    end
+
+    test "returns an error for unsupported stage kinds" do
+      tmp = unique_tmp_dir("thinktank-stage-kind")
+      repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+      File.mkdir_p!(Path.dirname(repo_cfg))
+
+      File.write!(
+        repo_cfg,
+        """
+        workflows:
+          demo/invalid:
+            description: Invalid workflow
+            stages:
+              - type: prepare
+                kind: research_input
+              - type: route
+                kind: static_agents
+                agents:
+                  - trace
+              - type: fanout
+                kind: totally_custom
+              - type: aggregate
+                kind: research_synthesis
+              - type: emit
+                kind: artifacts
+        """
+      )
+
+      assert {:error,
+              "workflow demo/invalid: stage kind totally_custom is invalid for fanout; expected one of agents"} =
+               Config.load(cwd: tmp)
+    end
+
+    test "returns an error when cerberus routing references an unknown fallback agent" do
+      tmp = unique_tmp_dir("thinktank-route-agent")
+      repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+      File.mkdir_p!(Path.dirname(repo_cfg))
+
+      File.write!(
+        repo_cfg,
+        """
+        workflows:
+          review/cerberus:
+            description: Diff-aware multi-agent code review with reviewer routing and verdict aggregation.
+            default_mode: deep
+            execution_mode: deep
+            stages:
+              - type: prepare
+                kind: review_diff
+              - type: route
+                kind: cerberus_review
+                panel_size: 4
+                always_include:
+                  - trace
+                include_if_code_changed:
+                  - guard
+                fallback_panel:
+                  - ghost
+              - type: fanout
+                kind: agents
+              - type: aggregate
+                kind: cerberus_verdict
               - type: emit
                 kind: artifacts
         """

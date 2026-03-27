@@ -26,7 +26,8 @@ defmodule Thinktank.Engine do
           context: map()
         }
 
-  @spec run(String.t(), map(), keyword()) :: {:ok, run_result()} | {:error, term(), String.t() | nil}
+  @spec run(String.t(), map(), keyword()) ::
+          {:ok, run_result()} | {:error, term(), String.t() | nil}
   def run(workflow_id, input, opts \\ []) do
     cwd = Keyword.get(opts, :cwd, File.cwd!())
 
@@ -61,7 +62,10 @@ defmodule Thinktank.Engine do
            }}
 
         {:error, reason} ->
-          RunStore.write_json_artifact(output_dir, "failure", "artifacts/failure.json", %{error: inspect(reason)})
+          RunStore.write_json_artifact(output_dir, "failure", "artifacts/failure.json", %{
+            error: inspect(reason)
+          })
+
           RunStore.complete_run(output_dir, "failed")
           {:error, reason, output_dir}
       end
@@ -75,7 +79,10 @@ defmodule Thinktank.Engine do
   def generate_output_dir(workflow_id) do
     timestamp = DateTime.utc_now() |> Calendar.strftime("%Y%m%d-%H%M%S")
     suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
-    workflow_slug = workflow_id |> String.replace("/", "-") |> String.replace(~r/[^a-zA-Z0-9-]/, "")
+
+    workflow_slug =
+      workflow_id |> String.replace("/", "-") |> String.replace(~r/[^a-zA-Z0-9-]/, "")
+
     Path.join(System.tmp_dir!(), "thinktank-#{workflow_slug}-#{timestamp}-#{suffix}")
   end
 
@@ -86,7 +93,15 @@ defmodule Thinktank.Engine do
       case run_stage_with_retry(stage, context, contract, config, opts) do
         {:ok, outputs, final_attempts} ->
           merged = Map.merge(context, outputs)
-          RunStore.record_stage(contract.artifact_dir, stage.name, "complete", final_attempts, stage_snapshot(outputs))
+
+          RunStore.record_stage(
+            contract.artifact_dir,
+            stage.name,
+            "complete",
+            final_attempts,
+            stage_snapshot(outputs)
+          )
+
           execute_stages(rest, merged, contract, config, index + 1, opts)
 
         {:error, reason, final_attempts} ->
@@ -122,7 +137,13 @@ defmodule Thinktank.Engine do
     end
   end
 
-  defp run_stage(%StageSpec{type: :prepare, kind: "research_input"}, _context, contract, _config, _opts) do
+  defp run_stage(
+         %StageSpec{type: :prepare, kind: "research_input"},
+         _context,
+         contract,
+         _config,
+         _opts
+       ) do
     input_text = input_value(contract.input, :input_text)
     paths = input_value(contract.input, :paths, [])
     context_files = read_context_files(paths)
@@ -138,7 +159,13 @@ defmodule Thinktank.Engine do
      }}
   end
 
-  defp run_stage(%StageSpec{type: :prepare, kind: "review_diff"}, _context, contract, _config, _opts) do
+  defp run_stage(
+         %StageSpec{type: :prepare, kind: "review_diff"},
+         _context,
+         contract,
+         _config,
+         _opts
+       ) do
     with {:ok, prepared} <- load_review_input(contract) do
       diff_summary = Diff.parse(prepared.diff_text)
 
@@ -163,7 +190,13 @@ defmodule Thinktank.Engine do
     end
   end
 
-  defp run_stage(%StageSpec{type: :route, kind: "research_router"} = stage, context, contract, _config, opts) do
+  defp run_stage(
+         %StageSpec{type: :route, kind: "research_router"} = stage,
+         context,
+         contract,
+         _config,
+         opts
+       ) do
     available_models = select_models(contract.input)
     count = input_value(contract.input, :perspectives, stage.options["count"] || 4)
     tier = input_value(contract.input, :tier, :standard)
@@ -204,7 +237,13 @@ defmodule Thinktank.Engine do
     {:ok, %{agents: agents, router_usage: usage}}
   end
 
-  defp run_stage(%StageSpec{type: :route, kind: "cerberus_review"} = stage, context, _contract, config, _opts) do
+  defp run_stage(
+         %StageSpec{type: :route, kind: "cerberus_review"} = stage,
+         context,
+         _contract,
+         config,
+         _opts
+       ) do
     panel_size = stage.options["panel_size"] || 4
     always_include = stage.options["always_include"] || ["trace"]
     include_if_code_changed = stage.options["include_if_code_changed"] || ["guard"]
@@ -236,19 +275,31 @@ defmodule Thinktank.Engine do
      }}
   end
 
-  defp run_stage(%StageSpec{type: :route, kind: "static_agents"} = stage, _context, _contract, config, _opts) do
+  defp run_stage(
+         %StageSpec{type: :route, kind: "static_agents"} = stage,
+         _context,
+         _contract,
+         config,
+         _opts
+       ) do
     names = stage.options["agents"] || []
     agents = Enum.map(names, &Map.fetch!(config.agents, &1))
     {:ok, %{agents: agents}}
   end
 
-  defp run_stage(%StageSpec{type: :fanout, kind: "agents"} = stage, context, contract, config, opts) do
+  defp run_stage(
+         %StageSpec{type: :fanout, kind: "agents"} = stage,
+         context,
+         contract,
+         config,
+         opts
+       ) do
     agents = Map.get(context, :agents, [])
 
     results =
       Executor.run(agents, contract, context, config,
         concurrency: stage.concurrency || length(agents),
-        agent_config_dir: opts[:agent_config_dir] || Thinktank.CLI.agent_config_dir(),
+        agent_config_dir: opts[:agent_config_dir],
         runner: opts[:runner],
         openrouter_opts: opts[:openrouter_opts] || []
       )
@@ -256,8 +307,11 @@ defmodule Thinktank.Engine do
     Enum.each(results, fn result ->
       output =
         case result.status do
-          :ok -> result.output
-          :error -> result.output <> if(result.error, do: "\n\nERROR: #{inspect(result.error)}", else: "")
+          :ok ->
+            result.output
+
+          :error ->
+            result.output <> if(result.error, do: "\n\nERROR: #{inspect(result.error)}", else: "")
         end
 
       RunStore.record_agent_result(contract.artifact_dir, result.agent.name, output, %{
@@ -272,7 +326,13 @@ defmodule Thinktank.Engine do
     {:ok, %{agent_results: results}}
   end
 
-  defp run_stage(%StageSpec{type: :aggregate, kind: "research_synthesis"}, context, contract, _config, opts) do
+  defp run_stage(
+         %StageSpec{type: :aggregate, kind: "research_synthesis"},
+         context,
+         contract,
+         _config,
+         opts
+       ) do
     successes =
       context.agent_results
       |> Enum.filter(&(&1.status == :ok and String.trim(&1.output) != ""))
@@ -296,7 +356,13 @@ defmodule Thinktank.Engine do
     end
   end
 
-  defp run_stage(%StageSpec{type: :aggregate, kind: "cerberus_verdict"}, context, _contract, _config, _opts) do
+  defp run_stage(
+         %StageSpec{type: :aggregate, kind: "cerberus_verdict"},
+         context,
+         _contract,
+         _config,
+         _opts
+       ) do
     parsed_reviews =
       Enum.map(context.agent_results, fn result ->
         case result.status do
@@ -329,20 +395,48 @@ defmodule Thinktank.Engine do
     case context.result_kind do
       :research ->
         if context[:synthesis] do
-          RunStore.write_text_artifact(contract.artifact_dir, "synthesis", "synthesis.md", context.synthesis.text)
-          RunStore.write_json_artifact(contract.artifact_dir, "synthesis-usage", "artifacts/synthesis-usage.json", context.synthesis.usage)
+          RunStore.write_text_artifact(
+            contract.artifact_dir,
+            "synthesis",
+            "synthesis.md",
+            context.synthesis.text
+          )
+
+          RunStore.write_json_artifact(
+            contract.artifact_dir,
+            "synthesis-usage",
+            "artifacts/synthesis-usage.json",
+            context.synthesis.usage
+          )
         end
 
       :review ->
         Enum.each(context.parsed_reviews, fn review ->
           if review[:verdict] do
-            filename = "artifacts/#{review.agent}-verdict.json"
-            RunStore.write_json_artifact(contract.artifact_dir, "#{review.agent}-verdict", filename, review.verdict)
+            filename = "artifacts/#{artifact_name(review.agent)}-verdict.json"
+
+            RunStore.write_json_artifact(
+              contract.artifact_dir,
+              "#{review.agent}-verdict",
+              filename,
+              review.verdict
+            )
           end
         end)
 
-        RunStore.write_json_artifact(contract.artifact_dir, "verdict", "verdict.json", context.final_verdict)
-        RunStore.write_text_artifact(contract.artifact_dir, "review", "review.md", context.review_summary)
+        RunStore.write_json_artifact(
+          contract.artifact_dir,
+          "verdict",
+          "verdict.json",
+          context.final_verdict
+        )
+
+        RunStore.write_text_artifact(
+          contract.artifact_dir,
+          "review",
+          "review.md",
+          context.review_summary
+        )
     end
 
     {:ok, %{}}
@@ -366,7 +460,8 @@ defmodule Thinktank.Engine do
     end
   end
 
-  defp validate_input(%WorkflowSpec{input_schema: %{"required" => required}}, input) when is_list(required) do
+  defp validate_input(%WorkflowSpec{input_schema: %{"required" => required}}, input)
+       when is_list(required) do
     missing =
       Enum.filter(required, fn key ->
         Map.get(input, String.to_atom(key)) in [nil, ""] and Map.get(input, key) in [nil, ""]
@@ -377,10 +472,16 @@ defmodule Thinktank.Engine do
 
   defp validate_input(_workflow, _input), do: :ok
 
-  defp resolve_mode(%WorkflowSpec{default_mode: default_mode, execution_mode: :flexible}, nil), do: {:ok, default_mode}
-  defp resolve_mode(%WorkflowSpec{execution_mode: :flexible}, requested) when requested in [:quick, :deep], do: {:ok, requested}
+  defp resolve_mode(%WorkflowSpec{default_mode: default_mode, execution_mode: :flexible}, nil),
+    do: {:ok, default_mode}
 
-  defp resolve_mode(%WorkflowSpec{id: id, default_mode: default_mode, execution_mode: required_mode}, nil)
+  defp resolve_mode(%WorkflowSpec{execution_mode: :flexible}, requested)
+       when requested in [:quick, :deep], do: {:ok, requested}
+
+  defp resolve_mode(
+         %WorkflowSpec{id: id, default_mode: default_mode, execution_mode: required_mode},
+         nil
+       )
        when required_mode in [:quick, :deep] do
     if default_mode == required_mode do
       {:ok, default_mode}
@@ -439,7 +540,8 @@ defmodule Thinktank.Engine do
   end
 
   defp load_pr_review_input(repo, pr_number, cwd) do
-    with {:ok, diff_text} <- system_cmd("gh", ["pr", "diff", Integer.to_string(pr_number), "--repo", repo], cwd),
+    with {:ok, diff_text} <-
+           system_cmd("gh", ["pr", "diff", Integer.to_string(pr_number), "--repo", repo], cwd),
          {:ok, json} <-
            system_cmd(
              "gh",
@@ -450,11 +552,12 @@ defmodule Thinktank.Engine do
                "--repo",
                repo,
                "--json",
-               "title,author,headRefName,baseRefName,body"
+               "title,author,headRefName,headRefOid,baseRefName,body"
              ],
              cwd
            ),
-         {:ok, metadata} <- Jason.decode(json) do
+         {:ok, metadata} <- Jason.decode(json),
+         :ok <- ensure_local_pr_workspace(cwd, repo, metadata) do
       changed_paths = extract_changed_paths(diff_text)
 
       {:ok,
@@ -527,12 +630,13 @@ defmodule Thinktank.Engine do
     PR body:
     #{if(String.trim(pr_body) == "", do: "(empty)", else: pr_body)}
 
-    Inspect the change directly with your tools before making claims.
+    Inspect the checked-out workspace directly with your tools before making claims.
+    In PR mode, the local workspace is expected to already be checked out at the PR head commit.
     Useful commands:
-    - git diff --no-ext-diff #{prepared.base_ref}...#{prepared.head_ref}
-    - git diff --no-ext-diff #{prepared.base_ref}...#{prepared.head_ref} -- <path>
-    - git show #{prepared.head_ref}:<path>
-    - git blame #{prepared.head_ref} -- <path>
+    - git diff --no-ext-diff #{prepared.base_ref}...HEAD
+    - git diff --no-ext-diff #{prepared.base_ref}...HEAD -- <path>
+    - git show HEAD:<path>
+    - git blame HEAD -- <path>
     - rg "<symbol>" #{workspace_root}
 
     Do not rely only on this summary. Use the repo, diff, and nearby code to verify each finding.
@@ -642,6 +746,51 @@ defmodule Thinktank.Engine do
     """
   end
 
+  defp ensure_local_pr_workspace(cwd, repo, metadata) do
+    head_ref = metadata["headRefName"] || "unknown"
+    head_sha = metadata["headRefOid"] || ""
+
+    case system_cmd("git", ["rev-parse", "--is-inside-work-tree"], cwd) do
+      {:ok, _} ->
+        case optional_cmd("git", ["config", "--get", "remote.origin.url"], cwd) do
+          {:ok, remote} ->
+            remote = String.trim(remote)
+
+            cond do
+              not repo_matches_origin?(remote, repo) ->
+                {:error, {:pr_review_repo_mismatch, repo, remote}}
+
+              true ->
+                case system_cmd("git", ["rev-parse", "HEAD"], cwd) do
+                  {:ok, local_head} ->
+                    if String.trim(local_head) == head_sha do
+                      :ok
+                    else
+                      {:error, {:pr_review_requires_checkout, repo, head_ref, head_sha}}
+                    end
+
+                  {:error, _reason} ->
+                    {:error, {:pr_review_requires_git_workspace, repo}}
+                end
+            end
+
+          {:error, _reason} ->
+            {:error, {:pr_review_requires_git_workspace, repo}}
+        end
+
+      {:error, _reason} ->
+        {:error, {:pr_review_requires_git_workspace, repo}}
+    end
+  end
+
+  defp repo_matches_origin?(remote, repo) do
+    remote == repo or
+      String.ends_with?(remote, "/#{repo}.git") or
+      String.ends_with?(remote, "/#{repo}") or
+      String.ends_with?(remote, ":#{repo}.git") or
+      String.ends_with?(remote, ":#{repo}")
+  end
+
   defp resolve_path(context, path) do
     Enum.reduce_while(String.split(path, "."), context, fn segment, current ->
       cond do
@@ -659,7 +808,16 @@ defmodule Thinktank.Engine do
 
   defp stage_snapshot(outputs) do
     outputs
-    |> Map.drop([:diff_text, :review_bundle, :context_block, :context_files, :agent_results, :parsed_reviews, :review_summary, :synthesis])
+    |> Map.drop([
+      :diff_text,
+      :review_bundle,
+      :context_block,
+      :context_files,
+      :agent_results,
+      :parsed_reviews,
+      :review_summary,
+      :synthesis
+    ])
     |> normalize_snapshot()
   end
 
@@ -676,6 +834,13 @@ defmodule Thinktank.Engine do
   defp normalize_snapshot(list) when is_list(list), do: Enum.map(list, &normalize_snapshot/1)
   defp normalize_snapshot(value) when is_atom(value), do: Atom.to_string(value)
   defp normalize_snapshot(value), do: value
+
+  defp artifact_name(name) do
+    name
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/, "-")
+    |> String.trim("-")
+  end
 
   defp system_cmd(cmd, args, cwd) do
     case System.cmd(cmd, args, cd: cwd, stderr_to_stdout: true) do
