@@ -70,6 +70,8 @@ defmodule Thinktank.StageRegistry do
        paths: paths,
        context_files: context_files,
        context_block: build_context_block(context_files),
+       no_synthesis: input_value(contract.input, :no_synthesis, false),
+       should_synthesize: not input_value(contract.input, :no_synthesis, false),
        review_bundle: "",
        result_kind: :research
      }}

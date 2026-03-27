@@ -1,6 +1,6 @@
 defmodule Thinktank.StageSpec do
   @moduledoc """
-  Typed stage definition for workflow execution.
+  Typed stage definition for the constrained built-in workflow stage registry.
   """
 
   alias Thinktank.StageRegistry

@@ -40,7 +40,12 @@ defmodule Thinktank.Builtin do
               "kind" => "agents",
               "concurrency" => 4
             },
-            %{"name" => "aggregate", "type" => "aggregate", "kind" => "research_synthesis"},
+            %{
+              "name" => "aggregate",
+              "type" => "aggregate",
+              "kind" => "research_synthesis",
+              "when" => "should_synthesize"
+            },
             %{"name" => "emit", "type" => "emit", "kind" => "artifacts"}
           ]
         },
@@ -106,6 +111,10 @@ defmodule Thinktank.Builtin do
 
     Review only issues you can ground in the actual code, diff, or repository context.
     If there is not enough evidence for a claim, do not report it.
+    Respect the stated v1 scope in this change. The constrained built-in stage graph and
+    first-party provider wiring are deliberate design choices for now, not defects by themselves.
+    Do not report roadmap requests, alternative abstractions, or generic missing-test suggestions
+    unless they reveal a concrete bug, regression, security problem, or violated contract here.
 
     Return a short markdown review followed by exactly one fenced ```json block.
     The JSON must be valid and must not contain comments or unescaped quotes.
@@ -140,15 +149,18 @@ defmodule Thinktank.Builtin do
 
   defp proof_prompt do
     """
-    You are proof, a testing reviewer. Look for missing coverage, brittle tests, regression
-    gaps, and places where the change is under-specified or unverified.
+    You are proof, a testing reviewer. Look for concrete regression gaps, brittle tests,
+    and unverified behavior that could plausibly fail in this change. Do not ask for
+    generic extra coverage without identifying a real risk.
     """
   end
 
   defp atlas_prompt do
     """
     You are atlas, an architecture reviewer. Focus on boundaries, coupling, module depth,
-    and whether the change makes the design harder to evolve.
+    and whether the change makes the design materially harder to evolve within the stated
+    v1 constraints. Do not report deliberate fixed stage kinds or first-party provider seams
+    as defects unless they break the documented contract in this change.
     """
   end
 

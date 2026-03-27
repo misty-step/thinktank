@@ -40,4 +40,35 @@ defmodule Thinktank.RunStoreTest do
       RunStore.write_text_artifact(output_dir, "escape", "../escape.txt", "nope")
     end
   end
+
+  test "returns a compact result envelope for CLI output" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-store-envelope"), "run")
+
+    contract = %RunContract{
+      workflow_id: "research/default",
+      workspace_root: File.cwd!(),
+      input: %{input_text: "hello"},
+      artifact_dir: output_dir,
+      adapter_context: %{},
+      mode: :quick
+    }
+
+    workflow = %WorkflowSpec{
+      id: "research/default",
+      description: "Demo",
+      stages: []
+    }
+
+    RunStore.init_run(output_dir, contract, workflow)
+    RunStore.record_agent_result(output_dir, "trace", "hello", %{status: :ok})
+    RunStore.write_text_artifact(output_dir, "review", "review.md", "content")
+    RunStore.complete_run(output_dir, "complete")
+
+    envelope = RunStore.result_envelope(output_dir)
+    assert envelope.output_dir == output_dir
+    assert envelope.workflow == "research/default"
+    assert envelope.status == "complete"
+    assert Enum.any?(envelope.agents, &(&1["name"] == "trace"))
+    assert Enum.any?(envelope.artifacts, &(&1["name"] == "review"))
+  end
 end

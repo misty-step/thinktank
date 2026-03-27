@@ -29,4 +29,36 @@ defmodule Thinktank.Review.DiffTest do
     assert summary.size_bucket in [:small, :medium, :large, :xlarge]
     assert summary.model_tier in [:standard, :pro]
   end
+
+  test "classifies doc, test, and code paths explicitly" do
+    assert Diff.classify_file("README.md") == {true, false, false}
+    assert Diff.classify_file("test/thing_test.exs") == {false, true, false}
+    assert Diff.classify_file("lib/thing.ex") == {false, false, true}
+  end
+
+  test "classifies size bucket boundaries" do
+    assert Diff.classify_size(%{total_changed_lines: 50}) == :small
+    assert Diff.classify_size(%{total_changed_lines: 51}) == :medium
+    assert Diff.classify_size(%{total_changed_lines: 200}) == :medium
+    assert Diff.classify_size(%{total_changed_lines: 201}) == :large
+    assert Diff.classify_size(%{total_changed_lines: 501}) == :xlarge
+  end
+
+  test "classifies flash and pro review tiers" do
+    assert Diff.classify_model_tier(%{
+             total_changed_lines: 10,
+             code_files: 0,
+             test_files: 1,
+             doc_files: 0,
+             security_hint: false
+           }) == :flash
+
+    assert Diff.classify_model_tier(%{
+             total_changed_lines: 10,
+             code_files: 1,
+             test_files: 0,
+             doc_files: 0,
+             security_hint: true
+           }) == :pro
+  end
 end

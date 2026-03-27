@@ -46,4 +46,19 @@ defmodule Thinktank.WorkflowSpecTest do
                ]
              })
   end
+
+  test "rejects conflicting default and execution modes" do
+    assert {:error, "workflow default_mode quick conflicts with execution_mode deep"} =
+             WorkflowSpec.from_pair("demo/workflow", %{
+               "description" => "Broken workflow",
+               "default_mode" => "quick",
+               "execution_mode" => "deep",
+               "stages" => [
+                 %{"type" => "prepare", "kind" => "research_input"},
+                 %{"type" => "route", "kind" => "static_agents"},
+                 %{"type" => "fanout", "kind" => "agents"},
+                 %{"type" => "emit", "kind" => "artifacts"}
+               ]
+             })
+  end
 end

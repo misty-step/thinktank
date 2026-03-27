@@ -160,19 +160,19 @@ defmodule Thinktank.Executor.Agentic do
   defp write_prompt_file(contract, agent, prompt) do
     dir = Path.join(contract.artifact_dir, "prompts")
     File.mkdir_p!(dir)
-    path = Path.join(dir, "#{safe_name(agent.name)}.md")
+    path = Path.join(dir, "#{agent_slug(agent)}.md")
     File.write!(path, prompt)
     path
   end
 
   defp build_agent_home(contract, agent, nil) do
-    dir = Path.join([contract.artifact_dir, "pi-home", safe_name(agent.name)])
+    dir = Path.join([contract.artifact_dir, "pi-home", agent_slug(agent)])
     File.mkdir_p!(dir)
     dir
   end
 
   defp build_agent_home(contract, agent, base_dir) do
-    dir = Path.join([contract.artifact_dir, "pi-home", safe_name(agent.name)])
+    dir = Path.join([contract.artifact_dir, "pi-home", agent_slug(agent)])
 
     unless File.exists?(dir) do
       File.mkdir_p!(Path.dirname(dir))
@@ -180,6 +180,15 @@ defmodule Thinktank.Executor.Agentic do
     end
 
     dir
+  end
+
+  defp agent_slug(%AgentSpec{name: name}) do
+    suffix =
+      :crypto.hash(:sha256, name)
+      |> Base.encode16(case: :lower)
+      |> binary_part(0, 8)
+
+    "#{safe_name(name)}-#{suffix}"
   end
 
   defp safe_name(name) do

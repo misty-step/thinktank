@@ -172,6 +172,66 @@ defmodule Thinktank.EngineTest do
       assert prompt =~ "sample.txt"
     end
 
+    test "skips synthesis when no_synthesis is requested" do
+      test_pid = self()
+
+      Req.Test.stub(__MODULE__, fn conn ->
+        {conn, payload} = decode_request(conn)
+        message = get_in(payload, ["messages", Access.at(0), "content"]) || ""
+
+        cond do
+          Map.has_key?(payload, "response_format") ->
+            Req.Test.json(conn, %{
+              "choices" => [
+                %{
+                  "message" => %{
+                    "content" =>
+                      Jason.encode!(%{
+                        "perspectives" => [
+                          %{
+                            "role" => "security analyst",
+                            "model" => "x-ai/grok-4.1-fast",
+                            "system_prompt" => "You are a security analyst.",
+                            "priority" => 1
+                          }
+                        ]
+                      })
+                  }
+                }
+              ]
+            })
+
+          String.contains?(message, "research synthesizer") ->
+            send(test_pid, :unexpected_synthesis)
+
+            Req.Test.json(conn, %{
+              "choices" => [%{"message" => %{"content" => "should not run"}}]
+            })
+
+          true ->
+            Req.Test.json(conn, %{
+              "choices" => [%{"message" => %{"content" => "Single perspective output"}}]
+            })
+        end
+      end)
+
+      assert {:ok, result} =
+               Engine.run(
+                 "research/default",
+                 %{input_text: "Skip synthesis", perspectives: 1, no_synthesis: true},
+                 cwd: File.cwd!(),
+                 mode: :quick,
+                 openrouter_opts: [api_key: "test-key", plug: {Req.Test, __MODULE__}]
+               )
+
+      refute_received :unexpected_synthesis
+      refute File.exists?(Path.join(result.output_dir, "synthesis.md"))
+
+      manifest = Path.join(result.output_dir, "manifest.json") |> File.read!() |> Jason.decode!()
+      aggregate = Enum.find(manifest["stages"], &(&1["name"] == "aggregate"))
+      assert aggregate["status"] == "skipped"
+    end
+
     test "retries aggregate stages and skips stages with unmet when conditions" do
       tmp = unique_tmp_dir("thinktank-custom")
       repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])

@@ -12,8 +12,14 @@ defmodule Thinktank.Dispatch.DeepTest do
     }
   end
 
-  # Extract the shell command string from runner args (sh -c "...")
-  defp shell_cmd(["-c", cmd]), do: cmd
+  defp pi_args(["-c", "exec < /dev/null; exec \"$@\"", "sh", "pi" | rest]), do: rest
+
+  defp prompt_arg(args) do
+    [_, prompt] =
+      Enum.chunk_every(args, 2, 1, :discard) |> Enum.find(fn [flag, _value] -> flag == "-p" end)
+
+    prompt
+  end
 
   describe "dispatch/3 — parallel subprocess spawning" do
     test "spawns one subprocess per perspective and returns results" do
@@ -69,9 +75,7 @@ defmodule Thinktank.Dispatch.DeepTest do
       ]
 
       runner = fn _cmd, args, _opts ->
-        cmd = shell_cmd(args)
-
-        if cmd =~ "model-b" do
+        if Enum.member?(pi_args(args), "model-b") do
           {"crash", 137}
         else
           {"ok", 0}
@@ -128,11 +132,19 @@ defmodule Thinktank.Dispatch.DeepTest do
 
       Deep.dispatch(perspectives, "review code", runner: runner)
 
-      assert_receive {:call, "sh", ["-c", shell_cmd], _opts}
-      assert shell_cmd =~ "exec pi --no-session --no-skills"
-      assert shell_cmd =~ "--model 'anthropic/claude-opus-4-6'"
-      assert shell_cmd =~ "--tools read,grep,find,ls"
-      assert shell_cmd =~ "< /dev/null"
+      assert_receive {:call, "sh", args, _opts}
+      assert Enum.take(args, 4) == ["-c", "exec < /dev/null; exec \"$@\"", "sh", "pi"]
+
+      assert pi_args(args) == [
+               "--no-session",
+               "--no-skills",
+               "--model",
+               "anthropic/claude-opus-4-6",
+               "--tools",
+               "read,grep,find,ls",
+               "-p",
+               "You are a analyst.\n\nreview code"
+             ]
     end
 
     test "includes instruction and system prompt in the prompt argument" do
@@ -153,10 +165,10 @@ defmodule Thinktank.Dispatch.DeepTest do
 
       Deep.dispatch(perspectives, "audit the auth module", runner: runner)
 
-      assert_receive {:args, ["-c", shell_cmd]}
-
-      assert shell_cmd =~ "You are a security expert focused on auth."
-      assert shell_cmd =~ "audit the auth module"
+      assert_receive {:args, args}
+      prompt = args |> pi_args() |> prompt_arg()
+      assert prompt =~ "You are a security expert focused on auth."
+      assert prompt =~ "audit the auth module"
     end
 
     test "includes file paths in the prompt when provided" do
@@ -173,10 +185,10 @@ defmodule Thinktank.Dispatch.DeepTest do
         paths: ["/src/auth.ex", "/src/router.ex"]
       )
 
-      assert_receive {:args, ["-c", shell_cmd]}
-
-      assert shell_cmd =~ "/src/auth.ex"
-      assert shell_cmd =~ "/src/router.ex"
+      assert_receive {:args, args}
+      prompt = args |> pi_args() |> prompt_arg()
+      assert prompt =~ "/src/auth.ex"
+      assert prompt =~ "/src/router.ex"
     end
 
     test "sets PI_CODING_AGENT_DIR env when agent_config_dir provided" do
@@ -253,8 +265,7 @@ defmodule Thinktank.Dispatch.DeepTest do
       test_pid = self()
 
       runner = fn _cmd, args, _opts ->
-        cmd = shell_cmd(args)
-        send(test_pid, {:agent, cmd})
+        send(test_pid, {:agent, pi_args(args)})
         {"done", 0}
       end
 
@@ -263,14 +274,25 @@ defmodule Thinktank.Dispatch.DeepTest do
       agents = flush_tagged(:agent)
       assert length(agents) == 3
 
-      assert Enum.any?(agents, &(&1 =~ "model-a" and &1 =~ "security expert"))
-      assert Enum.any?(agents, &(&1 =~ "model-b" and &1 =~ "performance analyst"))
-      assert Enum.any?(agents, &(&1 =~ "model-c" and &1 =~ "software architect"))
+      assert Enum.any?(
+               agents,
+               &(Enum.member?(&1, "model-a") and prompt_arg(&1) =~ "security expert")
+             )
+
+      assert Enum.any?(
+               agents,
+               &(Enum.member?(&1, "model-b") and prompt_arg(&1) =~ "performance analyst")
+             )
+
+      assert Enum.any?(
+               agents,
+               &(Enum.member?(&1, "model-c") and prompt_arg(&1) =~ "software architect")
+             )
     end
   end
 
-  describe "build_shell_cmd/2 — shell escaping" do
-    test "escapes single quotes in prompts" do
+  describe "build_command/2 — prompt argument preservation" do
+    test "preserves single quotes in prompts without shell escaping" do
       perspectives = [
         %Perspective{
           role: "test",
@@ -288,10 +310,10 @@ defmodule Thinktank.Dispatch.DeepTest do
 
       Deep.dispatch(perspectives, "what's the issue?", runner: runner)
 
-      assert_receive {:args, ["-c", shell_cmd]}
-      # Single quotes should be escaped
-      assert shell_cmd =~ "You'\\''re an expert."
-      assert shell_cmd =~ "what'\\''s the issue?"
+      assert_receive {:args, args}
+      prompt = args |> pi_args() |> prompt_arg()
+      assert prompt =~ "You're an expert."
+      assert prompt =~ "what's the issue?"
     end
 
     test "passes through backticks in prompt" do
@@ -308,9 +330,10 @@ defmodule Thinktank.Dispatch.DeepTest do
 
       Deep.dispatch(perspectives, "review `lib/app.ex`", runner: runner)
 
-      assert_receive {:args, ["-c", shell_cmd]}
-      assert shell_cmd =~ "`main`"
-      assert shell_cmd =~ "`lib/app.ex`"
+      assert_receive {:args, args}
+      prompt = args |> pi_args() |> prompt_arg()
+      assert prompt =~ "`main`"
+      assert prompt =~ "`lib/app.ex`"
     end
 
     test "passes through dollar signs (single-quoted)" do
@@ -327,9 +350,10 @@ defmodule Thinktank.Dispatch.DeepTest do
 
       Deep.dispatch(perspectives, "expand $PATH", runner: runner)
 
-      assert_receive {:args, ["-c", shell_cmd]}
-      assert shell_cmd =~ "$HOME"
-      assert shell_cmd =~ "$PATH"
+      assert_receive {:args, args}
+      prompt = args |> pi_args() |> prompt_arg()
+      assert prompt =~ "$HOME"
+      assert prompt =~ "$PATH"
     end
 
     test "preserves newlines in prompt" do
@@ -348,8 +372,9 @@ defmodule Thinktank.Dispatch.DeepTest do
 
       Deep.dispatch(perspectives, "go", runner: runner)
 
-      assert_receive {:args, ["-c", shell_cmd]}
-      assert shell_cmd =~ "Line one.\nLine two.\nLine three."
+      assert_receive {:args, args}
+      prompt = args |> pi_args() |> prompt_arg()
+      assert prompt =~ "Line one.\nLine two.\nLine three."
     end
 
     test "handles empty prompt" do
@@ -366,9 +391,9 @@ defmodule Thinktank.Dispatch.DeepTest do
 
       Deep.dispatch(perspectives, "", runner: runner)
 
-      assert_receive {:args, ["-c", shell_cmd]}
-      assert shell_cmd =~ "--model 'm'"
-      assert shell_cmd =~ "-p '"
+      assert_receive {:args, args}
+      assert Enum.member?(pi_args(args), "m")
+      assert prompt_arg(pi_args(args)) == "\n\n"
     end
   end
 

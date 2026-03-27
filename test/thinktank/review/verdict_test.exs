@@ -36,4 +36,82 @@ defmodule Thinktank.Review.VerdictTest do
              }
            ]
   end
+
+  test "rejects invalid confidence and severity values" do
+    assert {:error, :invalid_confidence} =
+             Verdict.validate(%{
+               "reviewer" => "proof",
+               "perspective" => "testing",
+               "verdict" => "WARN",
+               "confidence" => 101,
+               "summary" => "bad confidence",
+               "findings" => [],
+               "stats" => %{
+                 "files_reviewed" => 1,
+                 "files_with_issues" => 0,
+                 "critical" => 0,
+                 "major" => 0,
+                 "minor" => 0,
+                 "info" => 0
+               }
+             })
+
+    assert {:error, {:invalid_severity, "severe"}} =
+             Verdict.validate(%{
+               "reviewer" => "proof",
+               "perspective" => "testing",
+               "verdict" => "WARN",
+               "confidence" => 0.9,
+               "summary" => "bad severity",
+               "findings" => [
+                 %{
+                   "severity" => "severe",
+                   "category" => "testing",
+                   "title" => "bad",
+                   "description" => "bad",
+                   "suggestion" => "fix",
+                   "file" => "lib/app.ex",
+                   "line" => 1
+                 }
+               ],
+               "stats" => %{
+                 "files_reviewed" => 1,
+                 "files_with_issues" => 1,
+                 "critical" => 0,
+                 "major" => 1,
+                 "minor" => 0,
+                 "info" => 0
+               }
+             })
+  end
+
+  test "rejects negative line numbers" do
+    assert {:error, {:invalid_line, -1}} =
+             Verdict.validate(%{
+               "reviewer" => "proof",
+               "perspective" => "testing",
+               "verdict" => "WARN",
+               "confidence" => 0.9,
+               "summary" => "bad line",
+               "findings" => [
+                 %{
+                   "severity" => "major",
+                   "category" => "testing",
+                   "title" => "bad",
+                   "description" => "bad",
+                   "suggestion" => "fix",
+                   "file" => "lib/app.ex",
+                   "line" => -1
+                 }
+               ],
+               "stats" => %{
+                 "files_reviewed" => 1,
+                 "files_with_issues" => 1,
+                 "critical" => 0,
+                 "major" => 1,
+                 "minor" => 0,
+                 "info" => 0
+               }
+             })
+  end
 end

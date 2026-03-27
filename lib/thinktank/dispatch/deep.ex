@@ -60,11 +60,10 @@ defmodule Thinktank.Dispatch.Deep do
   defp run_agent(perspective, instruction, opts, runner) do
     prompt = build_prompt(perspective.system_prompt, instruction, opts[:paths] || [])
 
-    # Pi hangs when Erlang ports keep stdin open — wrap via sh to close it.
-    shell_cmd = build_shell_cmd(perspective.model, prompt)
+    {cmd, args} = build_command(perspective.model, prompt)
     cmd_opts = build_cmd_opts(opts)
 
-    case runner.("sh", ["-c", shell_cmd], cmd_opts) do
+    case runner.(cmd, args, cmd_opts) do
       {output, 0} ->
         {:ok, perspective.role, output, nil}
 
@@ -79,12 +78,22 @@ defmodule Thinktank.Dispatch.Deep do
       {:error, perspective.role, %{category: :crash, message: Exception.message(e)}}
   end
 
-  defp build_shell_cmd(model, prompt) do
-    escaped_prompt = prompt |> String.replace("'", "'\\''")
-    escaped_model = model |> String.replace("'", "'\\''")
-
-    "exec pi --no-session --no-skills --model '#{escaped_model}'" <>
-      " --tools #{@default_tools} -p '#{escaped_prompt}' < /dev/null"
+  defp build_command(model, prompt) do
+    {"sh",
+     [
+       "-c",
+       "exec < /dev/null; exec \"$@\"",
+       "sh",
+       "pi",
+       "--no-session",
+       "--no-skills",
+       "--model",
+       model,
+       "--tools",
+       @default_tools,
+       "-p",
+       prompt
+     ]}
   end
 
   defp build_prompt(system_prompt, instruction, []) do

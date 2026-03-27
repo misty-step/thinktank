@@ -218,5 +218,37 @@ defmodule Thinktank.ConfigTest do
       assert {:error, "workflow references unknown agent ghost"} =
                Config.load(cwd: tmp, trust_repo_config: true)
     end
+
+    test "rejects impossible workflow mode combinations at config load time" do
+      tmp = unique_tmp_dir("thinktank-invalid-modes")
+      repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+      File.mkdir_p!(Path.dirname(repo_cfg))
+
+      File.write!(
+        repo_cfg,
+        """
+        workflows:
+          demo/invalid:
+            description: Invalid workflow
+            default_mode: quick
+            execution_mode: deep
+            stages:
+              - type: prepare
+                kind: research_input
+              - type: route
+                kind: static_agents
+                agents:
+                  - trace
+              - type: fanout
+                kind: agents
+              - type: emit
+                kind: artifacts
+        """
+      )
+
+      assert {:error,
+              "workflow demo/invalid: workflow default_mode quick conflicts with execution_mode deep"} =
+               Config.load(cwd: tmp, trust_repo_config: true)
+    end
   end
 end

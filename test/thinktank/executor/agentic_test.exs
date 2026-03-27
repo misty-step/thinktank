@@ -117,8 +117,71 @@ defmodule Thinktank.Executor.AgenticTest do
     assert result.status == :ok
 
     assert_receive {:pi_home, pi_home}
-    assert pi_home == Path.join(contract.artifact_dir, "pi-home/trace-guard")
+    assert pi_home =~ Path.join(contract.artifact_dir, "pi-home/trace-guard-")
     assert File.dir?(pi_home)
+  end
+
+  test "disambiguates agent homes for names that normalize to the same slug" do
+    tmp = unique_tmp_dir("thinktank-agentic-home-collision")
+    test_pid = self()
+
+    agents = [
+      %AgentSpec{
+        name: "Trace Guard",
+        provider: "openrouter",
+        model: "openai/gpt-5.4",
+        system_prompt: "You are a reviewer.",
+        prompt: "{{input_text}}",
+        tool_profile: "review",
+        timeout_ms: 5_000
+      },
+      %AgentSpec{
+        name: "Trace/Guard",
+        provider: "openrouter",
+        model: "openai/gpt-5.4",
+        system_prompt: "You are a reviewer.",
+        prompt: "{{input_text}}",
+        tool_profile: "review",
+        timeout_ms: 5_000
+      }
+    ]
+
+    contract = %RunContract{
+      workflow_id: "review/cerberus",
+      workspace_root: tmp,
+      input: %{input_text: "Review this"},
+      artifact_dir: Path.join(tmp, "out"),
+      adapter_context: %{},
+      mode: :deep
+    }
+
+    config = %Config{
+      providers: %{
+        "openrouter" => %ProviderSpec{
+          id: "openrouter",
+          adapter: :openrouter,
+          credential_env: "THINKTANK_OPENROUTER_API_KEY",
+          defaults: %{}
+        }
+      },
+      agents: %{},
+      workflows: %{},
+      sources: %{}
+    }
+
+    runner = fn _cmd, _args, opts ->
+      env = Keyword.fetch!(opts, :env)
+      pi_home = env |> Enum.into(%{}) |> Map.fetch!("PI_CODING_AGENT_DIR")
+      send(test_pid, {:pi_home, pi_home})
+      {"stub reviewer output", 0}
+    end
+
+    results = Agentic.run(agents, contract, %{}, config, runner: runner)
+    assert Enum.all?(results, &(&1.status == :ok))
+
+    homes = flush_pi_homes([])
+    assert length(homes) == 2
+    assert homes |> Enum.uniq() |> length() == 2
   end
 
   test "passes pi arguments without interpolating tools into shell code" do
@@ -329,5 +392,13 @@ defmodule Thinktank.Executor.AgenticTest do
   defp update_max(table, running) do
     current = :ets.lookup_element(table, :max, 2)
     if running > current, do: :ets.insert(table, {:max, running})
+  end
+
+  defp flush_pi_homes(acc) do
+    receive do
+      {:pi_home, pi_home} -> flush_pi_homes([pi_home | acc])
+    after
+      200 -> Enum.reverse(acc)
+    end
   end
 end

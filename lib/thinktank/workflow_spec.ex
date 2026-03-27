@@ -1,6 +1,6 @@
 defmodule Thinktank.WorkflowSpec do
   @moduledoc """
-  Typed workflow configuration describing the stage graph and defaults.
+  Typed workflow configuration describing the constrained stage graph and execution defaults.
   """
 
   alias Thinktank.StageSpec
@@ -33,7 +33,8 @@ defmodule Thinktank.WorkflowSpec do
          {:ok, stages} <- parse_stages(raw["stages"]),
          :ok <- validate_stage_graph(stages),
          {:ok, default_mode} <- parse_mode(Map.get(raw, "default_mode", "quick")),
-         {:ok, execution_mode} <- parse_execution_mode(Map.get(raw, "execution_mode", "flexible")) do
+         {:ok, execution_mode} <- parse_execution_mode(Map.get(raw, "execution_mode", "flexible")),
+         :ok <- validate_mode_pair(default_mode, execution_mode) do
       {:ok,
        %__MODULE__{
          id: id,
@@ -78,6 +79,14 @@ defmodule Thinktank.WorkflowSpec do
 
   defp parse_execution_mode(_),
     do: {:error, "workflow execution_mode must be flexible, quick, or deep"}
+
+  defp validate_mode_pair(default_mode, :flexible) when default_mode in [:quick, :deep], do: :ok
+  defp validate_mode_pair(mode, mode) when mode in [:quick, :deep], do: :ok
+
+  defp validate_mode_pair(default_mode, execution_mode) do
+    {:error,
+     "workflow default_mode #{default_mode} conflicts with execution_mode #{execution_mode}"}
+  end
 
   defp validate_stage_graph(stages) do
     types = Enum.map(stages, & &1.type)
