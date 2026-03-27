@@ -5,11 +5,15 @@ defmodule Thinktank.Executor.Agentic do
 
   alias Thinktank.{AgentSpec, Config, RunContract, Template}
 
+  @allowed_tools MapSet.new(~w(read bash edit write grep find ls))
+  @default_tools ["bash", "read", "grep", "find", "ls"]
+  @default_timeout :timer.minutes(30)
+
   @type result :: %{
           agent: AgentSpec.t(),
           status: :ok | :error,
           output: String.t(),
-          usage: map() | nil,
+          usage: nil,
           error: map() | nil
         }
 
@@ -20,10 +24,10 @@ defmodule Thinktank.Executor.Agentic do
 
   def run(agents, %RunContract{} = contract, context, %Config{} = config, opts) do
     runner = Keyword.get(opts, :runner) || default_runner()
-    timeout = Enum.max(Enum.map(agents, & &1.timeout_ms), fn -> :timer.minutes(30) end)
+    timeout = Enum.max(Enum.map(agents, & &1.timeout_ms), fn -> @default_timeout end)
 
     concurrency =
-      Keyword.get(opts, :concurrency, length(agents)) |> normalize_concurrency(length(agents))
+      normalize_concurrency(Keyword.get(opts, :concurrency, length(agents)), length(agents))
 
     agents
     |> Enum.with_index(1)
@@ -57,20 +61,19 @@ defmodule Thinktank.Executor.Agentic do
 
   defp run_agent(agent, index, contract, context, config, runner, opts) do
     rendered_prompt =
-      agent.prompt
+      agent.task_prompt
       |> Template.render(
         contract.input
         |> Map.merge(context)
         |> Map.merge(%{
           "agent_name" => agent.name,
-          "workflow_id" => contract.workflow_id,
+          "bench_id" => contract.bench_id,
           "workspace_root" => contract.workspace_root
         })
         |> stringify_keys()
       )
 
     prompt = "#{agent.system_prompt}\n\n#{rendered_prompt}"
-
     prompt_file = write_prompt_file(contract, agent, index, prompt)
     {cmd, args} = build_command(agent, prompt_file, tool_list(agent))
     cmd_opts = build_cmd_opts(agent, index, contract, config.providers[agent.provider], opts)
@@ -127,7 +130,8 @@ defmodule Thinktank.Executor.Agentic do
     end
   end
 
-  defp retryable?(%{category: category}) when category in [:timeout, :crash], do: true
+  defp retryable?(%{category: :timeout}), do: false
+  defp retryable?(%{category: :crash}), do: true
   defp retryable?(_), do: false
 
   defp build_command(agent, prompt_file, tools) do
@@ -156,11 +160,9 @@ defmodule Thinktank.Executor.Agentic do
 
     provider_env = provider_env(provider)
 
-    timeout = agent.timeout_ms
-
     [
       stderr_to_stdout: true,
-      timeout: timeout,
+      timeout: agent.timeout_ms,
       env: base_env ++ provider_env,
       cd: contract.workspace_root
     ]
@@ -185,10 +187,20 @@ defmodule Thinktank.Executor.Agentic do
 
   defp provider_env(_), do: []
 
-  defp tool_list(%AgentSpec{tools: tools}) when is_list(tools) and tools != [], do: tools
-  defp tool_list(%AgentSpec{tool_profile: "research"}), do: ["read", "grep", "find", "ls"]
-  defp tool_list(%AgentSpec{tool_profile: "review"}), do: ["read", "grep", "find", "ls"]
-  defp tool_list(_), do: ["read", "grep", "find"]
+  defp tool_list(%AgentSpec{tools: tools}) when is_list(tools) and tools != [] do
+    case sanitize_tools(tools) do
+      [] -> @default_tools
+      sanitized -> sanitized
+    end
+  end
+
+  defp tool_list(_), do: @default_tools
+
+  defp sanitize_tools(tools) do
+    tools
+    |> Enum.filter(&MapSet.member?(@allowed_tools, &1))
+    |> Enum.uniq()
+  end
 
   defp write_prompt_file(contract, agent, index, prompt) do
     dir = Path.join(contract.artifact_dir, "prompts")
@@ -261,20 +273,44 @@ defmodule Thinktank.Executor.Agentic do
 
   @doc false
   def default_runner do
-    script = :escript.script_name() |> List.to_string()
+    if muontrap_available?(), do: &muontrap_cmd/3, else: &system_cmd/3
+  end
 
-    cond do
-      script == "" ->
-        Thinktank.Dispatch.Deep.default_runner()
+  @doc false
+  def muontrap_available? do
+    path = MuonTrap.muontrap_path()
+    File.exists?(path)
+  rescue
+    _ -> false
+  end
 
-      script == "mix" ->
-        Thinktank.Dispatch.Deep.default_runner()
+  @doc false
+  def system_cmd(cmd, args, opts) do
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    env = Keyword.get(opts, :env, [])
+    cd = Keyword.get(opts, :cd)
+    cmd_opts = [stderr_to_stdout: true, env: env] ++ if(cd, do: [cd: cd], else: [])
 
-      Path.basename(script) == "mix" ->
-        Thinktank.Dispatch.Deep.default_runner()
+    task =
+      Task.async(fn ->
+        System.cmd(cmd, args, cmd_opts)
+      end)
 
-      true ->
-        &Thinktank.Dispatch.Deep.system_cmd/3
+    case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {output, exit_code}} -> {output, exit_code}
+      nil -> {"", :timeout}
     end
+  end
+
+  @doc false
+  def muontrap_cmd(cmd, args, opts) do
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    env = Keyword.get(opts, :env, [])
+    cd = Keyword.get(opts, :cd)
+
+    cmd_opts =
+      [stderr_to_stdout: true, timeout: timeout, env: env] ++ if(cd, do: [cd: cd], else: [])
+
+    MuonTrap.cmd(cmd, args, cmd_opts)
   end
 end

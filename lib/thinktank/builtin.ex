@@ -1,6 +1,10 @@
 defmodule Thinktank.Builtin do
   @moduledoc false
 
+  @review_tools ["bash", "read", "grep", "find", "ls"]
+  @research_tools ["bash", "read", "grep", "find", "ls"]
+  @summary_tools ["read", "ls"]
+
   def raw_config do
     %{
       "version" => 1,
@@ -12,208 +16,242 @@ defmodule Thinktank.Builtin do
         }
       },
       "agents" => %{
+        "systems" =>
+          agent(
+            "systems",
+            "anthropic/claude-sonnet-4.6",
+            systems_prompt(),
+            research_task_prompt(),
+            @research_tools
+          ),
+        "verification" =>
+          agent(
+            "verification",
+            "mistralai/mistral-large-2512",
+            verification_prompt(),
+            research_task_prompt(),
+            @research_tools
+          ),
+        "ml" =>
+          agent(
+            "ml",
+            "x-ai/grok-4.1-fast",
+            ml_prompt(),
+            research_task_prompt(),
+            @research_tools
+          ),
+        "dx" =>
+          agent(
+            "dx",
+            "google/gemini-3-flash-preview",
+            dx_prompt(),
+            research_task_prompt(),
+            @research_tools,
+            thinking_level: "low"
+          ),
         "trace" =>
-          reviewer_agent("trace", "x-ai/grok-4.1-fast", trace_prompt(), thinking_level: "medium"),
+          agent(
+            "trace",
+            "x-ai/grok-4.1-fast",
+            trace_prompt(),
+            review_task_prompt(),
+            @review_tools
+          ),
         "guard" =>
-          reviewer_agent(
+          agent(
             "guard",
             "google/gemini-3-flash-preview",
             guard_prompt(),
+            review_task_prompt(),
+            @review_tools,
             thinking_level: "low"
           ),
-        "proof" =>
-          reviewer_agent(
-            "proof",
-            "mistralai/mistral-large-2512",
-            proof_prompt(),
-            thinking_level: "medium"
-          ),
         "atlas" =>
-          reviewer_agent(
+          agent(
             "atlas",
             "anthropic/claude-sonnet-4.6",
             atlas_prompt(),
-            thinking_level: "medium"
+            review_task_prompt(),
+            @review_tools
           ),
-        "fuse" =>
-          reviewer_agent("fuse", "openai/gpt-5.4", fuse_prompt(), thinking_level: "medium"),
-        "craft" =>
-          reviewer_agent(
-            "craft",
-            "deepseek/deepseek-v3.2",
-            craft_prompt(),
-            thinking_level: "medium"
+        "proof" =>
+          agent(
+            "proof",
+            "mistralai/mistral-large-2512",
+            proof_prompt(),
+            review_task_prompt(),
+            @review_tools
+          ),
+        "research-synth" =>
+          agent(
+            "research-synth",
+            "openai/gpt-5.4",
+            research_synth_prompt(),
+            synthesis_task_prompt(),
+            @summary_tools
+          ),
+        "review-synth" =>
+          agent(
+            "review-synth",
+            "openai/gpt-5.4",
+            review_synth_prompt(),
+            synthesis_task_prompt(),
+            @summary_tools
           )
       },
-      "workflows" => %{
+      "benches" => %{
         "research/default" => %{
           "description" =>
-            "Multi-perspective research workflow with routing, parallel fanout, and synthesis.",
-          "input_schema" => %{"required" => ["input_text"]},
-          "default_mode" => "quick",
-          "execution_mode" => "flexible",
-          "stages" => [
-            %{"name" => "prepare", "type" => "prepare", "kind" => "research_input"},
-            %{
-              "name" => "route",
-              "type" => "route",
-              "kind" => "research_router",
-              "count" => 4
-            },
-            %{
-              "name" => "fanout",
-              "type" => "fanout",
-              "kind" => "agents",
-              "concurrency" => 4
-            },
-            %{
-              "name" => "aggregate",
-              "type" => "aggregate",
-              "kind" => "research_synthesis",
-              "when" => "should_synthesize"
-            },
-            %{"name" => "emit", "type" => "emit", "kind" => "artifacts"}
-          ]
+            "Launch a fixed research bench of Pi agents and optionally synthesize their findings.",
+          "agents" => ["systems", "verification", "ml", "dx"],
+          "synthesizer" => "research-synth",
+          "concurrency" => 4
         },
         "review/cerberus" => %{
           "description" =>
-            "Diff-aware multi-agent code review with reviewer routing and verdict aggregation.",
-          "input_schema" => %{},
-          "default_mode" => "deep",
-          "execution_mode" => "deep",
-          "stages" => [
-            %{"name" => "prepare", "type" => "prepare", "kind" => "review_diff"},
-            %{
-              "name" => "route",
-              "type" => "route",
-              "kind" => "cerberus_review",
-              "panel_size" => 4,
-              "always_include" => ["trace"],
-              "include_if_code_changed" => ["guard"],
-              "fallback_panel" => ["atlas", "proof", "fuse", "craft"]
-            },
-            %{
-              "name" => "fanout",
-              "type" => "fanout",
-              "kind" => "agents",
-              "concurrency" => 4
-            },
-            %{
-              "name" => "aggregate",
-              "type" => "aggregate",
-              "kind" => "cerberus_verdict"
-            },
-            %{"name" => "emit", "type" => "emit", "kind" => "artifacts"}
-          ]
+            "Launch a fixed review bench of Pi agents against the current repository context.",
+          "agents" => ["trace", "guard", "atlas", "proof"],
+          "synthesizer" => "review-synth",
+          "concurrency" => 4,
+          "default_task" => "Review the current change and report only real issues with evidence."
         }
       }
     }
   end
 
-  defp reviewer_agent(name, model, system_prompt, opts) do
+  defp agent(name, model, system_prompt, task_prompt, tools, opts \\ []) do
     %{
       "provider" => "openrouter",
       "model" => model,
       "system_prompt" => system_prompt,
-      "prompt" => review_prompt_template(),
-      "tool_profile" => "review",
-      "output_format" => "structured_verdict",
+      "task_prompt" => task_prompt,
+      "tools" => tools,
       "thinking_level" => Keyword.get(opts, :thinking_level, "medium"),
       "retries" => Keyword.get(opts, :retries, 0),
-      "timeout_ms" => Keyword.get(opts, :timeout_ms, :timer.minutes(6)),
-      "metadata" => %{"perspective" => name}
+      "timeout_ms" => Keyword.get(opts, :timeout_ms, :timer.minutes(10)),
+      "metadata" => %{"agent" => name}
     }
   end
 
-  defp review_prompt_template do
+  defp research_task_prompt do
     """
     {{input_text}}
 
-    {{review_bundle}}
+    Workspace root: {{workspace_root}}
+    Focus paths:
+    {{paths_hint}}
 
-    This workflow is agentic. Use your tools to inspect the repository, the branch diff,
-    and any nearby code or tests you need before deciding.
-    Start with the diff file and changed paths, then inspect only the changed files and the
-    nearest supporting modules or tests needed to verify a claim. Do not do broad repository
-    sweeps when the diff and adjacent code are enough.
-    Deep review runs with file-system tools, not an unrestricted shell. Read the diff file
-    and changed files directly instead of assuming shell access.
+    Use your tools to inspect the repository, docs, and git state yourself.
+    Start from the workspace and any pointed paths. Gather your own context.
+    Report concrete findings, tradeoffs, and recommendations. Cite files and commands when useful.
+    """
+  end
 
-    Review only issues you can ground in the actual code, diff, or repository context.
-    If there is not enough evidence for a claim, do not report it.
-    Respect the stated v1 scope in this change. The constrained built-in stage graph and
-    first-party provider wiring are deliberate design choices for now, not defects by themselves.
-    Fixed v1 routing heuristics such as the built-in diff-size buckets are also deliberate unless
-    they contradict a documented contract or cause a concrete bug here.
-    Fail-closed review behavior when no valid reviewer verdicts are produced is deliberate.
-    Separate repo trust controls for YAML config versus agent home directories are deliberate,
-    because agent homes contain executable and stateful resources.
-    Ignore untouched legacy modules unless they are exercised by the current workflow path or
-    directly implicated by the diff.
-    Do not report roadmap requests, alternative abstractions, or generic missing-test suggestions
-    unless they reveal a concrete bug, regression, security problem, or violated contract here.
+  defp review_task_prompt do
+    """
+    {{input_text}}
 
-    Return a short markdown review followed by exactly one fenced ```json block.
-    The JSON must be valid and must not contain comments or unescaped quotes.
-    If you find no substantive issues, return verdict PASS with findings [].
+    Workspace root: {{workspace_root}}
+    Repo: {{repo}}
+    PR: {{pr}}
+    Base ref: {{base}}
+    Head ref: {{head}}
+    Focus paths:
+    {{paths_hint}}
 
-    The JSON object must include:
-    - reviewer
-    - perspective
-    - verdict (PASS, WARN, FAIL, or SKIP)
-    - confidence (0.0 to 1.0)
-    - summary
-    - findings: array of objects with severity, category, title, description, suggestion, file, line
-    - stats: object with files_reviewed, files_with_issues, critical, major, minor, info
+    You are doing code review. Use bash, git, and file tools to inspect the current repository yourself.
+    Start with git status and git diff. If base/head are provided, compare them. If repo/pr are provided,
+    use them as orientation, not as a substitute for local inspection. Report only issues you can ground in
+    the actual repository state, diff, or nearby code.
+    """
+  end
 
-    Focus only on substantive issues grounded in the provided diff and repository context.
+  defp synthesis_task_prompt do
+    """
+    Original task:
+    {{input_text}}
+
+    Workspace root: {{workspace_root}}
+    Repo: {{repo}}
+    PR: {{pr}}
+    Base ref: {{base}}
+    Head ref: {{head}}
+    Focus paths:
+    {{paths_hint}}
+
+    Agent outputs:
+    {{agent_outputs}}
+    """
+  end
+
+  defp systems_prompt do
+    """
+    You are a systems architecture researcher. Focus on boundaries, tradeoffs, failure modes,
+    and whether the current design is deeper or shallower than it needs to be.
+    """
+  end
+
+  defp verification_prompt do
+    """
+    You are a verification-minded researcher. Focus on invariants, edge cases, hidden assumptions,
+    and what would have to be true for the current approach to be safe.
+    """
+  end
+
+  defp ml_prompt do
+    """
+    You are an AI systems researcher. Focus on where the harness is compensating for weak models,
+    where stronger models change the tradeoffs, and where native agent behavior should own the work.
+    """
+  end
+
+  defp dx_prompt do
+    """
+    You are a developer experience reviewer. Focus on how easy this system is to extend, operate,
+    debug, and understand without cargo-culting its internals.
     """
   end
 
   defp trace_prompt do
     """
-    You are trace, a correctness reviewer. Hunt for behavioral regressions, edge cases,
-    broken control flow, and incorrect assumptions in the change. Ignore style-only nits.
+    You are trace, a correctness reviewer. Hunt for behavioral regressions, broken assumptions,
+    and control-flow mistakes. Ignore style-only nits.
     """
   end
 
   defp guard_prompt do
     """
-    You are guard, a security reviewer. Look for auth flaws, injection risk, unsafe defaults,
-    permission mistakes, secret exposure, and trust-boundary violations. Separate argv-based
-    subprocess calls with validated inputs are not shell injection on their own; report only
-    exploitable argument-boundary bugs.
-    """
-  end
-
-  defp proof_prompt do
-    """
-    You are proof, a testing reviewer. Look for concrete regression gaps, brittle tests,
-    and unverified behavior that could plausibly fail in this change. Do not ask for
-    generic extra coverage without identifying a real risk.
+    You are guard, a security reviewer. Look for trust-boundary bugs, auth flaws, injection risk,
+    and unsafe defaults. Report only issues grounded in real code paths.
     """
   end
 
   defp atlas_prompt do
     """
-    You are atlas, an architecture reviewer. Focus on boundaries, coupling, module depth,
-    and whether the change makes the design materially harder to evolve within the stated
-    v1 constraints. Do not report deliberate fixed stage kinds or first-party provider seams
-    as defects unless they break the documented contract in this change.
+    You are atlas, an architecture reviewer. Focus on coupling, module depth, interface clarity,
+    and whether the change makes future work harder than it needs to be.
     """
   end
 
-  defp fuse_prompt do
+  defp proof_prompt do
     """
-    You are fuse, a resilience reviewer. Focus on failure handling, retries, degradation,
-    observability gaps, and whether unhappy paths are safe.
+    You are proof, a testing reviewer. Focus on concrete regression risk, brittle tests,
+    and behavior that remains unverified.
     """
   end
 
-  defp craft_prompt do
+  defp research_synth_prompt do
     """
-    You are craft, a maintainability reviewer. Focus on readability, accidental complexity,
-    naming, duplication, and whether the next engineer will be able to work safely here.
+    You synthesize multiple research agent reports into one concise document.
+    Preserve disagreements. Do not invent consensus. Favor grounded recommendations over rhetoric.
+    """
+  end
+
+  defp review_synth_prompt do
+    """
+    You synthesize multiple code review reports into one concise review summary.
+    Preserve reviewer attribution. If the bench found no real issues, say that plainly.
+    Do not force structured JSON. Write a clear human review.
     """
   end
 end

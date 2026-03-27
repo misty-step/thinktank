@@ -1,40 +1,31 @@
 defmodule Thinktank.RunStore do
   @moduledoc """
-  Generic run artifact store for workflow executions.
+  Artifact store for bench executions.
   """
 
-  alias Thinktank.{RunContract, WorkflowSpec}
+  alias Thinktank.{BenchSpec, RunContract}
 
   @manifest_file "manifest.json"
 
-  @spec init_run(Path.t(), RunContract.t(), WorkflowSpec.t()) :: :ok
-  def init_run(output_dir, %RunContract{} = contract, %WorkflowSpec{} = workflow) do
+  @spec init_run(Path.t(), RunContract.t(), BenchSpec.t()) :: :ok
+  def init_run(output_dir, %RunContract{} = contract, %BenchSpec{} = bench) do
     mkdir_private!(output_dir)
-    mkdir_private!(Path.join(output_dir, "stages"))
     mkdir_private!(Path.join(output_dir, "agents"))
     mkdir_private!(Path.join(output_dir, "artifacts"))
+    mkdir_private!(Path.join(output_dir, "prompts"))
+    mkdir_private!(Path.join(output_dir, "pi-home"))
 
     manifest = %{
       "version" => version(),
-      "workflow" => workflow.id,
-      "mode" => to_string(contract.mode),
+      "bench" => bench.id,
       "status" => "running",
       "workspace_root" => contract.workspace_root,
       "started_at" => now_iso8601(),
       "completed_at" => nil,
       "input" => normalize(contract.input),
       "adapter_context" => normalize(contract.adapter_context || %{}),
-      "stages" =>
-        Enum.map(workflow.stages, fn stage ->
-          %{
-            "name" => stage.name,
-            "type" => to_string(stage.type),
-            "kind" => stage.kind,
-            "status" => "pending",
-            "attempts" => 0,
-            "file" => nil
-          }
-        end),
+      "planned_agents" => bench.agents,
+      "synthesizer" => bench.synthesizer,
       "agents" => [],
       "artifacts" => []
     }
@@ -42,25 +33,6 @@ defmodule Thinktank.RunStore do
     write_manifest(output_dir, manifest)
     write_json(Path.join(output_dir, "contract.json"), RunContract.to_map(contract))
     record_artifact(output_dir, "contract", "contract.json", "json")
-  end
-
-  @spec record_stage(Path.t(), String.t(), String.t(), non_neg_integer(), map()) :: :ok
-  def record_stage(output_dir, stage_name, status, attempts, data \\ %{}) do
-    file = Path.join(["stages", "#{stable_slug(stage_name)}.json"])
-    write_json(Path.join(output_dir, file), data)
-
-    update_manifest(output_dir, fn manifest ->
-      stages =
-        Enum.map(manifest["stages"], fn stage ->
-          if stage["name"] == stage_name do
-            %{stage | "status" => status, "attempts" => attempts, "file" => file}
-          else
-            stage
-          end
-        end)
-
-      %{manifest | "stages" => stages}
-    end)
   end
 
   @spec record_agent_result(Path.t(), String.t(), String.t(), map()) :: :ok
@@ -112,8 +84,7 @@ defmodule Thinktank.RunStore do
 
     %{
       output_dir: output_dir,
-      workflow: manifest["workflow"],
-      mode: manifest["mode"],
+      bench: manifest["bench"],
       status: manifest["status"],
       agents: manifest["agents"],
       artifacts: manifest["artifacts"]

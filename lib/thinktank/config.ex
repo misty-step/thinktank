@@ -1,16 +1,16 @@
 defmodule Thinktank.Config do
   @moduledoc """
-  Loads built-in, user, and repository workflow configuration with typed validation.
+  Loads built-in, user, and repository bench configuration with typed validation.
   """
 
-  alias Thinktank.{AgentSpec, Builtin, ProviderSpec, WorkflowSpec}
+  alias Thinktank.{AgentSpec, BenchSpec, Builtin, ProviderSpec}
 
-  defstruct [:providers, :agents, :workflows, :sources]
+  defstruct [:providers, :agents, :benches, :sources]
 
   @type t :: %__MODULE__{
           providers: %{String.t() => ProviderSpec.t()},
           agents: %{String.t() => AgentSpec.t()},
-          workflows: %{String.t() => WorkflowSpec.t()},
+          benches: %{String.t() => BenchSpec.t()},
           sources: map()
         }
 
@@ -35,18 +35,24 @@ defmodule Thinktank.Config do
     end
   end
 
-  @spec workflow(t(), String.t()) :: {:ok, WorkflowSpec.t()} | {:error, String.t()}
-  def workflow(%__MODULE__{workflows: workflows}, id) do
-    case Map.fetch(workflows, id) do
-      {:ok, workflow} -> {:ok, workflow}
-      :error -> {:error, "unknown workflow: #{id}"}
+  @spec bench(t(), String.t()) :: {:ok, BenchSpec.t()} | {:error, String.t()}
+  def bench(%__MODULE__{benches: benches}, id) do
+    case Map.fetch(benches, id) do
+      {:ok, bench} -> {:ok, bench}
+      :error -> {:error, "unknown bench: #{id}"}
     end
   end
 
-  @spec list_workflows(t()) :: [WorkflowSpec.t()]
-  def list_workflows(%__MODULE__{workflows: workflows}) do
-    workflows |> Map.values() |> Enum.sort_by(& &1.id)
+  @spec list_benches(t()) :: [BenchSpec.t()]
+  def list_benches(%__MODULE__{benches: benches}) do
+    benches |> Map.values() |> Enum.sort_by(& &1.id)
   end
+
+  @spec workflow(t(), String.t()) :: {:ok, BenchSpec.t()} | {:error, String.t()}
+  def workflow(config, id), do: bench(config, id)
+
+  @spec list_workflows(t()) :: [BenchSpec.t()]
+  def list_workflows(config), do: list_benches(config)
 
   @spec user_config_dir(keyword()) :: String.t()
   def user_config_dir(opts \\ []) do
@@ -57,10 +63,9 @@ defmodule Thinktank.Config do
   defp build(raw, sources) do
     with {:ok, providers} <- build_providers(Map.get(raw, "providers", %{})),
          {:ok, agents} <- build_agents(Map.get(raw, "agents", %{})),
-         {:ok, workflows} <- build_workflows(Map.get(raw, "workflows", %{})),
-         :ok <- validate_references(workflows, agents, providers) do
-      {:ok,
-       %__MODULE__{providers: providers, agents: agents, workflows: workflows, sources: sources}}
+         {:ok, benches} <- build_benches(Map.get(raw, "benches", %{})),
+         :ok <- validate_references(benches, agents, providers) do
+      {:ok, %__MODULE__{providers: providers, agents: agents, benches: benches, sources: sources}}
     end
   end
 
@@ -86,21 +91,21 @@ defmodule Thinktank.Config do
 
   defp build_agents(_), do: {:error, "agents must be a map"}
 
-  defp build_workflows(raw) when is_map(raw) do
+  defp build_benches(raw) when is_map(raw) do
     Enum.reduce_while(raw, {:ok, %{}}, fn {id, spec}, {:ok, acc} ->
-      case WorkflowSpec.from_pair(id, spec) do
-        {:ok, workflow} -> {:cont, {:ok, Map.put(acc, id, workflow)}}
-        {:error, reason} -> {:halt, {:error, "workflow #{id}: #{reason}"}}
+      case BenchSpec.from_pair(id, spec) do
+        {:ok, bench} -> {:cont, {:ok, Map.put(acc, id, bench)}}
+        {:error, reason} -> {:halt, {:error, "bench #{id}: #{reason}"}}
       end
     end)
   end
 
-  defp build_workflows(_), do: {:error, "workflows must be a map"}
+  defp build_benches(_), do: {:error, "benches must be a map"}
 
-  defp validate_references(workflows, agents, providers) do
+  defp validate_references(benches, agents, providers) do
     with :ok <- validate_agent_providers(agents, providers) do
-      Enum.reduce_while(workflows, :ok, fn {_id, workflow}, :ok ->
-        case validate_stage_references(workflow.stages, agents) do
+      Enum.reduce_while(benches, :ok, fn {_id, bench}, :ok ->
+        case validate_bench_references(bench, agents) do
           :ok -> {:cont, :ok}
           {:error, reason} -> {:halt, {:error, reason}}
         end
@@ -118,83 +123,38 @@ defmodule Thinktank.Config do
     end)
   end
 
-  defp validate_stage_references(stages, agents) do
-    Enum.reduce_while(stages, :ok, fn stage, :ok ->
-      case stage.kind do
-        "static_agents" ->
-          with :ok <- validate_named_agents_option(stage.options["agents"], agents, "agents") do
-            {:cont, :ok}
-          else
-            {:error, reason} -> {:halt, {:error, reason}}
-          end
-
-        "cerberus_review" ->
-          with :ok <- validate_panel_size(stage.options["panel_size"]),
-               :ok <-
-                 validate_named_agents_option(
-                   stage.options["always_include"],
-                   agents,
-                   "always_include"
-                 ),
-               :ok <-
-                 validate_named_agents_option(
-                   stage.options["include_if_code_changed"],
-                   agents,
-                   "include_if_code_changed"
-                 ),
-               :ok <-
-                 validate_named_agents_option(
-                   stage.options["fallback_panel"],
-                   agents,
-                   "fallback_panel"
-                 ) do
-            {:cont, :ok}
-          else
-            {:error, reason} -> {:halt, {:error, reason}}
-          end
-
-        _ ->
-          {:cont, :ok}
-      end
-    end)
-  end
-
-  defp validate_named_agents_option(nil, _agents, _field), do: :ok
-
-  defp validate_named_agents_option(agent_names, agents, _field) when is_list(agent_names) do
-    case validate_named_agents(agent_names, agents) do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
+  defp validate_bench_references(bench, agents) do
+    with :ok <- validate_named_agents(bench.agents, agents),
+         :ok <- validate_optional_agent(bench.synthesizer, agents) do
+      :ok
     end
   end
-
-  defp validate_named_agents_option(_value, _agents, field),
-    do: {:error, "workflow option #{field} must be a list of agent names"}
-
-  defp validate_panel_size(nil), do: :ok
-  defp validate_panel_size(value) when is_integer(value) and value > 0, do: :ok
-
-  defp validate_panel_size(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {parsed, ""} when parsed > 0 -> :ok
-      _ -> {:error, "workflow option panel_size must be a positive integer"}
-    end
-  end
-
-  defp validate_panel_size(_value),
-    do: {:error, "workflow option panel_size must be a positive integer"}
-
-  defp load_repo_yaml(_path, false), do: {:ok, %{}}
-  defp load_repo_yaml(path, true), do: load_yaml_if_present(path)
 
   defp validate_named_agents(agent_names, agents) when is_list(agent_names) do
     case Enum.find(agent_names, &(not Map.has_key?(agents, &1))) do
       nil -> :ok
-      missing -> {:error, "workflow references unknown agent #{missing}"}
+      missing -> {:error, "bench references unknown agent #{missing}"}
     end
   end
 
-  defp validate_named_agents(_, _agents), do: :ok
+  defp validate_named_agents(_, _agents),
+    do: {:error, "bench agents must be a list of agent names"}
+
+  defp validate_optional_agent(nil, _agents), do: :ok
+
+  defp validate_optional_agent(agent_name, agents) when is_binary(agent_name) do
+    if Map.has_key?(agents, agent_name) do
+      :ok
+    else
+      {:error, "bench references unknown agent #{agent_name}"}
+    end
+  end
+
+  defp validate_optional_agent(_, _agents),
+    do: {:error, "bench synthesizer must be an agent name"}
+
+  defp load_repo_yaml(_path, false), do: {:ok, %{}}
+  defp load_repo_yaml(path, true), do: load_yaml_if_present(path)
 
   defp load_yaml_if_present(path) do
     if File.exists?(path) do

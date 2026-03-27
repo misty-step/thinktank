@@ -1,6 +1,6 @@
 defmodule Thinktank.CLI do
   @moduledoc """
-  CLI entry point for ThinkTank workflows.
+  CLI entry point for ThinkTank benches.
   """
 
   alias Thinktank.{Config, Engine}
@@ -8,15 +8,7 @@ defmodule Thinktank.CLI do
   @exit_codes %{
     success: 0,
     generic_error: 1,
-    auth_error: 2,
-    rate_limit: 3,
-    invalid_request: 4,
-    server_error: 5,
-    network_error: 6,
-    input_error: 7,
-    content_filtered: 8,
-    insufficient_credits: 9,
-    cancelled: 10
+    input_error: 7
   }
 
   @option_spec [
@@ -25,14 +17,9 @@ defmodule Thinktank.CLI do
       version: :boolean,
       input: :string,
       paths: :keep,
+      agents: :string,
       json: :boolean,
       output: :string,
-      quick: :boolean,
-      deep: :boolean,
-      models: :string,
-      roles: :string,
-      perspectives: :integer,
-      tier: :string,
       dry_run: :boolean,
       no_synthesis: :boolean,
       trust_repo_config: :boolean,
@@ -44,10 +31,7 @@ defmodule Thinktank.CLI do
     aliases: [
       h: :help,
       v: :version,
-      q: :quick,
-      d: :deep,
-      o: :output,
-      t: :tier
+      o: :output
     ]
   ]
 
@@ -85,12 +69,12 @@ defmodule Thinktank.CLI do
     @exit_codes.input_error
   end
 
-  def execute({:ok, %{action: :workflows_list} = command}) do
+  def execute({:ok, %{action: :benches_list} = command}) do
     with {:ok, config} <-
            Config.load(cwd: command.cwd, trust_repo_config: command.trust_repo_config) do
-      Config.list_workflows(config)
-      |> Enum.each(fn workflow ->
-        IO.puts("#{workflow.id}\t#{workflow.description}")
+      Config.list_benches(config)
+      |> Enum.each(fn bench ->
+        IO.puts("#{bench.id}\t#{bench.description}")
       end)
 
       @exit_codes.success
@@ -101,27 +85,18 @@ defmodule Thinktank.CLI do
     end
   end
 
-  def execute({:ok, %{action: :workflows_show, workflow_id: workflow_id} = command}) do
+  def execute({:ok, %{action: :benches_show, bench_id: bench_id} = command}) do
     with {:ok, config} <-
            Config.load(cwd: command.cwd, trust_repo_config: command.trust_repo_config),
-         {:ok, workflow} <- Config.workflow(config, workflow_id) do
+         {:ok, bench} <- Config.bench(config, bench_id) do
       rendered =
         %{
-          id: workflow.id,
-          description: workflow.description,
-          default_mode: workflow.default_mode,
-          execution_mode: workflow.execution_mode,
-          stages:
-            Enum.map(workflow.stages, fn stage ->
-              %{
-                name: stage.name,
-                type: stage.type,
-                kind: stage.kind,
-                when: stage.when,
-                retry: stage.retry,
-                concurrency: stage.concurrency
-              }
-            end)
+          id: bench.id,
+          description: bench.description,
+          agents: bench.agents,
+          synthesizer: bench.synthesizer,
+          concurrency: bench.concurrency,
+          default_task: bench.default_task
         }
         |> Jason.encode!(pretty: true)
 
@@ -134,10 +109,10 @@ defmodule Thinktank.CLI do
     end
   end
 
-  def execute({:ok, %{action: :workflows_validate} = command}) do
+  def execute({:ok, %{action: :benches_validate} = command}) do
     case Config.load(cwd: command.cwd, trust_repo_config: command.trust_repo_config) do
       {:ok, config} ->
-        IO.puts("Validated #{length(Config.list_workflows(config))} workflows")
+        IO.puts("Validated #{length(Config.list_benches(config))} benches")
         @exit_codes.success
 
       {:error, reason} ->
@@ -150,7 +125,7 @@ defmodule Thinktank.CLI do
     if command.dry_run do
       dry_run(command)
     else
-      run_workflow(command)
+      run_bench(command)
     end
   end
 
@@ -183,91 +158,74 @@ defmodule Thinktank.CLI do
     end
   end
 
-  @doc """
-  Dry-run output for the workflow engine CLI.
-  """
+  @doc false
   @spec dry_run_output(map(), map()) :: String.t()
   def dry_run_output(command, resolved) do
     Jason.encode!(%{
       action: command.action,
-      workflow: resolved.workflow.id,
-      description: resolved.workflow.description,
-      mode: resolved.contract.mode,
+      bench: resolved.bench.id,
+      description: resolved.bench.description,
+      agents: Enum.map(resolved.agents, & &1.name),
+      synthesizer: resolved.synthesizer && resolved.synthesizer.name,
       input: command.input,
       output: resolved.output_dir,
       json: command.json
     })
   end
 
-  defp build_command(["run", workflow_id | remainder], parsed) do
-    if workflow_id == "review/cerberus" and parsed[:quick] do
-      {:error, "review/cerberus is agentic-only; remove --quick"}
-    else
-      with :ok <- validate_review_pr_flags(workflow_id, parsed),
-           {:ok, tier} <- parse_tier(parsed[:tier]) do
-        input_text = resolve_input_text(parsed[:input], remainder)
+  defp build_command(["run", bench_id | remainder], parsed) do
+    with :ok <- validate_review_pr_flags(bench_id, parsed) do
+      input_text = resolve_input_text(parsed[:input], remainder)
 
-        if input_text == nil do
-          {:needs_stdin, build_run_command(workflow_id, parsed, nil, tier)}
-        else
-          {:ok, build_run_command(workflow_id, parsed, input_text, tier)}
-        end
+      if input_text == nil and bench_id != "review/cerberus" do
+        {:needs_stdin, build_run_command(bench_id, parsed, nil)}
+      else
+        {:ok, build_run_command(bench_id, parsed, input_text)}
       end
     end
   end
 
   defp build_command(["review" | remainder], parsed) do
-    if parsed[:quick] do
-      {:error, "thinktank review is agentic-only; remove --quick"}
-    else
-      with :ok <- validate_review_pr_flags("review/cerberus", parsed),
-           {:ok, tier} <- parse_tier(parsed[:tier]) do
-        {:ok, build_review_command(parsed, resolve_input_text(parsed[:input], remainder), tier)}
-      end
+    with :ok <- validate_review_pr_flags("review/cerberus", parsed) do
+      {:ok, build_review_command(parsed, resolve_input_text(parsed[:input], remainder))}
     end
   end
 
   defp build_command(["research" | remainder], parsed) do
-    case parse_tier(parsed[:tier]) do
-      {:ok, tier} ->
-        input_text = resolve_input_text(parsed[:input], remainder)
+    input_text = resolve_input_text(parsed[:input], remainder)
 
-        if input_text == nil do
-          {:needs_stdin, build_research_command(parsed, nil, tier)}
-        else
-          {:ok, build_research_command(parsed, input_text, tier)}
-        end
-
-      {:error, _} = error ->
-        error
+    if input_text == nil do
+      {:needs_stdin, build_research_command(parsed, nil)}
+    else
+      {:ok, build_research_command(parsed, input_text)}
     end
   end
 
-  defp build_command(["workflows", "list"], parsed) do
+  defp build_command([group, "list"], parsed) when group in ["benches", "workflows"] do
     {:ok,
      %{
-       action: :workflows_list,
+       action: :benches_list,
        cwd: File.cwd!(),
        json: parsed[:json] || false,
        trust_repo_config: parsed[:trust_repo_config] || false
      }}
   end
 
-  defp build_command(["workflows", "show", workflow_id], parsed) do
+  defp build_command([group, "show", bench_id], parsed) when group in ["benches", "workflows"] do
     {:ok,
      %{
-       action: :workflows_show,
-       workflow_id: workflow_id,
+       action: :benches_show,
+       bench_id: bench_id,
        cwd: File.cwd!(),
        json: parsed[:json] || false,
        trust_repo_config: parsed[:trust_repo_config] || false
      }}
   end
 
-  defp build_command(["workflows", "validate"], parsed) do
+  defp build_command([group, "validate"], parsed) when group in ["benches", "workflows"] do
     {:ok,
      %{
-       action: :workflows_validate,
+       action: :benches_validate,
        cwd: File.cwd!(),
        json: parsed[:json] || false,
        trust_repo_config: parsed[:trust_repo_config] || false
@@ -275,116 +233,104 @@ defmodule Thinktank.CLI do
   end
 
   defp build_command(rest, parsed) do
-    case parse_tier(parsed[:tier]) do
-      {:ok, tier} -> {:ok, build_research_command(parsed, Enum.join(rest, " "), tier)}
-      {:error, _} = error -> error
+    {:ok, build_research_command(parsed, Enum.join(rest, " "))}
+  end
+
+  defp build_research_command(parsed, input_text) do
+    build_common_command(parsed, "research/default", input_text)
+  end
+
+  defp build_review_command(parsed, input_text) do
+    command =
+      build_common_command(
+        parsed,
+        "review/cerberus",
+        input_text || "Review the current change and report only real issues with evidence."
+      )
+
+    put_in(command.input, Map.merge(command.input, review_input(parsed)))
+  end
+
+  defp build_run_command(bench_id, parsed, input_text) do
+    command = build_common_command(parsed, bench_id, input_text)
+
+    if bench_id == "review/cerberus" do
+      put_in(command.input, Map.merge(command.input, review_input(parsed)))
+    else
+      command
     end
   end
 
-  defp resolve_input_text(value, _remainder) when is_binary(value) and value != "", do: value
-  defp resolve_input_text(_, []), do: nil
-  defp resolve_input_text(_, remainder), do: Enum.join(remainder, " ")
-
-  defp build_run_command(workflow_id, parsed, input_text, tier) do
-    common = build_common_command(parsed, workflow_id, tier)
-    Map.put(common, :input, build_input(parsed, input_text, tier))
-  end
-
-  defp build_research_command(parsed, input_text, tier \\ :standard) do
-    common = build_common_command(parsed, "research/default", tier)
-    Map.put(common, :input, build_input(parsed, input_text, tier))
-  end
-
-  defp build_review_command(parsed, input_text, tier) do
-    common = build_common_command(parsed, "review/cerberus", tier)
-
-    input =
-      build_input(parsed, input_text, tier)
-      |> maybe_put(:base, parsed[:base])
-      |> maybe_put(:head, parsed[:head])
-      |> maybe_put(:repo, parsed[:repo])
-      |> maybe_put(:pr, parsed[:pr])
-
-    Map.put(common, :input, input)
-  end
-
-  defp build_common_command(parsed, workflow_id, tier) do
+  defp build_common_command(parsed, bench_id, input_text) do
     %{
       action: :run,
-      workflow_id: workflow_id,
-      mode: mode_for(parsed),
+      bench_id: bench_id,
+      cwd: File.cwd!(),
       json: parsed[:json] || false,
-      output: if(parsed[:output], do: Path.expand(parsed[:output])),
+      output: parsed[:output] && Path.expand(parsed[:output]),
       dry_run: parsed[:dry_run] || false,
       trust_repo_config: parsed[:trust_repo_config] || false,
-      cwd: File.cwd!(),
-      tier: tier
+      input: %{
+        input_text: input_text,
+        paths: normalize_paths(parsed[:paths]),
+        agents: parse_agent_list(parsed[:agents]),
+        no_synthesis: parsed[:no_synthesis] || false
+      }
     }
   end
 
-  defp build_input(parsed, input_text, tier) do
+  defp review_input(parsed) do
     %{}
-    |> maybe_put(:input_text, input_text)
-    |> Map.put(:paths, parsed |> Keyword.get_values(:paths) |> Enum.map(&Path.expand/1))
-    |> Map.put(:models, parse_csv(parsed[:models]))
-    |> Map.put(:roles, parse_csv(parsed[:roles]))
-    |> Map.put(:tier, tier)
-    |> maybe_put(:perspectives, parsed[:perspectives])
-    |> Map.put(:no_synthesis, parsed[:no_synthesis] || false)
+    |> maybe_put_value(:base, parsed[:base])
+    |> maybe_put_value(:head, parsed[:head])
+    |> maybe_put_value(:repo, parsed[:repo])
+    |> maybe_put_value(:pr, parsed[:pr])
   end
 
-  defp maybe_put_stdin(command, input_text) do
-    put_in(command, [:input, :input_text], input_text)
-  end
-
-  defp maybe_read_stdin(command) do
-    with true <- stdin_piped?(),
-         data when is_binary(data) <- IO.read(:stdio, :eof),
-         trimmed = String.trim(data),
-         false <- trimmed == "" do
-      {:ok, maybe_put_stdin(command, trimmed)}
+  defp validate_review_pr_flags("review/cerberus", parsed) do
+    if parsed[:pr] && !parsed[:repo] do
+      {:error, "review/cerberus requires --repo when --pr is provided"}
     else
-      _ -> {:error, "input required"}
+      :ok
     end
   end
 
-  defp run_workflow(command) do
-    opts =
-      [
-        cwd: command.cwd,
-        mode: command.mode,
-        output: command.output,
-        agent_config_dir: agent_config_dir(),
-        trust_repo_config: command.trust_repo_config
-      ]
-      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+  defp validate_review_pr_flags(_bench_id, _parsed), do: :ok
 
-    case Engine.run(command.workflow_id, command.input, opts) do
+  defp run_bench(command) do
+    agent_config_dir = agent_config_dir(command.cwd)
+
+    case Engine.run(command.bench_id, command.input,
+           cwd: command.cwd,
+           trust_repo_config: command.trust_repo_config,
+           output: command.output,
+           agent_config_dir: agent_config_dir
+         ) do
       {:ok, result} ->
-        emit(command, successful_payload(command, result))
-        Map.get(result.context, :workflow_exit_code, 0)
+        emit(command, result.envelope)
 
-      {:error, reason, output_dir} ->
-        if output_dir do
-          IO.puts(:stderr, "Output: #{output_dir}")
+        case result.envelope.status do
+          "complete" -> @exit_codes.success
+          _ -> @exit_codes.generic_error
         end
 
+      {:error, reason, output_dir} ->
         IO.puts(:stderr, "Error: #{format_reason(reason)}")
+
+        if is_binary(output_dir) do
+          IO.puts(:stderr, "Artifacts: #{output_dir}")
+        end
+
         @exit_codes.generic_error
     end
   end
 
   defp dry_run(command) do
-    opts =
-      [
-        cwd: command.cwd,
-        mode: command.mode,
-        output: command.output,
-        trust_repo_config: command.trust_repo_config
-      ]
-      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
-
-    case Engine.resolve(command.workflow_id, command.input, opts) do
+    case Engine.resolve(command.bench_id, command.input,
+           cwd: command.cwd,
+           trust_repo_config: command.trust_repo_config,
+           output: command.output
+         ) do
       {:ok, resolved} ->
         emit(command, dry_run_output(command, resolved))
         @exit_codes.success
@@ -395,112 +341,79 @@ defmodule Thinktank.CLI do
     end
   end
 
-  defp successful_payload(command, result) do
-    payload =
-      result.envelope
-      |> Map.put(:workflow, result.workflow.id)
-      |> Map.put(:output_dir, result.output_dir)
-
-    payload =
-      case result.context[:final_verdict] do
-        nil -> payload
-        verdict -> Map.put(payload, :final_verdict, verdict)
-      end
-
-    payload =
-      case result.context[:synthesis] do
-        nil ->
-          payload
-
-        synthesis ->
-          Map.put(payload, :synthesis_file, "synthesis.md")
-          |> Map.put(:synthesis_usage, synthesis.usage)
-      end
-
-    if command.json, do: Jason.encode!(payload), else: render_success(payload)
-  end
-
-  defp render_success(payload) do
-    lines = [
-      "Workflow: #{payload.workflow}",
-      "Output: #{payload.output_dir}",
-      "Status: #{payload.status}"
-    ]
-
-    lines =
-      case payload[:final_verdict] do
-        nil -> lines
-        verdict -> lines ++ ["Verdict: #{verdict.verdict}"]
-      end
-
-    Enum.join(lines, "\n")
-  end
+  defp emit(%{json: true}, payload) when is_binary(payload), do: IO.puts(payload)
+  defp emit(%{json: true}, payload), do: IO.puts(Jason.encode!(payload))
 
   defp emit(_command, payload) when is_binary(payload) do
     IO.puts(payload)
   end
 
   defp emit(_command, payload) do
-    IO.puts(payload)
+    IO.puts("""
+    Bench: #{payload.bench}
+    Status: #{payload.status}
+
+    Agents:
+    #{render_agent_lines(payload.agents)}
+
+    Artifacts:
+    #{render_artifact_lines(payload.artifacts)}
+    """)
   end
 
-  defp format_reason({:stage_failed, stage_name, reason}),
-    do: "stage #{stage_name} failed: #{inspect(reason)}"
+  defp render_agent_lines(agents) do
+    Enum.map_join(agents, "\n", fn agent ->
+      status = get_in(agent, ["metadata", "status"]) || "unknown"
+      "- #{agent["name"]}: #{status}"
+    end)
+  end
 
-  defp format_reason({:mode_not_allowed, workflow_id, requested, required}),
-    do: "#{workflow_id} requires #{required} mode; got #{requested}"
+  defp render_artifact_lines(artifacts) do
+    Enum.map_join(artifacts, "\n", fn artifact ->
+      "- #{artifact["name"]}: #{artifact["file"]}"
+    end)
+  end
 
-  defp format_reason({:invalid_workflow_mode_config, workflow_id, default_mode, required}),
-    do: "#{workflow_id} default_mode #{default_mode} conflicts with execution_mode #{required}"
+  defp maybe_read_stdin(command) do
+    input =
+      IO.read(:stdio, :all)
+      |> case do
+        data when is_binary(data) -> String.trim(data)
+        _ -> ""
+      end
 
-  defp format_reason({:pr_review_requires_git_workspace, repo}),
-    do: "remote PR review for #{repo} requires running inside a local checkout of that repository"
-
-  defp format_reason({:pr_review_repo_mismatch, repo, remote}),
-    do:
-      "remote PR review for #{repo} requires a matching local checkout; current origin is #{remote}"
-
-  defp format_reason({:pr_review_requires_checkout, repo, head_ref, head_sha}),
-    do:
-      "remote PR review for #{repo} requires the local workspace to be checked out at #{head_ref} (#{head_sha})"
-
-  defp format_reason({:pr_review_requires_repo, pr_number}),
-    do: "PR review #{pr_number} requires a --repo value"
-
-  defp format_reason({:pr_review_requires_number, repo}),
-    do: "PR review for #{repo} requires a --pr value"
-
-  defp format_reason(reason), do: inspect(reason)
-
-  defp mode_for(parsed) do
-    cond do
-      parsed[:quick] -> :quick
-      parsed[:deep] -> :deep
-      true -> nil
+    if input == "" do
+      {:error, "input text is required"}
+    else
+      {:ok, put_in(command.input.input_text, input)}
     end
   end
 
-  @doc """
-  Resolve agent config directory for deep mode Pi agents.
+  defp resolve_input_text(nil, []), do: nil
+  defp resolve_input_text(value, _rest) when is_binary(value), do: value
+  defp resolve_input_text(nil, rest), do: Enum.join(rest, " ")
 
-  Checks `THINKTANK_AGENT_CONFIG` first.
-  Repository-local `agent_config` requires explicit opt-in via
-  `THINKTANK_TRUST_REPO_AGENT_CONFIG=1`.
-  """
-  @spec agent_config_dir() :: String.t() | nil
-  def agent_config_dir do
-    case System.get_env("THINKTANK_AGENT_CONFIG") do
-      nil ->
-        maybe_repo_agent_config_dir()
+  defp normalize_paths(nil), do: []
+  defp normalize_paths(path) when is_binary(path), do: [Path.expand(path)]
+  defp normalize_paths(paths) when is_list(paths), do: Enum.map(paths, &Path.expand/1)
 
-      dir ->
-        dir
-    end
+  defp parse_agent_list(nil), do: []
+
+  defp parse_agent_list(value) when is_binary(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
   end
 
-  defp maybe_repo_agent_config_dir do
+  defp parse_agent_list(_), do: []
+
+  defp maybe_put_value(map, _key, nil), do: map
+  defp maybe_put_value(map, key, value), do: Map.put(map, key, value)
+
+  defp agent_config_dir(cwd) do
     if trust_repo_agent_config?() do
-      dir = Path.join(File.cwd!(), "agent_config")
+      dir = Path.join(cwd, "agent_config")
       if File.dir?(dir), do: dir
     end
   end
@@ -509,88 +422,42 @@ defmodule Thinktank.CLI do
     System.get_env("THINKTANK_TRUST_REPO_AGENT_CONFIG") in ["1", "true", "TRUE", "yes", "YES"]
   end
 
-  @doc """
-  Returns the usage help text.
-  """
-  @spec usage_text() :: String.t()
-  def usage_text do
-    """
-    thinktank — workflow engine for multi-agent research and review
-
-    USAGE
-      thinktank run <workflow> --input "..." [options]
-      thinktank research "prompt" [options]
-      thinktank review [--base main --head HEAD] [options]
-      thinktank workflows list|show|validate
-
-    OPTIONS
-      --input TEXT     Workflow input text
-      --paths PATH     Files or directories for context (repeatable)
-      --quick, -q      Direct API fanout executor
-      --deep, -d       Agentic Pi subprocess executor
-      --tier, -t TIER  Model tier: cheap, standard, premium
-      --models LIST    Comma-separated model overrides
-      --roles LIST     Comma-separated routed research roles
-      --perspectives N Routed research perspective count
-      --json           Emit JSON to stdout
-      --output, -o     Output directory
-      --dry-run        Print the workflow contract without executing
-      --trust-repo-config
-                       Trust .thinktank/config.yml in the current repository
-      --base REF       Review base ref
-      --head REF       Review head ref
-      --repo REPO      GitHub repository for PR review mode
-      --pr N           GitHub pull request number for PR review mode
-      --help, -h       Show this help
-      --version, -v    Show version
-
-    EXAMPLES
-      thinktank run research/default --input "compare these architectures" --paths ./lib --json
-      thinktank research "audit this auth flow" --paths ./lib/auth --deep
-      thinktank review --base origin/main --head HEAD
-      thinktank workflows show review/cerberus
-    """
-  end
-
-  defp parse_tier(nil), do: {:ok, :standard}
-  defp parse_tier("cheap"), do: {:ok, :cheap}
-  defp parse_tier("standard"), do: {:ok, :standard}
-  defp parse_tier("premium"), do: {:ok, :premium}
-
-  defp parse_tier(other),
-    do: {:error, "invalid tier: #{other} (must be cheap, standard, or premium)"}
-
-  defp validate_review_pr_flags(workflow_id, parsed) do
-    case {parsed[:pr], parsed[:repo]} do
-      {nil, _} ->
-        :ok
-
-      {_pr, repo} when is_binary(repo) and repo != "" ->
-        :ok
-
-      {_pr, _repo} ->
-        {:error, "#{workflow_id} requires --repo when --pr is provided"}
-    end
-  end
-
-  defp parse_csv(nil), do: []
-  defp parse_csv(""), do: []
-
-  defp parse_csv(str) do
-    str
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
-  end
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+  defp format_reason(:missing_input_text), do: "input text is required"
+  defp format_reason(:no_successful_agents), do: "no agents completed successfully"
+  defp format_reason(reason) when is_binary(reason), do: reason
+  defp format_reason(reason), do: inspect(reason)
 
   defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
 
-  defp stdin_piped? do
-    match?({:error, _}, :io.columns(:standard_io))
-  rescue
-    _ -> false
+  defp usage_text do
+    """
+    thinktank #{version()}
+
+    Usage:
+      thinktank run <bench> --input "..." [options]
+      thinktank research "..." [options]
+      thinktank review [options]
+      thinktank benches list|show|validate
+
+    Options:
+      --input TEXT          Task text
+      --paths PATH          Point the bench at paths in the workspace (repeatable)
+      --agents LIST         Comma-separated agent override for the selected bench
+      --json                Output JSON
+      --output, -o DIR      Output directory
+      --dry-run             Resolve the bench without launching agents
+      --no-synthesis        Skip the synthesizer agent
+      --trust-repo-config   Trust .thinktank/config.yml in the current repository
+      --base REF            Review base ref
+      --head REF            Review head ref
+      --repo REPO           Review repo owner/name
+      --pr N                Review pull request number
+
+    Examples:
+      thinktank research "analyze this codebase" --paths ./lib
+      thinktank review --base origin/main --head HEAD
+      thinktank run review/cerberus --input "Review this branch" --agents trace,guard
+      thinktank benches show research/default
+    """
   end
 end

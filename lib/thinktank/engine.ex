@@ -1,57 +1,70 @@
 defmodule Thinktank.Engine do
   @moduledoc """
-  Workflow engine for constrained stage-graph execution.
+  Bench launcher for Pi agents.
   """
 
   alias Thinktank.{
     AgentSpec,
+    BenchSpec,
     Config,
     RunContract,
-    RunStore,
-    StageRegistry,
-    StageSpec,
-    WorkflowSpec
+    RunStore
   }
+
+  alias Thinktank.Executor.Agentic
 
   @type run_result :: %{
           contract: RunContract.t(),
-          workflow: WorkflowSpec.t(),
+          bench: BenchSpec.t(),
           output_dir: String.t(),
           envelope: map(),
-          context: map()
+          agents: [AgentSpec.t()],
+          synthesizer: AgentSpec.t() | nil,
+          results: [Agentic.result()],
+          synthesis: Agentic.result() | nil
         }
 
   @type resolved_run :: %{
           contract: RunContract.t(),
-          workflow: WorkflowSpec.t(),
+          bench: BenchSpec.t(),
           config: Config.t(),
-          output_dir: String.t()
+          output_dir: String.t(),
+          agents: [AgentSpec.t()],
+          synthesizer: AgentSpec.t() | nil
         }
 
   @spec resolve(String.t(), map(), keyword()) ::
           {:ok, resolved_run()} | {:error, term(), String.t() | nil}
-  def resolve(workflow_id, input, opts \\ []) do
+  def resolve(bench_id, input, opts \\ []) do
     cwd = Keyword.get(opts, :cwd, File.cwd!())
 
     config_opts =
       [cwd: cwd] |> maybe_put_opt(:trust_repo_config, Keyword.get(opts, :trust_repo_config))
 
     with {:ok, config} <- Config.load(config_opts),
-         {:ok, workflow} <- Config.workflow(config, workflow_id),
-         :ok <- validate_input(workflow, input),
-         {:ok, mode} <- resolve_mode(workflow, Keyword.get(opts, :mode)) do
-      output_dir = Keyword.get(opts, :output, generate_output_dir(workflow_id))
+         {:ok, bench} <- Config.bench(config, bench_id),
+         {:ok, input} <- normalize_input(bench, input),
+         {:ok, agents} <- resolve_agents(bench, config, input),
+         {:ok, synthesizer} <- resolve_synthesizer(bench, config) do
+      output_dir = Keyword.get(opts, :output, generate_output_dir(bench_id))
 
       contract = %RunContract{
-        workflow_id: workflow_id,
+        bench_id: bench_id,
         workspace_root: cwd,
         input: input,
         artifact_dir: output_dir,
-        adapter_context: Keyword.get(opts, :adapter_context, %{}),
-        mode: mode
+        adapter_context: Keyword.get(opts, :adapter_context, %{})
       }
 
-      {:ok, %{config: config, workflow: workflow, contract: contract, output_dir: output_dir}}
+      {:ok,
+       %{
+         config: config,
+         bench: bench,
+         contract: contract,
+         output_dir: output_dir,
+         agents: agents,
+         synthesizer: synthesizer
+       }}
     else
       {:error, reason} -> {:error, reason, nil}
       reason -> {:error, reason, nil}
@@ -60,31 +73,50 @@ defmodule Thinktank.Engine do
 
   @spec run(String.t(), map(), keyword()) ::
           {:ok, run_result()} | {:error, term(), String.t() | nil}
-  def run(workflow_id, input, opts \\ []) do
-    with {:ok, %{config: config, workflow: workflow, contract: contract, output_dir: output_dir}} <-
-           resolve(workflow_id, input, opts) do
-      RunStore.init_run(output_dir, contract, workflow)
+  def run(bench_id, input, opts \\ []) do
+    with {:ok,
+          %{
+            config: config,
+            bench: bench,
+            contract: contract,
+            output_dir: output_dir,
+            agents: agents,
+            synthesizer: synthesizer
+          }} <- resolve(bench_id, input, opts) do
+      RunStore.init_run(output_dir, contract, bench)
+      write_task_artifact(output_dir, contract.input)
 
-      case execute_stages(workflow.stages, %{}, contract, config, 0, opts) do
-        {:ok, context} ->
-          RunStore.complete_run(output_dir, "complete")
+      context = %{"paths_hint" => render_paths_hint(contract.input)}
 
-          {:ok,
-           %{
-             contract: contract,
-             workflow: workflow,
-             output_dir: output_dir,
-             envelope: RunStore.result_envelope(output_dir),
-             context: context
-           }}
+      results =
+        Agentic.run(agents, contract, context, config,
+          concurrency: bench.concurrency || length(agents),
+          agent_config_dir: opts[:agent_config_dir],
+          runner: opts[:runner]
+        )
 
-        {:error, reason} ->
-          RunStore.write_json_artifact(output_dir, "failure", "artifacts/failure.json", %{
-            error: inspect(reason)
-          })
+      Enum.each(results, &record_result(output_dir, &1))
 
-          RunStore.complete_run(output_dir, "failed")
-          {:error, reason, output_dir}
+      synthesis =
+        maybe_run_synthesizer(synthesizer, results, contract, config, context, opts, output_dir)
+
+      status = derive_status(results, synthesis)
+      RunStore.complete_run(output_dir, status)
+
+      run_result = %{
+        contract: contract,
+        bench: bench,
+        output_dir: output_dir,
+        envelope: RunStore.result_envelope(output_dir),
+        agents: agents,
+        synthesizer: synthesizer,
+        results: results,
+        synthesis: synthesis
+      }
+
+      case status do
+        "failed" -> {:error, :no_successful_agents, output_dir}
+        _ -> {:ok, run_result}
       end
     else
       {:error, reason, output_dir} -> {:error, reason, output_dir}
@@ -92,185 +124,203 @@ defmodule Thinktank.Engine do
   end
 
   @spec generate_output_dir(String.t()) :: String.t()
-  def generate_output_dir(workflow_id) do
+  def generate_output_dir(bench_id) do
     timestamp = DateTime.utc_now() |> Calendar.strftime("%Y%m%d-%H%M%S")
     suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
 
-    workflow_slug =
-      workflow_id |> String.replace("/", "-") |> String.replace(~r/[^a-zA-Z0-9-]/, "")
+    bench_slug =
+      bench_id |> String.replace("/", "-") |> String.replace(~r/[^a-zA-Z0-9-]/, "")
 
-    Path.join(System.tmp_dir!(), "thinktank-#{workflow_slug}-#{timestamp}-#{suffix}")
+    Path.join(System.tmp_dir!(), "thinktank-#{bench_slug}-#{timestamp}-#{suffix}")
   end
 
-  defp execute_stages([], context, _contract, _config, _index, _opts), do: {:ok, context}
+  defp maybe_run_synthesizer(nil, _results, _contract, _config, _context, _opts, _output_dir),
+    do: nil
 
-  defp execute_stages([stage | rest], context, contract, config, index, opts) do
-    if should_run?(stage, context) do
-      case run_stage_with_retry(stage, context, contract, config, opts) do
-        {:ok, outputs, final_attempts} ->
-          merged = Map.merge(context, outputs)
+  defp maybe_run_synthesizer(
+         _synthesizer,
+         _results,
+         %{input: %{"no_synthesis" => true}},
+         _config,
+         _context,
+         _opts,
+         _output_dir
+       ),
+       do: nil
 
-          RunStore.record_stage(
-            contract.artifact_dir,
-            stage.name,
-            "complete",
-            final_attempts,
-            stage_snapshot(outputs)
-          )
+  defp maybe_run_synthesizer(synthesizer, results, contract, config, context, opts, output_dir) do
+    if Enum.any?(results, &(&1.status == :ok and String.trim(&1.output) != "")) do
+      synth_context =
+        Map.merge(context, %{
+          "agent_outputs" => render_agent_outputs(results)
+        })
 
-          execute_stages(rest, merged, contract, config, index + 1, opts)
+      [result] =
+        Agentic.run([synthesizer], contract, synth_context, config,
+          concurrency: 1,
+          agent_config_dir: opts[:agent_config_dir],
+          runner: opts[:runner]
+        )
 
-        {:error, reason, final_attempts} ->
-          RunStore.record_stage(
-            contract.artifact_dir,
-            stage.name,
-            "failed",
-            final_attempts,
-            %{error: inspect(reason)}
-          )
+      record_result(output_dir, result)
 
-          {:error, {:stage_failed, stage.name, reason}}
+      if result.status == :ok do
+        write_summary_artifacts(output_dir, contract.bench_id, result.output)
       end
+
+      result
+    end
+  end
+
+  defp write_summary_artifacts(output_dir, bench_id, content) do
+    RunStore.write_text_artifact(output_dir, "summary", "summary.md", content)
+
+    cond do
+      String.starts_with?(bench_id, "review/") ->
+        RunStore.write_text_artifact(output_dir, "review", "review.md", content)
+
+      String.starts_with?(bench_id, "research/") ->
+        RunStore.write_text_artifact(output_dir, "synthesis", "synthesis.md", content)
+
+      true ->
+        :ok
+    end
+  end
+
+  defp write_task_artifact(output_dir, input) do
+    task =
+      [Map.get(input, "input_text") || input[:input_text], render_paths_hint(input)]
+      |> Enum.reject(&(&1 in [nil, ""]))
+      |> Enum.join("\n\n")
+
+    if task != "" do
+      RunStore.write_text_artifact(output_dir, "task", "task.md", task)
+    end
+  end
+
+  defp record_result(output_dir, result) do
+    output =
+      case result.status do
+        :ok ->
+          result.output
+
+        :error ->
+          result.output <> if(result.error, do: "\n\nERROR: #{inspect(result.error)}", else: "")
+      end
+
+    RunStore.record_agent_result(output_dir, result.agent.name, output, %{
+      status: result.status,
+      model: result.agent.model,
+      provider: result.agent.provider,
+      usage: result.usage,
+      error: result.error
+    })
+  end
+
+  defp derive_status(results, synthesis) do
+    successful = Enum.count(results, &(&1.status == :ok and String.trim(&1.output) != ""))
+    degraded = Enum.any?(results, &(&1.status == :error)) or match?(%{status: :error}, synthesis)
+
+    cond do
+      successful == 0 -> "failed"
+      degraded -> "degraded"
+      true -> "complete"
+    end
+  end
+
+  defp normalize_input(%BenchSpec{default_task: default_task}, input) when is_map(input) do
+    normalized =
+      input
+      |> stringify_keys()
+      |> maybe_put("input_text", default_task)
+
+    if valid_input_text?(normalized["input_text"]) do
+      {:ok, normalized}
     else
-      RunStore.record_stage(contract.artifact_dir, stage.name, "skipped", 0, %{})
-      execute_stages(rest, context, contract, config, index + 1, opts)
+      {:error, :missing_input_text}
     end
   end
 
-  defp run_stage_with_retry(stage, context, contract, config, opts, attempt \\ 1)
+  defp normalize_input(_bench, _input), do: {:error, "input must be a map"}
 
-  defp run_stage_with_retry(stage, context, contract, config, opts, attempt) do
-    case StageRegistry.run(stage, context, contract, config, opts) do
-      {:ok, outputs} ->
-        {:ok, outputs, attempt}
+  defp resolve_agents(%BenchSpec{agents: bench_agents}, %Config{agents: agents}, input) do
+    names =
+      case Map.get(input, "agents", []) do
+        [] -> bench_agents
+        selected when is_list(selected) -> selected
+        _ -> bench_agents
+      end
 
-      {:error, reason} ->
-        if attempt <= stage.retry do
-          run_stage_with_retry(stage, context, contract, config, opts, attempt + 1)
-        else
-          {:error, reason, attempt}
-        end
+    fetch_agents(agents, names)
+  end
+
+  defp resolve_synthesizer(%BenchSpec{synthesizer: nil}, _config), do: {:ok, nil}
+
+  defp resolve_synthesizer(%BenchSpec{synthesizer: name}, %Config{agents: agents}) do
+    case Map.fetch(agents, name) do
+      {:ok, agent} -> {:ok, agent}
+      :error -> {:error, "unknown synthesizer: #{name}"}
     end
   end
 
-  @doc false
-  @spec should_run?(StageSpec.t(), map()) :: boolean()
-  def should_run?(%StageSpec{when: true}, _context), do: true
-  def should_run?(%StageSpec{when: false}, _context), do: false
-  def should_run?(%StageSpec{when: nil}, _context), do: true
-
-  def should_run?(%StageSpec{when: path}, context) when is_binary(path) do
-    case resolve_context_path(context, path) do
-      nil -> false
-      false -> false
-      "" -> false
-      [] -> false
-      _ -> true
-    end
-  end
-
-  defp validate_input(%WorkflowSpec{input_schema: %{"required" => required}}, input)
-       when is_list(required) do
-    missing = Enum.filter(required, &missing_input_key?(input, &1))
-    if missing == [], do: :ok, else: {:error, {:missing_input_keys, missing}}
-  end
-
-  defp validate_input(_workflow, _input), do: :ok
-
-  defp resolve_mode(%WorkflowSpec{default_mode: default_mode, execution_mode: :flexible}, nil),
-    do: {:ok, default_mode}
-
-  defp resolve_mode(%WorkflowSpec{execution_mode: :flexible}, requested)
-       when requested in [:quick, :deep],
-       do: {:ok, requested}
-
-  defp resolve_mode(
-         %WorkflowSpec{id: id, default_mode: default_mode, execution_mode: required_mode},
-         nil
-       )
-       when required_mode in [:quick, :deep] do
-    if default_mode == required_mode do
-      {:ok, default_mode}
-    else
-      {:error, {:invalid_workflow_mode_config, id, default_mode, required_mode}}
-    end
-  end
-
-  defp resolve_mode(%WorkflowSpec{id: id, execution_mode: required_mode}, requested)
-       when required_mode in [:quick, :deep] and requested in [:quick, :deep] do
-    if requested == required_mode do
-      {:ok, requested}
-    else
-      {:error, {:mode_not_allowed, id, requested, required_mode}}
-    end
-  end
-
-  @doc false
-  @spec resolve_context_path(map(), String.t()) :: term() | nil
-  def resolve_context_path(context, path) do
-    Enum.reduce_while(String.split(path, "."), context, fn segment, current ->
-      atom_value = fetch_existing_atom_key(current, segment)
-
-      cond do
-        not is_nil(atom_value) ->
-          {:cont, atom_value}
-
-        is_map(current) and Map.has_key?(current, segment) ->
-          {:cont, Map.get(current, segment)}
-
-        true ->
-          {:halt, nil}
+  defp fetch_agents(agents, names) do
+    names
+    |> Enum.reduce_while({:ok, []}, fn name, {:ok, acc} ->
+      case Map.fetch(agents, name) do
+        {:ok, agent} -> {:cont, {:ok, acc ++ [agent]}}
+        :error -> {:halt, {:error, "unknown agent: #{name}"}}
       end
     end)
   end
 
-  defp fetch_existing_atom_key(current, segment) when is_map(current) do
-    atom_key =
-      try do
-        String.to_existing_atom(segment)
-      rescue
-        ArgumentError -> nil
-      end
+  defp render_agent_outputs(results) do
+    Enum.map_join(results, "\n\n", fn result ->
+      status = if result.status == :ok, do: "ok", else: "error"
 
-    if atom_key && Map.has_key?(current, atom_key), do: Map.get(current, atom_key)
+      """
+      ## #{result.agent.name}
+      status: #{status}
+      model: #{result.agent.model}
+
+      #{result.output}
+      """
+      |> String.trim()
+    end)
   end
 
-  defp fetch_existing_atom_key(_current, _segment), do: nil
-
-  defp missing_input_key?(input, key) do
-    atom_value = fetch_existing_atom_key(input, key)
-    atom_value in [nil, ""] and Map.get(input, key) in [nil, ""]
+  defp render_paths_hint(input) when is_map(input) do
+    input
+    |> Map.get("paths", [])
+    |> render_paths_hint()
   end
 
-  defp stage_snapshot(outputs) do
-    outputs
-    |> Map.drop([
-      :diff_text,
-      :review_bundle,
-      :context_block,
-      :context_files,
-      :agent_results,
-      :parsed_reviews,
-      :review_summary,
-      :synthesis
-    ])
-    |> normalize_snapshot()
+  defp render_paths_hint(paths) when is_list(paths) and paths != [] do
+    Enum.map_join(paths, "\n", &"- #{&1}")
   end
 
-  defp normalize_snapshot(%AgentSpec{name: name, model: model, provider: provider}) do
-    %{name: name, model: model, provider: provider}
-  end
+  defp render_paths_hint(_), do: "- none specified"
 
-  defp normalize_snapshot(%{} = map) do
-    map
-    |> Enum.map(fn {key, value} -> {to_string(key), normalize_snapshot(value)} end)
-    |> Enum.into(%{})
-  end
+  defp valid_input_text?(value) when is_binary(value), do: String.trim(value) != ""
+  defp valid_input_text?(_), do: false
 
-  defp normalize_snapshot(list) when is_list(list), do: Enum.map(list, &normalize_snapshot/1)
-  defp normalize_snapshot(value) when is_atom(value), do: Atom.to_string(value)
-  defp normalize_snapshot(value), do: value
+  defp maybe_put(map, _key, nil), do: map
+
+  defp maybe_put(map, key, value) do
+    case Map.get(map, key) do
+      existing when is_binary(existing) ->
+        if String.trim(existing) == "", do: Map.put(map, key, value), else: map
+
+      _ ->
+        Map.put(map, key, value)
+    end
+  end
 
   defp maybe_put_opt(opts, _key, nil), do: opts
   defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
+
+  defp stringify_keys(map) do
+    map
+    |> Enum.map(fn {key, value} -> {to_string(key), value} end)
+    |> Enum.into(%{})
+  end
 end
