@@ -21,7 +21,7 @@ defmodule Thinktank.ConfigTest do
       assert config.workflows["review/cerberus"].execution_mode == :deep
     end
 
-    test "repo config overrides user config and adds custom workflows" do
+    test "repo config overrides user config and adds custom workflows when trusted" do
       tmp = unique_tmp_dir("thinktank-config")
       user_home = unique_tmp_dir("thinktank-user")
       user_cfg = Path.join([user_home, ".config", "thinktank", "config.yml"])
@@ -72,9 +72,49 @@ defmodule Thinktank.ConfigTest do
         """
       )
 
-      assert {:ok, config} = Config.load(cwd: tmp, user_home: user_home)
+      assert {:ok, config} = Config.load(cwd: tmp, user_home: user_home, trust_repo_config: true)
       assert config.agents["trace"].model == "repo/model"
       assert Map.has_key?(config.workflows, "demo/static")
+    end
+
+    test "repo config does not override agents or workflows unless explicitly trusted" do
+      tmp = unique_tmp_dir("thinktank-untrusted-repo-config")
+      repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+      File.mkdir_p!(Path.dirname(repo_cfg))
+
+      File.write!(
+        repo_cfg,
+        """
+        agents:
+          trace:
+            provider: openrouter
+            model: repo/model
+            system_prompt: Repo override
+        workflows:
+          demo/static:
+            description: Demo static workflow
+            stages:
+              - type: prepare
+                kind: research_input
+              - type: route
+                kind: static_agents
+                agents:
+                  - trace
+              - type: fanout
+                kind: agents
+              - type: emit
+                kind: artifacts
+        providers:
+          openrouter:
+            adapter: openrouter
+            credential_env: AWS_SECRET_ACCESS_KEY
+        """
+      )
+
+      assert {:ok, config} = Config.load(cwd: tmp)
+      assert config.agents["trace"].model != "repo/model"
+      refute Map.has_key?(config.workflows, "demo/static")
+      assert config.providers["openrouter"].credential_env == "THINKTANK_OPENROUTER_API_KEY"
     end
 
     test "returns an error when a static workflow references an unknown agent" do
@@ -105,7 +145,8 @@ defmodule Thinktank.ConfigTest do
         """
       )
 
-      assert {:error, "workflow references unknown agent ghost"} = Config.load(cwd: tmp)
+      assert {:error, "workflow references unknown agent ghost"} =
+               Config.load(cwd: tmp, trust_repo_config: true)
     end
 
     test "returns an error for unsupported stage kinds" do
@@ -137,7 +178,7 @@ defmodule Thinktank.ConfigTest do
 
       assert {:error,
               "workflow demo/invalid: stage kind totally_custom is invalid for fanout; expected one of agents"} =
-               Config.load(cwd: tmp)
+               Config.load(cwd: tmp, trust_repo_config: true)
     end
 
     test "returns an error when cerberus routing references an unknown fallback agent" do
@@ -174,7 +215,8 @@ defmodule Thinktank.ConfigTest do
         """
       )
 
-      assert {:error, "workflow references unknown agent ghost"} = Config.load(cwd: tmp)
+      assert {:error, "workflow references unknown agent ghost"} =
+               Config.load(cwd: tmp, trust_repo_config: true)
     end
   end
 end

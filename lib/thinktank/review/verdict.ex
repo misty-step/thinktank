@@ -86,6 +86,8 @@ defmodule Thinktank.Review.Verdict do
          {:ok, map} <- Jason.decode(json_text),
          {:ok, verdict} <- validate(map) do
       {:ok, verdict}
+    else
+      _ -> parse_markdown_summary(text)
     end
   end
 
@@ -196,6 +198,108 @@ defmodule Thinktank.Review.Verdict do
   defp valid_line?(nil), do: true
   defp valid_line?(line) when is_integer(line) and line >= 0, do: true
   defp valid_line?(_), do: false
+
+  defp parse_markdown_summary(text) do
+    with {:ok, reviewer} <- markdown_value(text, "Reviewer"),
+         {:ok, perspective} <- markdown_value(text, "Perspective"),
+         {:ok, verdict} <- markdown_value(text, "Verdict"),
+         {:ok, confidence_raw} <- markdown_value(text, "Confidence"),
+         {:ok, summary} <- markdown_value(text, "Summary"),
+         {:ok, confidence} <- normalize_confidence(parse_number(confidence_raw)),
+         {:ok, findings} <- parse_markdown_findings(text) do
+      validate(%{
+        "reviewer" => reviewer,
+        "perspective" => perspective,
+        "verdict" => verdict,
+        "confidence" => confidence,
+        "summary" => summary,
+        "findings" => findings,
+        "stats" => parse_markdown_stats(text, findings)
+      })
+    end
+  end
+
+  defp markdown_value(text, label) do
+    case Regex.run(~r/^\*\*#{label}:\*\*\s*(.+)$/m, text) do
+      [_, value] -> {:ok, String.trim(value)}
+      _ -> {:error, {:missing_markdown_field, label}}
+    end
+  end
+
+  defp parse_markdown_findings(text) do
+    rows =
+      text
+      |> String.split("\n")
+      |> Enum.filter(&String.starts_with?(&1, "|"))
+      |> Enum.reject(&(String.contains?(&1, "---") or String.contains?(&1, "Severity")))
+
+    {:ok,
+     Enum.map(rows, fn row ->
+       [_empty | cells] =
+         row
+         |> String.trim()
+         |> String.split("|")
+         |> Enum.map(&String.trim/1)
+
+       [severity, category, title, description, suggestion, file, line | _rest] = cells
+
+       %{
+         "severity" => severity,
+         "category" => category,
+         "title" => title,
+         "description" => description,
+         "suggestion" => suggestion,
+         "file" => strip_ticks(file),
+         "line" => parse_first_integer(line)
+       }
+     end)}
+  end
+
+  defp parse_markdown_stats(text, findings) do
+    case Regex.run(~r/\*\*Stats:\*\*\s*```json\s*(.*?)```/s, text) do
+      [_, raw_stats] ->
+        case Jason.decode(raw_stats) do
+          {:ok, %{} = stats} -> stats
+          _ -> derived_stats(findings)
+        end
+
+      _ ->
+        derived_stats(findings)
+    end
+  end
+
+  defp derived_stats(findings) do
+    counts = Enum.frequencies_by(findings, & &1["severity"])
+
+    %{
+      "files_reviewed" => length(findings),
+      "files_with_issues" => length(findings),
+      "critical" => Map.get(counts, "critical", 0),
+      "major" => Map.get(counts, "major", 0),
+      "minor" => Map.get(counts, "minor", 0),
+      "info" => Map.get(counts, "info", 0)
+    }
+  end
+
+  defp parse_number(value) do
+    case Float.parse(value) do
+      {parsed, _rest} -> parsed
+      :error -> value
+    end
+  end
+
+  defp parse_first_integer(value) do
+    case Regex.run(~r/\d+/, value || "") do
+      [match] -> String.to_integer(match)
+      _ -> nil
+    end
+  end
+
+  defp strip_ticks(value) do
+    value
+    |> String.trim()
+    |> String.trim("`")
+  end
 
   defp validate_stats(%{} = stats) do
     missing = Enum.filter(@required_stats_keys, &(not Map.has_key?(stats, &1)))

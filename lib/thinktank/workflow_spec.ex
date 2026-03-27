@@ -4,6 +4,7 @@ defmodule Thinktank.WorkflowSpec do
   """
 
   alias Thinktank.StageSpec
+  @required_stage_order [:prepare, :route, :fanout, :emit]
   @stage_order [:prepare, :route, :fanout, :aggregate, :emit]
   @stage_rank Enum.with_index(@stage_order) |> Enum.into(%{})
 
@@ -80,11 +81,11 @@ defmodule Thinktank.WorkflowSpec do
 
   defp validate_stage_graph(stages) do
     types = Enum.map(stages, & &1.type)
-    missing = @stage_order -- Enum.uniq(types)
+    missing = @required_stage_order -- Enum.uniq(types)
 
     cond do
       missing != [] ->
-        {:error, "workflow stages must include #{Enum.join(@stage_order, ", ")}"}
+        {:error, "workflow stages must include #{Enum.join(@required_stage_order, ", ")}"}
 
       monotonic_stage_types?(types) ->
         :ok

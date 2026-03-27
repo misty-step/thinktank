@@ -255,6 +255,7 @@ defmodule Thinktank.EngineTest do
                  "test/custom",
                  %{input_text: "Retry aggregate"},
                  cwd: tmp,
+                 trust_repo_config: true,
                  mode: :quick,
                  openrouter_opts: [api_key: "test-key", plug: {Req.Test, __MODULE__}]
                )
@@ -299,7 +300,11 @@ defmodule Thinktank.EngineTest do
       )
 
       assert {:error, {:missing_input_keys, ["input_text"]}, nil} =
-               Engine.run("demo/input-check", %{}, cwd: tmp, mode: :quick)
+               Engine.run("demo/input-check", %{},
+                 cwd: tmp,
+                 trust_repo_config: true,
+                 mode: :quick
+               )
     end
 
     test "rejects remote PR review when local checkout is not aligned to the PR head" do
@@ -355,6 +360,20 @@ defmodule Thinktank.EngineTest do
                )
 
       assert is_binary(output_dir)
+    end
+  end
+
+  describe "resolve_context_path/2" do
+    test "handles nested string keys, atom keys, and missing paths" do
+      context = %{
+        "agent_results" => [%{name: "trace"}],
+        review: %{summary: "ok"},
+        review_route: %{panel: ["trace"]}
+      }
+
+      assert Engine.resolve_context_path(context, "review.summary") == "ok"
+      assert Engine.resolve_context_path(context, "review_route.panel") == ["trace"]
+      assert Engine.resolve_context_path(context, "missing.path") == nil
     end
   end
 end

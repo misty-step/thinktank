@@ -26,7 +26,10 @@ defmodule Thinktank.Engine do
   def run(workflow_id, input, opts \\ []) do
     cwd = Keyword.get(opts, :cwd, File.cwd!())
 
-    with {:ok, config} <- Config.load(cwd: cwd),
+    config_opts =
+      [cwd: cwd] |> maybe_put_opt(:trust_repo_config, Keyword.get(opts, :trust_repo_config))
+
+    with {:ok, config} <- Config.load(config_opts),
          {:ok, workflow} <- Config.workflow(config, workflow_id),
          :ok <- validate_input(workflow, input),
          {:ok, mode} <- resolve_mode(workflow, Keyword.get(opts, :mode)) do
@@ -249,4 +252,7 @@ defmodule Thinktank.Engine do
   defp normalize_snapshot(list) when is_list(list), do: Enum.map(list, &normalize_snapshot/1)
   defp normalize_snapshot(value) when is_atom(value), do: Atom.to_string(value)
   defp normalize_snapshot(value), do: value
+
+  defp maybe_put_opt(opts, _key, nil), do: opts
+  defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 end

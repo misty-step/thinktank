@@ -112,7 +112,7 @@ defmodule Thinktank.ReviewWorkflowTest do
     assert_receive {:shell_cmd, shell_cmd, args}
     assert shell_cmd == "exec < /dev/null; exec \"$@\""
     assert Enum.member?(args, "--tools")
-    assert Enum.member?(args, "read,grep,find,ls,bash")
+    assert Enum.member?(args, "read,grep,find,ls")
     refute Enum.any?(args, &String.contains?(&1, "```diff"))
   end
 

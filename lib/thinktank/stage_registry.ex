@@ -77,6 +77,7 @@ defmodule Thinktank.StageRegistry do
 
   def review_diff(_stage, _context, contract, _config, _opts) do
     with {:ok, prepared} <- load_review_input(contract) do
+      diff_path = persist_diff_file(contract.artifact_dir, prepared.diff_text)
       diff_summary = Diff.parse(prepared.diff_text)
 
       {:ok,
@@ -92,9 +93,11 @@ defmodule Thinktank.StageRegistry do
          changed_paths_block: build_changed_paths_block(prepared.changed_paths),
          base_ref: prepared.base_ref,
          head_ref: prepared.head_ref,
+         diff_path: diff_path,
          review_metadata: prepared.metadata,
          diff_summary: diff_summary,
-         review_bundle: build_review_bundle(prepared, diff_summary, contract.workspace_root),
+         review_bundle:
+           build_review_bundle(prepared, diff_summary, contract.workspace_root, diff_path),
          result_kind: :review
        }}
     end
@@ -282,7 +285,7 @@ defmodule Thinktank.StageRegistry do
         end
 
       :review ->
-        Enum.each(context.parsed_reviews, fn review ->
+        Enum.each(context[:parsed_reviews] || [], fn review ->
           if review[:verdict] do
             filename = "artifacts/#{artifact_name(review.agent)}-verdict.json"
 
@@ -295,19 +298,23 @@ defmodule Thinktank.StageRegistry do
           end
         end)
 
-        RunStore.write_json_artifact(
-          contract.artifact_dir,
-          "verdict",
-          "verdict.json",
-          context.final_verdict
-        )
+        if context[:final_verdict] do
+          RunStore.write_json_artifact(
+            contract.artifact_dir,
+            "verdict",
+            "verdict.json",
+            context.final_verdict
+          )
+        end
 
-        RunStore.write_text_artifact(
-          contract.artifact_dir,
-          "review",
-          "review.md",
-          context.review_summary
-        )
+        if context[:review_summary] do
+          RunStore.write_text_artifact(
+            contract.artifact_dir,
+            "review",
+            "review.md",
+            context.review_summary
+          )
+        end
     end
 
     {:ok, %{}}
@@ -535,7 +542,7 @@ defmodule Thinktank.StageRegistry do
     match?({:ok, _}, optional_cmd("git", ["rev-parse", "--verify", ref], cwd))
   end
 
-  defp build_review_bundle(prepared, diff_summary, workspace_root) do
+  defp build_review_bundle(prepared, diff_summary, workspace_root, diff_path) do
     changed_files = build_changed_paths_block(prepared.changed_paths)
     title = get_in(prepared.metadata, ["title"]) || "n/a"
     pr_body = prepared.metadata |> Map.get("body", "") |> truncate(2_000)
@@ -558,12 +565,14 @@ defmodule Thinktank.StageRegistry do
 
     Inspect the checked-out workspace directly with your tools before making claims.
     In PR mode, the local workspace is expected to already be checked out at the PR head commit.
-    Useful commands:
-    - git diff --no-ext-diff #{prepared.base_ref}...HEAD
-    - git diff --no-ext-diff #{prepared.base_ref}...HEAD -- <path>
-    - git show HEAD:<path>
-    - git blame HEAD -- <path>
-    - rg "<symbol>" #{workspace_root}
+    Diff file:
+    - #{diff_path}
+
+    Useful tools and targets:
+    - Read the diff file above for exact changed lines
+    - Use `read` on files under #{workspace_root}
+    - Use `grep` or `find` to inspect nearby code referenced by changed paths
+    - Use `ls` to orient inside the workspace when needed
 
     Do not rely only on this summary. Use the repo, diff, and nearby code to verify each finding.
     """
@@ -646,6 +655,13 @@ defmodule Thinktank.StageRegistry do
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9]+/, "-")
     |> String.trim("-")
+  end
+
+  defp persist_diff_file(output_dir, diff_text) do
+    path = Path.join(output_dir, "inputs/review.diff")
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, diff_text)
+    path
   end
 
   defp system_cmd(cmd, args, cwd) do

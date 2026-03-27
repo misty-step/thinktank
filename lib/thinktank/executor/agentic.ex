@@ -153,8 +153,8 @@ defmodule Thinktank.Executor.Agentic do
   defp provider_env(_), do: []
 
   defp tool_list(%AgentSpec{tools: tools}) when is_list(tools) and tools != [], do: tools
-  defp tool_list(%AgentSpec{tool_profile: "research"}), do: ["read", "grep", "find", "bash"]
-  defp tool_list(%AgentSpec{tool_profile: "review"}), do: ["read", "grep", "find", "ls", "bash"]
+  defp tool_list(%AgentSpec{tool_profile: "research"}), do: ["read", "grep", "find", "ls"]
+  defp tool_list(%AgentSpec{tool_profile: "review"}), do: ["read", "grep", "find", "ls"]
   defp tool_list(_), do: ["read", "grep", "find"]
 
   defp write_prompt_file(contract, agent, prompt) do

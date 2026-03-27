@@ -24,4 +24,19 @@ defmodule Thinktank.StageSpecTest do
 
     assert message =~ "stage kind research_router is invalid for fanout"
   end
+
+  test "parses numeric options and string when conditions" do
+    assert {:ok, stage} =
+             StageSpec.from_map(%{
+               "type" => "fanout",
+               "kind" => "agents",
+               "retry" => "2",
+               "concurrency" => "3",
+               "when" => "agent_results"
+             })
+
+    assert stage.retry == 2
+    assert stage.concurrency == 3
+    assert stage.when == "agent_results"
+  end
 end

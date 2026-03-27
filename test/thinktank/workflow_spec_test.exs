@@ -22,7 +22,7 @@ defmodule Thinktank.WorkflowSpecTest do
   end
 
   test "rejects stage graphs that skip required phases" do
-    assert {:error, "workflow stages must include prepare, route, fanout, aggregate, emit"} =
+    assert {:error, "workflow stages must include prepare, route, fanout, emit"} =
              WorkflowSpec.from_pair("demo/workflow", %{
                "description" => "Broken workflow",
                "stages" => [

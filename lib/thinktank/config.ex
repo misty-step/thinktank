@@ -173,7 +173,13 @@ defmodule Thinktank.Config do
   end
 
   defp sanitize_repo_config(raw, true), do: raw
-  defp sanitize_repo_config(raw, false), do: Map.delete(raw, "providers")
+
+  defp sanitize_repo_config(raw, false) do
+    raw
+    |> Map.delete("providers")
+    |> Map.delete("agents")
+    |> Map.delete("workflows")
+  end
 
   defp trust_repo_config? do
     System.get_env("THINKTANK_TRUST_REPO_CONFIG") in ["1", "true", "TRUE", "yes", "YES"]

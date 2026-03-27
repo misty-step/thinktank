@@ -14,7 +14,7 @@ defmodule Thinktank.Dispatch.Deep do
   @type result :: {:ok, String.t(), String.t(), map() | nil} | {:error, String.t(), map()}
 
   @default_timeout :timer.minutes(30)
-  @default_tools "read,bash,grep,find"
+  @default_tools "read,grep,find,ls"
 
   @doc """
   Dispatch Pi agent subprocesses for each perspective.

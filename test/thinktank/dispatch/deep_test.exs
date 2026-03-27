@@ -131,7 +131,7 @@ defmodule Thinktank.Dispatch.DeepTest do
       assert_receive {:call, "sh", ["-c", shell_cmd], _opts}
       assert shell_cmd =~ "exec pi --no-session --no-skills"
       assert shell_cmd =~ "--model 'anthropic/claude-opus-4-6'"
-      assert shell_cmd =~ "--tools read,bash,grep,find"
+      assert shell_cmd =~ "--tools read,grep,find,ls"
       assert shell_cmd =~ "< /dev/null"
     end
 

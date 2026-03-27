@@ -101,6 +101,8 @@ defmodule Thinktank.Builtin do
 
     This workflow is agentic. Use your tools to inspect the repository, the branch diff,
     and any nearby code or tests you need before deciding.
+    Deep review runs with file-system tools, not an unrestricted shell. Read the diff file
+    and changed files directly instead of assuming shell access.
 
     Review only issues you can ground in the actual code, diff, or repository context.
     If there is not enough evidence for a claim, do not report it.

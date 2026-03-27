@@ -21,4 +21,16 @@ defmodule Thinktank.AgentSpecTest do
     assert {:error, "agent provider is required"} =
              AgentSpec.from_pair("trace", %{"model" => "x", "system_prompt" => "y"})
   end
+
+  test "filters malformed tool entries from lists" do
+    assert {:ok, spec} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are a reviewer.",
+               "tools" => ["read", 123, "grep"]
+             })
+
+    assert spec.tools == ["read", "grep"]
+  end
 end
