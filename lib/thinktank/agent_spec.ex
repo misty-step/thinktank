@@ -36,7 +36,10 @@ defmodule Thinktank.AgentSpec do
   def from_pair(name, %{} = raw) when is_binary(name) do
     with {:ok, provider} <- require_string(raw, "provider"),
          {:ok, model} <- require_string(raw, "model"),
-         {:ok, system_prompt} <- require_string(raw, "system_prompt") do
+         {:ok, system_prompt} <- require_string(raw, "system_prompt"),
+         {:ok, retries} <- parse_non_neg_int("retries", raw["retries"], 0),
+         {:ok, timeout_ms} <-
+           parse_non_neg_int("timeout_ms", raw["timeout_ms"] || raw["timeout"], :timer.minutes(5)) do
       {:ok,
        %__MODULE__{
          name: name,
@@ -46,8 +49,8 @@ defmodule Thinktank.AgentSpec do
          prompt: string_or_default(raw["prompt"], "{{input_text}}"),
          tool_profile: string_or_default(raw["tool_profile"], "default"),
          thinking_level: string_or_default(raw["thinking_level"], "medium"),
-         retries: non_neg_int(raw["retries"], 0),
-         timeout_ms: non_neg_int(raw["timeout_ms"] || raw["timeout"], :timer.minutes(5)),
+         retries: retries,
+         timeout_ms: timeout_ms,
          tools: parse_tools(raw["tools"]),
          metadata: Map.get(raw, "metadata", %{})
        }}
@@ -66,16 +69,20 @@ defmodule Thinktank.AgentSpec do
   defp string_or_default(value, _default) when is_binary(value) and value != "", do: value
   defp string_or_default(_, default), do: default
 
-  defp non_neg_int(value, _default) when is_integer(value) and value >= 0, do: value
+  defp parse_non_neg_int(_field, nil, default), do: {:ok, default}
 
-  defp non_neg_int(value, default) when is_binary(value) do
+  defp parse_non_neg_int(_field, value, _default) when is_integer(value) and value >= 0,
+    do: {:ok, value}
+
+  defp parse_non_neg_int(field, value, _default) when is_binary(value) do
     case Integer.parse(value) do
-      {parsed, ""} when parsed >= 0 -> parsed
-      _ -> default
+      {parsed, ""} when parsed >= 0 -> {:ok, parsed}
+      _ -> {:error, "agent #{field} must be a non-negative integer"}
     end
   end
 
-  defp non_neg_int(_, default), do: default
+  defp parse_non_neg_int(field, _value, _default),
+    do: {:error, "agent #{field} must be a non-negative integer"}
 
   defp parse_tools(nil), do: nil
   defp parse_tools(tools) when is_list(tools), do: Enum.filter(tools, &is_binary/1)

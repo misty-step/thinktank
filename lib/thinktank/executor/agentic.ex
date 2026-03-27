@@ -74,20 +74,17 @@ defmodule Thinktank.Executor.Agentic do
     {cmd, args} = build_command(agent, prompt_file, tool_list(agent))
     cmd_opts = build_cmd_opts(agent, contract, config.providers[agent.provider], opts)
 
-    case runner.(cmd, args, cmd_opts) do
-      {output, 0} ->
+    case attempt(agent.retries + 1, fn -> run_once(runner, cmd, args, cmd_opts) end) do
+      {:ok, output} ->
         %{agent: agent, status: :ok, output: output, usage: nil, error: nil}
 
-      {output, :timeout} ->
-        %{agent: agent, status: :error, output: output, usage: nil, error: %{category: :timeout}}
-
-      {output, exit_code} ->
+      {:error, %{output: output} = error} ->
         %{
           agent: agent,
           status: :error,
           output: output,
           usage: nil,
-          error: %{category: :crash, exit_code: exit_code}
+          error: Map.delete(error, :output)
         }
     end
   rescue
@@ -100,6 +97,37 @@ defmodule Thinktank.Executor.Agentic do
         error: %{category: :crash, message: Exception.message(error)}
       }
   end
+
+  defp run_once(runner, cmd, args, cmd_opts) do
+    case runner.(cmd, args, cmd_opts) do
+      {output, 0} ->
+        {:ok, output}
+
+      {output, :timeout} ->
+        {:error, %{category: :timeout, output: output}}
+
+      {output, exit_code} ->
+        {:error, %{category: :crash, exit_code: exit_code, output: output}}
+    end
+  end
+
+  defp attempt(remaining, fun) when remaining > 0 do
+    case fun.() do
+      {:ok, _} = ok ->
+        ok
+
+      {:error, error} ->
+        if remaining > 1 and retryable?(error) do
+          Process.sleep(250)
+          attempt(remaining - 1, fun)
+        else
+          {:error, error}
+        end
+    end
+  end
+
+  defp retryable?(%{category: category}) when category in [:timeout, :crash], do: true
+  defp retryable?(_), do: false
 
   defp build_command(agent, prompt_file, tools) do
     {"sh",

@@ -48,4 +48,20 @@ defmodule Thinktank.StageSpecTest do
                "when" => 1
              })
   end
+
+  test "rejects malformed numeric stage fields" do
+    assert {:error, "stage retry must be a non-negative integer"} =
+             StageSpec.from_map(%{
+               "type" => "fanout",
+               "kind" => "agents",
+               "retry" => "soon"
+             })
+
+    assert {:error, "stage concurrency must be a positive integer"} =
+             StageSpec.from_map(%{
+               "type" => "fanout",
+               "kind" => "agents",
+               "concurrency" => "many"
+             })
+  end
 end

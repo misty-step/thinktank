@@ -139,4 +139,52 @@ defmodule Thinktank.ReviewWorkflowTest do
                mode: :deep
              )
   end
+
+  test "local diff review still works from detached HEAD" do
+    tmp = unique_tmp_dir("thinktank-review-detached")
+    File.write!(Path.join(tmp, "lib_app.ex"), "defmodule App do\n  def ok, do: :ok\nend\n")
+
+    git!(tmp, ["init", "-b", "main"])
+    git!(tmp, ["config", "user.email", "test@example.com"])
+    git!(tmp, ["config", "user.name", "ThinkTank Test"])
+    git!(tmp, ["add", "."])
+    git!(tmp, ["commit", "-m", "base"])
+
+    File.write!(
+      Path.join(tmp, "lib_app.ex"),
+      "defmodule App do\n  def ok(user), do: user.token\nend\n"
+    )
+
+    git!(tmp, ["add", "."])
+    git!(tmp, ["commit", "-m", "change"])
+    git!(tmp, ["checkout", "--detach", "HEAD"])
+
+    runner = fn _cmd, ["-c", _shell_cmd | args], _opts ->
+      [_, prompt_file] =
+        Enum.chunk_every(args, 2, 1, :discard) |> Enum.find(fn [flag, _value] -> flag == "-p" end)
+
+      prompt = File.read!(String.trim_leading(prompt_file, "@"))
+
+      output =
+        if prompt =~ "You are trace" do
+          "Trace analysis\n```json\n#{review_output("trace", "PASS", "info")}\n```"
+        else
+          "Atlas analysis\n```json\n#{review_output("atlas", "PASS", "info")}\n```"
+        end
+
+      {output, 0}
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "review/cerberus",
+               %{base: "HEAD~1", head: "HEAD"},
+               cwd: tmp,
+               mode: :deep,
+               runner: runner,
+               agent_config_dir: nil
+             )
+
+    assert result.context.final_verdict.verdict == "PASS"
+  end
 end

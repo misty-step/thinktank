@@ -513,15 +513,28 @@ defmodule Thinktank.StageRegistry do
     with :ok <- validate_git_ref(base_ref),
          :ok <- validate_git_ref(head_ref),
          {:ok, diff_text} <- system_cmd("git", ["diff", "--no-ext-diff", range], cwd),
-         {:ok, changed_files} <- system_cmd("git", ["diff", "--name-only", range], cwd),
-         {:ok, current_branch} <- optional_cmd("git", ["branch", "--show-current"], cwd) do
+         {:ok, changed_files} <- system_cmd("git", ["diff", "--name-only", range], cwd) do
+      current_branch =
+        case optional_cmd("git", ["branch", "--show-current"], cwd) do
+          {:ok, branch} ->
+            branch
+            |> String.trim()
+            |> case do
+              "" -> nil
+              trimmed -> trimmed
+            end
+
+          _ ->
+            nil
+        end
+
       {:ok,
        %{
          diff_text: diff_text,
          changed_paths: changed_files |> String.split("\n", trim: true),
          base_ref: base_ref,
          head_ref: head_ref,
-         metadata: %{"current_branch" => String.trim(current_branch)}
+         metadata: %{"current_branch" => current_branch}
        }}
     end
   end

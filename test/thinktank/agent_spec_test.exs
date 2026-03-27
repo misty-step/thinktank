@@ -33,4 +33,22 @@ defmodule Thinktank.AgentSpecTest do
 
     assert spec.tools == ["read", "grep"]
   end
+
+  test "rejects malformed numeric agent fields" do
+    assert {:error, "agent retries must be a non-negative integer"} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are a reviewer.",
+               "retries" => "once"
+             })
+
+    assert {:error, "agent timeout_ms must be a non-negative integer"} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are a reviewer.",
+               "timeout_ms" => "soon"
+             })
+  end
 end

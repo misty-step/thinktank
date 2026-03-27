@@ -24,15 +24,17 @@ defmodule Thinktank.StageSpec do
   def from_map(%{} = raw) do
     with {:ok, type} <- parse_type(raw["type"]),
          {:ok, kind} <- parse_kind(type, raw["kind"]),
-         {:ok, when_value} <- parse_when(Map.get(raw, "when", true)) do
+         {:ok, when_value} <- parse_when(Map.get(raw, "when", true)),
+         {:ok, retry} <- parse_non_neg_int("retry", raw["retry"], 0),
+         {:ok, concurrency} <- parse_pos_int_or_nil("concurrency", raw["concurrency"]) do
       {:ok,
        %__MODULE__{
          name: stage_name(raw, kind),
          type: type,
          kind: kind,
          when: when_value,
-         retry: non_neg_int(raw["retry"], 0),
-         concurrency: pos_int_or_nil(raw["concurrency"]),
+         retry: retry,
+         concurrency: concurrency,
          options: Map.drop(raw, ["name", "type", "kind", "when", "retry", "concurrency"])
        }}
     end
@@ -79,25 +81,31 @@ defmodule Thinktank.StageSpec do
   defp parse_when(_),
     do: {:error, "stage when must be true, false, null, or a context path string"}
 
-  defp non_neg_int(value, _default) when is_integer(value) and value >= 0, do: value
+  defp parse_non_neg_int(_field, nil, default), do: {:ok, default}
 
-  defp non_neg_int(value, default) when is_binary(value) do
+  defp parse_non_neg_int(_field, value, _default) when is_integer(value) and value >= 0,
+    do: {:ok, value}
+
+  defp parse_non_neg_int(field, value, _default) when is_binary(value) do
     case Integer.parse(value) do
-      {parsed, ""} when parsed >= 0 -> parsed
-      _ -> default
+      {parsed, ""} when parsed >= 0 -> {:ok, parsed}
+      _ -> {:error, "stage #{field} must be a non-negative integer"}
     end
   end
 
-  defp non_neg_int(_, default), do: default
+  defp parse_non_neg_int(field, _value, _default),
+    do: {:error, "stage #{field} must be a non-negative integer"}
 
-  defp pos_int_or_nil(value) when is_integer(value) and value > 0, do: value
+  defp parse_pos_int_or_nil(_field, nil), do: {:ok, nil}
+  defp parse_pos_int_or_nil(_field, value) when is_integer(value) and value > 0, do: {:ok, value}
 
-  defp pos_int_or_nil(value) when is_binary(value) do
+  defp parse_pos_int_or_nil(field, value) when is_binary(value) do
     case Integer.parse(value) do
-      {parsed, ""} when parsed > 0 -> parsed
-      _ -> nil
+      {parsed, ""} when parsed > 0 -> {:ok, parsed}
+      _ -> {:error, "stage #{field} must be a positive integer"}
     end
   end
 
-  defp pos_int_or_nil(_), do: nil
+  defp parse_pos_int_or_nil(field, _value),
+    do: {:error, "stage #{field} must be a positive integer"}
 end

@@ -182,6 +182,9 @@ defmodule Thinktank.Config do
   end
 
   defp trust_repo_config? do
-    System.get_env("THINKTANK_TRUST_REPO_CONFIG") in ["1", "true", "TRUE", "yes", "YES"]
+    case System.get_env("THINKTANK_TRUST_REPO_CONFIG") do
+      nil -> true
+      value -> value in ["1", "true", "TRUE", "yes", "YES"]
+    end
   end
 end

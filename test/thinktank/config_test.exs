@@ -77,7 +77,7 @@ defmodule Thinktank.ConfigTest do
       assert Map.has_key?(config.workflows, "demo/static")
     end
 
-    test "repo config does not override agents or workflows unless explicitly trusted" do
+    test "repo config can be disabled explicitly" do
       tmp = unique_tmp_dir("thinktank-untrusted-repo-config")
       repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
       File.mkdir_p!(Path.dirname(repo_cfg))
@@ -111,7 +111,7 @@ defmodule Thinktank.ConfigTest do
         """
       )
 
-      assert {:ok, config} = Config.load(cwd: tmp)
+      assert {:ok, config} = Config.load(cwd: tmp, trust_repo_config: false)
       assert config.agents["trace"].model != "repo/model"
       refute Map.has_key?(config.workflows, "demo/static")
       assert config.providers["openrouter"].credential_env == "THINKTANK_OPENROUTER_API_KEY"

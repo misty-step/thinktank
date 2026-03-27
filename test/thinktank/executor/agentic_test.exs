@@ -377,6 +377,62 @@ defmodule Thinktank.Executor.AgenticTest do
     assert result.error == %{category: :crash, exit_code: 17}
   end
 
+  test "retries transient subprocess failures when agent retries are configured" do
+    tmp = unique_tmp_dir("thinktank-agentic-retries")
+    attempts = :ets.new(:agentic_retries, [:public, :set])
+    :ets.insert(attempts, {:count, 0})
+
+    agent = %AgentSpec{
+      name: "trace",
+      provider: "openrouter",
+      model: "openai/gpt-5.4",
+      system_prompt: "You are a reviewer.",
+      prompt: "{{input_text}}",
+      tool_profile: "review",
+      retries: 1,
+      timeout_ms: 5_000
+    }
+
+    contract = %RunContract{
+      workflow_id: "review/cerberus",
+      workspace_root: tmp,
+      input: %{input_text: "Review this"},
+      artifact_dir: Path.join(tmp, "out"),
+      adapter_context: %{},
+      mode: :deep
+    }
+
+    config = %Config{
+      providers: %{
+        "openrouter" => %ProviderSpec{
+          id: "openrouter",
+          adapter: :openrouter,
+          credential_env: "THINKTANK_OPENROUTER_API_KEY",
+          defaults: %{}
+        }
+      },
+      agents: %{},
+      workflows: %{},
+      sources: %{}
+    }
+
+    runner = fn _cmd, _args, _opts ->
+      attempt = :ets.update_counter(attempts, :count, {2, 1})
+
+      if attempt == 1 do
+        {"boom", 17}
+      else
+        {"ok after retry", 0}
+      end
+    end
+
+    [result] = Agentic.run([agent], contract, %{}, config, runner: runner)
+
+    assert result.status == :ok
+    assert result.output == "ok after retry"
+    assert :ets.lookup_element(attempts, :count, 2) == 2
+  end
+
   test "honors fanout concurrency" do
     tmp = unique_tmp_dir("thinktank-agentic-concurrency")
     test_pid = self()
