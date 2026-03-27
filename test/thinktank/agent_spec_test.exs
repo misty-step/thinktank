@@ -51,4 +51,13 @@ defmodule Thinktank.AgentSpecTest do
                "timeout_ms" => "soon"
              })
   end
+
+  test "rejects model strings containing whitespace" do
+    assert {:error, "agent model must not contain whitespace"} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt 5.4",
+               "system_prompt" => "You are a reviewer."
+             })
+  end
 end

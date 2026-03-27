@@ -36,6 +36,7 @@ defmodule Thinktank.AgentSpec do
   def from_pair(name, %{} = raw) when is_binary(name) do
     with {:ok, provider} <- require_string(raw, "provider"),
          {:ok, model} <- require_string(raw, "model"),
+         :ok <- validate_model(model),
          {:ok, system_prompt} <- require_string(raw, "system_prompt"),
          {:ok, retries} <- parse_non_neg_int("retries", raw["retries"], 0),
          {:ok, timeout_ms} <-
@@ -68,6 +69,14 @@ defmodule Thinktank.AgentSpec do
 
   defp string_or_default(value, _default) when is_binary(value) and value != "", do: value
   defp string_or_default(_, default), do: default
+
+  defp validate_model(model) do
+    if String.match?(model, ~r/\s/) do
+      {:error, "agent model must not contain whitespace"}
+    else
+      :ok
+    end
+  end
 
   defp parse_non_neg_int(_field, nil, default), do: {:ok, default}
 

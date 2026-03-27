@@ -21,9 +21,16 @@ defmodule Thinktank.Engine do
           context: map()
         }
 
-  @spec run(String.t(), map(), keyword()) ::
-          {:ok, run_result()} | {:error, term(), String.t() | nil}
-  def run(workflow_id, input, opts \\ []) do
+  @type resolved_run :: %{
+          contract: RunContract.t(),
+          workflow: WorkflowSpec.t(),
+          config: Config.t(),
+          output_dir: String.t()
+        }
+
+  @spec resolve(String.t(), map(), keyword()) ::
+          {:ok, resolved_run()} | {:error, term(), String.t() | nil}
+  def resolve(workflow_id, input, opts \\ []) do
     cwd = Keyword.get(opts, :cwd, File.cwd!())
 
     config_opts =
@@ -44,6 +51,18 @@ defmodule Thinktank.Engine do
         mode: mode
       }
 
+      {:ok, %{config: config, workflow: workflow, contract: contract, output_dir: output_dir}}
+    else
+      {:error, reason} -> {:error, reason, nil}
+      reason -> {:error, reason, nil}
+    end
+  end
+
+  @spec run(String.t(), map(), keyword()) ::
+          {:ok, run_result()} | {:error, term(), String.t() | nil}
+  def run(workflow_id, input, opts \\ []) do
+    with {:ok, %{config: config, workflow: workflow, contract: contract, output_dir: output_dir}} <-
+           resolve(workflow_id, input, opts) do
       RunStore.init_run(output_dir, contract, workflow)
 
       case execute_stages(workflow.stages, %{}, contract, config, 0, opts) do
@@ -68,8 +87,7 @@ defmodule Thinktank.Engine do
           {:error, reason, output_dir}
       end
     else
-      {:error, reason} -> {:error, reason, nil}
-      reason -> {:error, reason, nil}
+      {:error, reason, output_dir} -> {:error, reason, output_dir}
     end
   end
 

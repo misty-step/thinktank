@@ -4,7 +4,7 @@ ThinkTank loads typed YAML configuration from:
 
 1. built-in defaults
 2. `~/.config/thinktank/config.yml`
-3. `.thinktank/config.yml` in the current repository
+3. `.thinktank/config.yml` in the current repository when `--trust-repo-config` or `THINKTANK_TRUST_REPO_CONFIG=1` is set
 
 CLI flags override run-time inputs such as workflow input text, paths, mode, and review refs.
 

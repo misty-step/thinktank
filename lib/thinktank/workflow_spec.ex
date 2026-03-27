@@ -96,6 +96,10 @@ defmodule Thinktank.WorkflowSpec do
       missing != [] ->
         {:error, "workflow stages must include #{Enum.join(@required_stage_order, ", ")}"}
 
+      duplicate_stateful_types(types) != [] ->
+        {:error,
+         "workflow stages may not repeat #{duplicate_stateful_types(types) |> Enum.join(", ")}"}
+
       monotonic_stage_types?(types) ->
         :ok
 
@@ -108,5 +112,11 @@ defmodule Thinktank.WorkflowSpec do
   defp monotonic_stage_types?(types) do
     ranks = Enum.map(types, &Map.fetch!(@stage_rank, &1))
     ranks == Enum.sort(ranks)
+  end
+
+  defp duplicate_stateful_types(types) do
+    [:prepare, :route, :fanout, :aggregate]
+    |> Enum.filter(fn type -> Enum.count(types, &(&1 == type)) > 1 end)
+    |> Enum.map(&Atom.to_string/1)
   end
 end

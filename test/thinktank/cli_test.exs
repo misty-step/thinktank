@@ -122,14 +122,27 @@ defmodule Thinktank.CLITest do
       assert command.dry_run == true
       assert command.output == Path.expand("./tmp")
     end
+
+    test "parses trust_repo_config flag" do
+      assert {:ok, command} =
+               CLI.parse_args(["research", "test", "--trust-repo-config"])
+
+      assert command.trust_repo_config == true
+    end
   end
 
-  describe "dry_run_output/1" do
+  describe "dry_run_output/2" do
     test "renders workflow-oriented JSON" do
       {:ok, command} =
         CLI.parse_args(["research", "test prompt", "--dry-run", "--json", "--paths", "./lib"])
 
-      decoded = CLI.dry_run_output(command) |> Jason.decode!()
+      {:ok, resolved} =
+        Thinktank.Engine.resolve(command.workflow_id, command.input,
+          cwd: command.cwd,
+          trust_repo_config: command.trust_repo_config
+        )
+
+      decoded = CLI.dry_run_output(command, resolved) |> Jason.decode!()
 
       assert decoded["action"] == "run"
       assert decoded["workflow"] == "research/default"
@@ -180,10 +193,41 @@ defmodule Thinktank.CLITest do
       assert decoded["input"]["input_text"] == "test"
     end
 
+    test "dry run validates workflow resolution" do
+      stderr =
+        capture_io(:stderr, fn ->
+          assert CLI.execute(
+                   {:ok,
+                    %{
+                      action: :run,
+                      workflow_id: "unknown/workflow",
+                      mode: nil,
+                      json: false,
+                      output: nil,
+                      dry_run: true,
+                      trust_repo_config: false,
+                      cwd: File.cwd!(),
+                      tier: :standard,
+                      input: %{input_text: "test"}
+                    }}
+                 ) == 7
+        end)
+
+      assert stderr =~ "unknown workflow"
+    end
+
     test "workflow commands execute against the built-in config" do
       list_output =
         capture_io(fn ->
-          assert CLI.execute({:ok, %{action: :workflows_list, cwd: File.cwd!(), json: false}}) ==
+          assert CLI.execute(
+                   {:ok,
+                    %{
+                      action: :workflows_list,
+                      cwd: File.cwd!(),
+                      json: false,
+                      trust_repo_config: false
+                    }}
+                 ) ==
                    0
         end)
 
@@ -197,7 +241,8 @@ defmodule Thinktank.CLITest do
                       action: :workflows_show,
                       workflow_id: "review/cerberus",
                       cwd: File.cwd!(),
-                      json: false
+                      json: false,
+                      trust_repo_config: false
                     }}
                  ) == 0
         end)
@@ -206,7 +251,15 @@ defmodule Thinktank.CLITest do
 
       validate_output =
         capture_io(fn ->
-          assert CLI.execute({:ok, %{action: :workflows_validate, cwd: File.cwd!(), json: false}}) ==
+          assert CLI.execute(
+                   {:ok,
+                    %{
+                      action: :workflows_validate,
+                      cwd: File.cwd!(),
+                      json: false,
+                      trust_repo_config: false
+                    }}
+                 ) ==
                    0
         end)
 

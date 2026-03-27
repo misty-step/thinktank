@@ -35,6 +35,7 @@ defmodule Thinktank.CLI do
       tier: :string,
       dry_run: :boolean,
       no_synthesis: :boolean,
+      trust_repo_config: :boolean,
       base: :string,
       head: :string,
       repo: :string,
@@ -85,7 +86,8 @@ defmodule Thinktank.CLI do
   end
 
   def execute({:ok, %{action: :workflows_list} = command}) do
-    with {:ok, config} <- Config.load(cwd: command.cwd) do
+    with {:ok, config} <-
+           Config.load(cwd: command.cwd, trust_repo_config: command.trust_repo_config) do
       Config.list_workflows(config)
       |> Enum.each(fn workflow ->
         IO.puts("#{workflow.id}\t#{workflow.description}")
@@ -100,7 +102,8 @@ defmodule Thinktank.CLI do
   end
 
   def execute({:ok, %{action: :workflows_show, workflow_id: workflow_id} = command}) do
-    with {:ok, config} <- Config.load(cwd: command.cwd),
+    with {:ok, config} <-
+           Config.load(cwd: command.cwd, trust_repo_config: command.trust_repo_config),
          {:ok, workflow} <- Config.workflow(config, workflow_id) do
       rendered =
         %{
@@ -132,7 +135,7 @@ defmodule Thinktank.CLI do
   end
 
   def execute({:ok, %{action: :workflows_validate} = command}) do
-    case Config.load(cwd: command.cwd) do
+    case Config.load(cwd: command.cwd, trust_repo_config: command.trust_repo_config) do
       {:ok, config} ->
         IO.puts("Validated #{length(Config.list_workflows(config))} workflows")
         @exit_codes.success
@@ -145,8 +148,7 @@ defmodule Thinktank.CLI do
 
   def execute({:ok, %{action: :run} = command}) do
     if command.dry_run do
-      emit(command, dry_run_output(command))
-      @exit_codes.success
+      dry_run(command)
     else
       run_workflow(command)
     end
@@ -184,14 +186,15 @@ defmodule Thinktank.CLI do
   @doc """
   Dry-run output for the workflow engine CLI.
   """
-  @spec dry_run_output(map()) :: String.t()
-  def dry_run_output(command) do
+  @spec dry_run_output(map(), map()) :: String.t()
+  def dry_run_output(command, resolved) do
     Jason.encode!(%{
       action: command.action,
-      workflow: command.workflow_id,
-      mode: command.mode,
+      workflow: resolved.workflow.id,
+      description: resolved.workflow.description,
+      mode: resolved.contract.mode,
       input: command.input,
-      output: command.output,
+      output: resolved.output_dir,
       json: command.json
     })
   end
@@ -241,7 +244,13 @@ defmodule Thinktank.CLI do
   end
 
   defp build_command(["workflows", "list"], parsed) do
-    {:ok, %{action: :workflows_list, cwd: File.cwd!(), json: parsed[:json] || false}}
+    {:ok,
+     %{
+       action: :workflows_list,
+       cwd: File.cwd!(),
+       json: parsed[:json] || false,
+       trust_repo_config: parsed[:trust_repo_config] || false
+     }}
   end
 
   defp build_command(["workflows", "show", workflow_id], parsed) do
@@ -250,12 +259,19 @@ defmodule Thinktank.CLI do
        action: :workflows_show,
        workflow_id: workflow_id,
        cwd: File.cwd!(),
-       json: parsed[:json] || false
+       json: parsed[:json] || false,
+       trust_repo_config: parsed[:trust_repo_config] || false
      }}
   end
 
   defp build_command(["workflows", "validate"], parsed) do
-    {:ok, %{action: :workflows_validate, cwd: File.cwd!(), json: parsed[:json] || false}}
+    {:ok,
+     %{
+       action: :workflows_validate,
+       cwd: File.cwd!(),
+       json: parsed[:json] || false,
+       trust_repo_config: parsed[:trust_repo_config] || false
+     }}
   end
 
   defp build_command(rest, parsed) do
@@ -300,6 +316,7 @@ defmodule Thinktank.CLI do
       json: parsed[:json] || false,
       output: if(parsed[:output], do: Path.expand(parsed[:output])),
       dry_run: parsed[:dry_run] || false,
+      trust_repo_config: parsed[:trust_repo_config] || false,
       cwd: File.cwd!(),
       tier: tier
     }
@@ -337,7 +354,8 @@ defmodule Thinktank.CLI do
         cwd: command.cwd,
         mode: command.mode,
         output: command.output,
-        agent_config_dir: agent_config_dir()
+        agent_config_dir: agent_config_dir(),
+        trust_repo_config: command.trust_repo_config
       ]
       |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 
@@ -353,6 +371,27 @@ defmodule Thinktank.CLI do
 
         IO.puts(:stderr, "Error: #{format_reason(reason)}")
         @exit_codes.generic_error
+    end
+  end
+
+  defp dry_run(command) do
+    opts =
+      [
+        cwd: command.cwd,
+        mode: command.mode,
+        output: command.output,
+        trust_repo_config: command.trust_repo_config
+      ]
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+
+    case Engine.resolve(command.workflow_id, command.input, opts) do
+      {:ok, resolved} ->
+        emit(command, dry_run_output(command, resolved))
+        @exit_codes.success
+
+      {:error, reason, _output_dir} ->
+        IO.puts(:stderr, "Error: #{format_reason(reason)}")
+        @exit_codes.input_error
     end
   end
 
@@ -496,6 +535,8 @@ defmodule Thinktank.CLI do
       --json           Emit JSON to stdout
       --output, -o     Output directory
       --dry-run        Print the workflow contract without executing
+      --trust-repo-config
+                       Trust .thinktank/config.yml in the current repository
       --base REF       Review base ref
       --head REF       Review head ref
       --repo REPO      GitHub repository for PR review mode

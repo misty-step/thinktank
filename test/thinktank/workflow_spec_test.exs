@@ -61,4 +61,18 @@ defmodule Thinktank.WorkflowSpecTest do
                ]
              })
   end
+
+  test "rejects duplicate stateful phases" do
+    assert {:error, "workflow stages may not repeat route"} =
+             WorkflowSpec.from_pair("demo/workflow", %{
+               "description" => "Broken workflow",
+               "stages" => [
+                 %{"type" => "prepare", "kind" => "research_input"},
+                 %{"type" => "route", "kind" => "static_agents"},
+                 %{"type" => "route", "kind" => "static_agents"},
+                 %{"type" => "fanout", "kind" => "agents"},
+                 %{"type" => "emit", "kind" => "artifacts"}
+               ]
+             })
+  end
 end

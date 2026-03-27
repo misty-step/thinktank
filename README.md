@@ -50,6 +50,7 @@ thinktank workflows list|show|validate
 | `--repo REPO` | GitHub repo for PR review mode |
 | `--pr N` | GitHub PR number for PR review mode |
 | `--dry-run` | Print the resolved workflow contract without executing |
+| `--trust-repo-config` | Trust `.thinktank/config.yml` in the current repository |
 
 ### Examples
 
@@ -76,7 +77,7 @@ ThinkTank loads configuration with this precedence:
 
 1. built-in defaults
 2. `~/.config/thinktank/config.yml`
-3. `.thinktank/config.yml` in the current repository
+3. `.thinktank/config.yml` in the current repository when `--trust-repo-config` or `THINKTANK_TRUST_REPO_CONFIG=1` is set
 4. CLI flags
 
 Built-in workflows:

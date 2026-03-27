@@ -26,9 +26,10 @@ defmodule Thinktank.Executor.Agentic do
       Keyword.get(opts, :concurrency, length(agents)) |> normalize_concurrency(length(agents))
 
     agents
+    |> Enum.with_index(1)
     |> Task.async_stream(
-      fn agent ->
-        run_agent(agent, contract, context, config, runner, opts)
+      fn {agent, index} ->
+        run_agent(agent, index, contract, context, config, runner, opts)
       end,
       max_concurrency: concurrency,
       timeout: timeout + 5_000,
@@ -54,7 +55,7 @@ defmodule Thinktank.Executor.Agentic do
     end)
   end
 
-  defp run_agent(agent, contract, context, config, runner, opts) do
+  defp run_agent(agent, index, contract, context, config, runner, opts) do
     rendered_prompt =
       agent.prompt
       |> Template.render(
@@ -70,9 +71,9 @@ defmodule Thinktank.Executor.Agentic do
 
     prompt = "#{agent.system_prompt}\n\n#{rendered_prompt}"
 
-    prompt_file = write_prompt_file(contract, agent, prompt)
+    prompt_file = write_prompt_file(contract, agent, index, prompt)
     {cmd, args} = build_command(agent, prompt_file, tool_list(agent))
-    cmd_opts = build_cmd_opts(agent, contract, config.providers[agent.provider], opts)
+    cmd_opts = build_cmd_opts(agent, index, contract, config.providers[agent.provider], opts)
 
     case attempt(agent.retries + 1, fn -> run_once(runner, cmd, args, cmd_opts) end) do
       {:ok, output} ->
@@ -147,8 +148,10 @@ defmodule Thinktank.Executor.Agentic do
      ]}
   end
 
-  defp build_cmd_opts(agent, contract, provider, opts) do
-    base_env = maybe_agent_config_env(build_agent_home(contract, agent, opts[:agent_config_dir]))
+  defp build_cmd_opts(agent, index, contract, provider, opts) do
+    base_env =
+      maybe_agent_config_env(build_agent_home(contract, agent, index, opts[:agent_config_dir]))
+
     provider_env = provider_env(provider)
 
     timeout = agent.timeout_ms
@@ -185,22 +188,22 @@ defmodule Thinktank.Executor.Agentic do
   defp tool_list(%AgentSpec{tool_profile: "review"}), do: ["read", "grep", "find", "ls"]
   defp tool_list(_), do: ["read", "grep", "find"]
 
-  defp write_prompt_file(contract, agent, prompt) do
+  defp write_prompt_file(contract, agent, index, prompt) do
     dir = Path.join(contract.artifact_dir, "prompts")
     File.mkdir_p!(dir)
-    path = Path.join(dir, "#{agent_slug(agent)}.md")
+    path = Path.join(dir, "#{agent_slug(agent, index)}.md")
     File.write!(path, prompt)
     path
   end
 
-  defp build_agent_home(contract, agent, nil) do
-    dir = Path.join([contract.artifact_dir, "pi-home", agent_slug(agent)])
+  defp build_agent_home(contract, agent, index, nil) do
+    dir = Path.join([contract.artifact_dir, "pi-home", agent_slug(agent, index)])
     File.mkdir_p!(dir)
     dir
   end
 
-  defp build_agent_home(contract, agent, base_dir) do
-    dir = Path.join([contract.artifact_dir, "pi-home", agent_slug(agent)])
+  defp build_agent_home(contract, agent, index, base_dir) do
+    dir = Path.join([contract.artifact_dir, "pi-home", agent_slug(agent, index)])
 
     unless File.exists?(dir) do
       validate_agent_config_dir!(base_dir)
@@ -211,13 +214,13 @@ defmodule Thinktank.Executor.Agentic do
     dir
   end
 
-  defp agent_slug(%AgentSpec{name: name}) do
+  defp agent_slug(%AgentSpec{name: name}, index) do
     suffix =
       :crypto.hash(:sha256, name)
       |> Base.encode16(case: :lower)
       |> binary_part(0, 8)
 
-    "#{safe_name(name)}-#{suffix}"
+    "#{safe_name(name)}-#{suffix}-#{index}"
   end
 
   defp safe_name(name) do
