@@ -330,6 +330,8 @@ defmodule Thinktank.StageRegistry do
       |> Enum.map(& &1.verdict)
       |> Enum.filter(&(&1.confidence >= 0.7))
 
+    invalid_review_count = Enum.count(parsed_reviews) - length(valid_reviews)
+
     fail_reviews = Enum.filter(valid_reviews, &(&1.verdict == "FAIL"))
     warn_reviews = Enum.filter(valid_reviews, &(&1.verdict == "WARN"))
 
@@ -340,7 +342,8 @@ defmodule Thinktank.StageRegistry do
 
     verdict =
       cond do
-        valid_reviews == [] -> "SKIP"
+        valid_reviews == [] and parsed_reviews == [] -> "SKIP"
+        valid_reviews == [] -> "FAIL"
         critical_fail? -> "FAIL"
         length(fail_reviews) >= 2 -> "FAIL"
         warn_reviews != [] -> "WARN"
@@ -351,7 +354,7 @@ defmodule Thinktank.StageRegistry do
     %{
       verdict: verdict,
       reviewers: Enum.count(valid_reviews),
-      failing_reviewers: length(fail_reviews),
+      failing_reviewers: length(fail_reviews) + invalid_review_count,
       warning_reviewers: length(warn_reviews)
     }
   end
@@ -455,10 +458,18 @@ defmodule Thinktank.StageRegistry do
     pr_number = input_value(contract.input, :pr)
     repo = input_value(contract.input, :repo)
 
-    if is_integer(pr_number) and is_binary(repo) and repo != "" do
-      load_pr_review_input(repo, pr_number, contract.workspace_root)
-    else
-      load_local_review_input(contract.workspace_root, contract.input)
+    case {is_integer(pr_number), is_binary(repo) and repo != ""} do
+      {true, true} ->
+        load_pr_review_input(repo, pr_number, contract.workspace_root)
+
+      {true, false} ->
+        {:error, {:pr_review_requires_repo, pr_number}}
+
+      {false, true} ->
+        {:error, {:pr_review_requires_number, repo}}
+
+      {false, false} ->
+        load_local_review_input(contract.workspace_root, contract.input)
     end
   end
 

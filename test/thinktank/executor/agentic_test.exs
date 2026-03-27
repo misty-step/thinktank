@@ -184,6 +184,53 @@ defmodule Thinktank.Executor.AgenticTest do
     assert homes |> Enum.uniq() |> length() == 2
   end
 
+  test "rejects trusted agent config trees that contain symlinks" do
+    tmp = unique_tmp_dir("thinktank-agentic-symlink")
+    base_dir = Path.join(tmp, "agent-config")
+    File.mkdir_p!(base_dir)
+    File.write!(Path.join(base_dir, "settings.json"), "{}")
+    File.ln_s!("/tmp", Path.join(base_dir, "outside"))
+
+    agent = %AgentSpec{
+      name: "trace",
+      provider: "openrouter",
+      model: "openai/gpt-5.4",
+      system_prompt: "You are a reviewer.",
+      prompt: "{{input_text}}",
+      tool_profile: "review",
+      timeout_ms: 5_000
+    }
+
+    contract = %RunContract{
+      workflow_id: "review/cerberus",
+      workspace_root: tmp,
+      input: %{input_text: "Review this"},
+      artifact_dir: Path.join(tmp, "out"),
+      adapter_context: %{},
+      mode: :deep
+    }
+
+    config = %Config{
+      providers: %{
+        "openrouter" => %ProviderSpec{
+          id: "openrouter",
+          adapter: :openrouter,
+          credential_env: "THINKTANK_OPENROUTER_API_KEY",
+          defaults: %{}
+        }
+      },
+      agents: %{},
+      workflows: %{},
+      sources: %{}
+    }
+
+    [result] = Agentic.run([agent], contract, %{}, config, agent_config_dir: base_dir)
+
+    assert result.status == :error
+    assert result.error.category == :crash
+    assert result.error.message =~ "must not contain symlinks"
+  end
+
   test "passes pi arguments without interpolating tools into shell code" do
     tmp = unique_tmp_dir("thinktank-agentic-args")
     test_pid = self()

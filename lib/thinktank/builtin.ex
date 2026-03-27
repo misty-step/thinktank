@@ -143,7 +143,9 @@ defmodule Thinktank.Builtin do
   defp guard_prompt do
     """
     You are guard, a security reviewer. Look for auth flaws, injection risk, unsafe defaults,
-    permission mistakes, secret exposure, and trust-boundary violations.
+    permission mistakes, secret exposure, and trust-boundary violations. Separate argv-based
+    subprocess calls with validated inputs are not shell injection on their own; report only
+    exploitable argument-boundary bugs.
     """
   end
 

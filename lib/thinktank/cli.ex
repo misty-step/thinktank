@@ -200,18 +200,15 @@ defmodule Thinktank.CLI do
     if workflow_id == "review/cerberus" and parsed[:quick] do
       {:error, "review/cerberus is agentic-only; remove --quick"}
     else
-      case parse_tier(parsed[:tier]) do
-        {:ok, tier} ->
-          input_text = resolve_input_text(parsed[:input], remainder)
+      with :ok <- validate_review_pr_flags(workflow_id, parsed),
+           {:ok, tier} <- parse_tier(parsed[:tier]) do
+        input_text = resolve_input_text(parsed[:input], remainder)
 
-          if input_text == nil do
-            {:needs_stdin, build_run_command(workflow_id, parsed, nil, tier)}
-          else
-            {:ok, build_run_command(workflow_id, parsed, input_text, tier)}
-          end
-
-        {:error, _} = error ->
-          error
+        if input_text == nil do
+          {:needs_stdin, build_run_command(workflow_id, parsed, nil, tier)}
+        else
+          {:ok, build_run_command(workflow_id, parsed, input_text, tier)}
+        end
       end
     end
   end
@@ -220,12 +217,9 @@ defmodule Thinktank.CLI do
     if parsed[:quick] do
       {:error, "thinktank review is agentic-only; remove --quick"}
     else
-      case parse_tier(parsed[:tier]) do
-        {:ok, tier} ->
-          {:ok, build_review_command(parsed, resolve_input_text(parsed[:input], remainder), tier)}
-
-        {:error, _} = error ->
-          error
+      with :ok <- validate_review_pr_flags("review/cerberus", parsed),
+           {:ok, tier} <- parse_tier(parsed[:tier]) do
+        {:ok, build_review_command(parsed, resolve_input_text(parsed[:input], remainder), tier)}
       end
     end
   end
@@ -431,6 +425,12 @@ defmodule Thinktank.CLI do
     do:
       "remote PR review for #{repo} requires the local workspace to be checked out at #{head_ref} (#{head_sha})"
 
+  defp format_reason({:pr_review_requires_repo, pr_number}),
+    do: "PR review #{pr_number} requires a --repo value"
+
+  defp format_reason({:pr_review_requires_number, repo}),
+    do: "PR review for #{repo} requires a --pr value"
+
   defp format_reason(reason), do: inspect(reason)
 
   defp mode_for(parsed) do
@@ -518,6 +518,19 @@ defmodule Thinktank.CLI do
 
   defp parse_tier(other),
     do: {:error, "invalid tier: #{other} (must be cheap, standard, or premium)"}
+
+  defp validate_review_pr_flags(workflow_id, parsed) do
+    case {parsed[:pr], parsed[:repo]} do
+      {nil, _} ->
+        :ok
+
+      {_pr, repo} when is_binary(repo) and repo != "" ->
+        :ok
+
+      {_pr, _repo} ->
+        {:error, "#{workflow_id} requires --repo when --pr is provided"}
+    end
+  end
 
   defp parse_csv(nil), do: []
   defp parse_csv(""), do: []

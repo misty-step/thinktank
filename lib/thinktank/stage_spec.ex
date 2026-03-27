@@ -23,13 +23,14 @@ defmodule Thinktank.StageSpec do
   @spec from_map(map()) :: {:ok, t()} | {:error, String.t()}
   def from_map(%{} = raw) do
     with {:ok, type} <- parse_type(raw["type"]),
-         {:ok, kind} <- parse_kind(type, raw["kind"]) do
+         {:ok, kind} <- parse_kind(type, raw["kind"]),
+         {:ok, when_value} <- parse_when(Map.get(raw, "when", true)) do
       {:ok,
        %__MODULE__{
          name: stage_name(raw, kind),
          type: type,
          kind: kind,
-         when: Map.get(raw, "when", true),
+         when: when_value,
          retry: non_neg_int(raw["retry"], 0),
          concurrency: pos_int_or_nil(raw["concurrency"]),
          options: Map.drop(raw, ["name", "type", "kind", "when", "retry", "concurrency"])
@@ -71,6 +72,12 @@ defmodule Thinktank.StageSpec do
   end
 
   defp supported_kinds(type), do: StageRegistry.supported_kinds(type)
+
+  defp parse_when(value) when is_boolean(value) or is_nil(value), do: {:ok, value}
+  defp parse_when(value) when is_binary(value) and value != "", do: {:ok, value}
+
+  defp parse_when(_),
+    do: {:error, "stage when must be true, false, null, or a context path string"}
 
   defp non_neg_int(value, _default) when is_integer(value) and value >= 0, do: value
 

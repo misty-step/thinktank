@@ -227,32 +227,45 @@ defmodule Thinktank.Review.Verdict do
   end
 
   defp parse_markdown_findings(text) do
-    rows =
-      text
-      |> String.split("\n")
-      |> Enum.filter(&String.starts_with?(&1, "|"))
-      |> Enum.reject(&(String.contains?(&1, "---") or String.contains?(&1, "Severity")))
+    text
+    |> String.split("\n")
+    |> Enum.filter(&String.starts_with?(&1, "|"))
+    |> Enum.reject(&(String.contains?(&1, "---") or String.contains?(&1, "Severity")))
+    |> Enum.reduce_while({:ok, []}, fn row, {:ok, acc} ->
+      case parse_markdown_row(row) do
+        {:ok, finding} -> {:cont, {:ok, [finding | acc]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, findings} -> {:ok, Enum.reverse(findings)}
+      error -> error
+    end
+  end
 
-    {:ok,
-     Enum.map(rows, fn row ->
-       [_empty | cells] =
-         row
-         |> String.trim()
-         |> String.split("|")
-         |> Enum.map(&String.trim/1)
+  defp parse_markdown_row(row) do
+    cells =
+      row
+      |> String.trim()
+      |> String.split("|")
+      |> Enum.map(&String.trim/1)
 
-       [severity, category, title, description, suggestion, file, line | _rest] = cells
+    case cells do
+      [_empty, severity, category, title, description, suggestion, file, line | _rest] ->
+        {:ok,
+         %{
+           "severity" => severity,
+           "category" => category,
+           "title" => title,
+           "description" => description,
+           "suggestion" => suggestion,
+           "file" => strip_ticks(file),
+           "line" => parse_first_integer(line)
+         }}
 
-       %{
-         "severity" => severity,
-         "category" => category,
-         "title" => title,
-         "description" => description,
-         "suggestion" => suggestion,
-         "file" => strip_ticks(file),
-         "line" => parse_first_integer(line)
-       }
-     end)}
+      _ ->
+        {:error, {:invalid_markdown_finding_row, row}}
+    end
   end
 
   defp parse_markdown_stats(text, findings) do

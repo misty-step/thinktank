@@ -127,4 +127,16 @@ defmodule Thinktank.ReviewWorkflowTest do
                mode: :quick
              )
   end
+
+  test "review workflow rejects incomplete PR review inputs" do
+    tmp = unique_tmp_dir("thinktank-review-pr")
+
+    assert {:error, {:stage_failed, "prepare", {:pr_review_requires_repo, 42}}, _output_dir} =
+             Engine.run(
+               "review/cerberus",
+               %{pr: 42},
+               cwd: tmp,
+               mode: :deep
+             )
+  end
 end

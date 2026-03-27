@@ -114,4 +114,20 @@ defmodule Thinktank.Review.VerdictTest do
                }
              })
   end
+
+  test "returns an error for malformed markdown finding rows instead of crashing" do
+    text = """
+    **Reviewer:** proof
+    **Perspective:** testing
+    **Verdict:** WARN
+    **Confidence:** 0.9
+    **Summary:** Coverage gaps remain.
+
+    | Severity | Category | Title |
+    |----------|----------|-------|
+    | major | testing |
+    """
+
+    assert {:error, {:invalid_markdown_finding_row, _row}} = Verdict.parse(text)
+  end
 end

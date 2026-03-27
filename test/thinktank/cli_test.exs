@@ -69,6 +69,14 @@ defmodule Thinktank.CLITest do
                CLI.parse_args(["run", "review/cerberus", "--quick"])
     end
 
+    test "requires --repo when --pr is provided for review workflows" do
+      assert {:error, "review/cerberus requires --repo when --pr is provided"} =
+               CLI.parse_args(["review", "--pr", "42"])
+
+      assert {:error, "review/cerberus requires --repo when --pr is provided"} =
+               CLI.parse_args(["run", "review/cerberus", "--pr", "42", "--input", "review"])
+    end
+
     test "parses workflow management commands" do
       assert {:ok, %{action: :workflows_list}} = CLI.parse_args(["workflows", "list"])
       assert {:ok, %{action: :workflows_validate}} = CLI.parse_args(["workflows", "validate"])

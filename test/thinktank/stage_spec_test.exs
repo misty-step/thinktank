@@ -39,4 +39,13 @@ defmodule Thinktank.StageSpecTest do
     assert stage.concurrency == 3
     assert stage.when == "agent_results"
   end
+
+  test "rejects unsupported when values" do
+    assert {:error, "stage when must be true, false, null, or a context path string"} =
+             StageSpec.from_map(%{
+               "type" => "fanout",
+               "kind" => "agents",
+               "when" => 1
+             })
+  end
 end

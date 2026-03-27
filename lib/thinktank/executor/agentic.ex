@@ -175,6 +175,7 @@ defmodule Thinktank.Executor.Agentic do
     dir = Path.join([contract.artifact_dir, "pi-home", agent_slug(agent)])
 
     unless File.exists?(dir) do
+      validate_agent_config_dir!(base_dir)
       File.mkdir_p!(Path.dirname(dir))
       File.cp_r!(base_dir, dir)
     end
@@ -196,6 +197,21 @@ defmodule Thinktank.Executor.Agentic do
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9]+/, "-")
     |> String.trim("-")
+  end
+
+  defp validate_agent_config_dir!(base_dir) do
+    base_dir
+    |> Path.join("**")
+    |> Path.wildcard(match_dot: true)
+    |> Enum.each(fn path ->
+      case File.lstat(path) do
+        {:ok, %File.Stat{type: :symlink}} ->
+          raise ArgumentError, "agent_config must not contain symlinks: #{path}"
+
+        _ ->
+          :ok
+      end
+    end)
   end
 
   defp normalize_concurrency(value, agent_count) when is_integer(value) and value > 0 do
