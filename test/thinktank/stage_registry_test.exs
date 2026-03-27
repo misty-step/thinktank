@@ -4,7 +4,7 @@ defmodule Thinktank.StageRegistryTest do
   alias Thinktank.StageRegistry
 
   test "aggregates critical and low-confidence reviewer verdicts correctly" do
-    assert StageRegistry.aggregate_review_verdict([]).verdict == "SKIP"
+    assert StageRegistry.aggregate_review_verdict([]).verdict == "FAIL"
 
     assert StageRegistry.aggregate_review_verdict([
              %{
@@ -20,7 +20,7 @@ defmodule Thinktank.StageRegistryTest do
                verdict: %{verdict: "FAIL", confidence: 0.4, findings: [%{severity: "critical"}]}
              },
              %{status: :ok, verdict: %{verdict: "PASS", confidence: 0.95, findings: []}}
-           ]).verdict == "WARN"
+           ]).verdict == "FAIL"
 
     assert StageRegistry.aggregate_review_verdict([
              %{status: :ok, verdict: %{verdict: "WARN", confidence: 0.9, findings: []}}
@@ -38,6 +38,7 @@ defmodule Thinktank.StageRegistryTest do
     assert verdict.verdict == "WARN"
     assert verdict.reviewers == 1
     assert verdict.failing_reviewers == 0
+    assert verdict.invalid_reviewers == 0
     assert verdict.warning_reviewers == 0
     assert verdict.low_confidence_reviewers == 2
     assert verdict.reason == "low_confidence_excluded"
@@ -52,7 +53,8 @@ defmodule Thinktank.StageRegistryTest do
 
     assert verdict.verdict == "FAIL"
     assert verdict.reviewers == 0
-    assert verdict.failing_reviewers == 2
+    assert verdict.failing_reviewers == 1
+    assert verdict.invalid_reviewers == 1
     assert verdict.reason == "no_valid_reviews"
   end
 

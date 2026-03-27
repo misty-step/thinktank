@@ -26,8 +26,6 @@ defmodule Thinktank.Config do
 
     with {:ok, user_raw} <- load_yaml_if_present(user_path),
          {:ok, repo_raw} <- load_repo_yaml(repo_path, trust_repo_config) do
-      repo_raw = sanitize_repo_config(repo_raw, trust_repo_config)
-
       raw =
         Builtin.raw_config()
         |> deep_merge(user_raw)
@@ -215,15 +213,6 @@ defmodule Thinktank.Config do
     Map.merge(left, right, fn _key, lval, rval ->
       if is_map(lval) and is_map(rval), do: deep_merge(lval, rval), else: rval
     end)
-  end
-
-  defp sanitize_repo_config(raw, true), do: raw
-
-  defp sanitize_repo_config(raw, false) do
-    raw
-    |> Map.delete("providers")
-    |> Map.delete("agents")
-    |> Map.delete("workflows")
   end
 
   defp trust_repo_config? do

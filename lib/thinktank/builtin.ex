@@ -117,6 +117,7 @@ defmodule Thinktank.Builtin do
       "system_prompt" => system_prompt,
       "prompt" => review_prompt_template(),
       "tool_profile" => "review",
+      "output_format" => "structured_verdict",
       "thinking_level" => Keyword.get(opts, :thinking_level, "medium"),
       "retries" => Keyword.get(opts, :retries, 0),
       "timeout_ms" => Keyword.get(opts, :timeout_ms, :timer.minutes(6)),

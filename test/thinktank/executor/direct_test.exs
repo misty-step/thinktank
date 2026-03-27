@@ -25,7 +25,7 @@ defmodule Thinktank.Executor.DirectTest do
     }
   end
 
-  test "retries retryable failures and uses structured review for cerberus" do
+  test "retries retryable failures and uses structured review for review agents" do
     test_pid = self()
     {:ok, attempts} = Agent.start_link(fn -> 0 end)
 
@@ -77,6 +77,7 @@ defmodule Thinktank.Executor.DirectTest do
       system_prompt: "You are a reviewer.",
       prompt: "{{input_text}}",
       tool_profile: "review",
+      output_format: "structured_verdict",
       retries: 1,
       timeout_ms: 5_000
     }

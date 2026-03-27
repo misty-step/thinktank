@@ -11,6 +11,7 @@ defmodule Thinktank.AgentSpec do
     :system_prompt,
     prompt: "{{input_text}}",
     tool_profile: "default",
+    output_format: "text",
     thinking_level: "medium",
     retries: 0,
     timeout_ms: :timer.minutes(5),
@@ -25,6 +26,7 @@ defmodule Thinktank.AgentSpec do
           system_prompt: String.t(),
           prompt: String.t(),
           tool_profile: String.t(),
+          output_format: String.t(),
           thinking_level: String.t(),
           retries: non_neg_integer(),
           timeout_ms: non_neg_integer(),
@@ -38,6 +40,7 @@ defmodule Thinktank.AgentSpec do
          {:ok, model} <- require_string(raw, "model"),
          :ok <- validate_model(model),
          {:ok, system_prompt} <- require_string(raw, "system_prompt"),
+         {:ok, output_format} <- parse_output_format(raw["output_format"]),
          {:ok, retries} <- parse_non_neg_int("retries", raw["retries"], 0),
          {:ok, timeout_ms} <-
            parse_non_neg_int("timeout_ms", raw["timeout_ms"] || raw["timeout"], :timer.minutes(5)) do
@@ -49,6 +52,7 @@ defmodule Thinktank.AgentSpec do
          system_prompt: system_prompt,
          prompt: string_or_default(raw["prompt"], "{{input_text}}"),
          tool_profile: string_or_default(raw["tool_profile"], "default"),
+         output_format: output_format,
          thinking_level: string_or_default(raw["thinking_level"], "medium"),
          retries: retries,
          timeout_ms: timeout_ms,
@@ -100,4 +104,11 @@ defmodule Thinktank.AgentSpec do
     do: tools |> String.split(",") |> Enum.map(&String.trim/1)
 
   defp parse_tools(_), do: nil
+
+  defp parse_output_format(nil), do: {:ok, "text"}
+  defp parse_output_format("text"), do: {:ok, "text"}
+  defp parse_output_format("structured_verdict"), do: {:ok, "structured_verdict"}
+
+  defp parse_output_format(_),
+    do: {:error, "agent output_format must be text or structured_verdict"}
 end

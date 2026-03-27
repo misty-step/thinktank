@@ -17,6 +17,18 @@ defmodule Thinktank.AgentSpecTest do
     assert spec.timeout_ms == 12_000
   end
 
+  test "parses explicit output format" do
+    assert {:ok, spec} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are a reviewer.",
+               "output_format" => "structured_verdict"
+             })
+
+    assert spec.output_format == "structured_verdict"
+  end
+
   test "requires core fields" do
     assert {:error, "agent provider is required"} =
              AgentSpec.from_pair("trace", %{"model" => "x", "system_prompt" => "y"})
@@ -58,6 +70,16 @@ defmodule Thinktank.AgentSpecTest do
                "provider" => "openrouter",
                "model" => "openai/gpt 5.4",
                "system_prompt" => "You are a reviewer."
+             })
+  end
+
+  test "rejects unknown output formats" do
+    assert {:error, "agent output_format must be text or structured_verdict"} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are a reviewer.",
+               "output_format" => "xml"
              })
   end
 end

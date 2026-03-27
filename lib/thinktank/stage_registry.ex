@@ -334,20 +334,21 @@ defmodule Thinktank.StageRegistry do
     {valid_reviews, low_confidence_reviews} =
       Enum.split_with(parseable_reviews, &(&1.confidence >= 0.7))
 
-    invalid_review_count = Enum.count(parsed_reviews, &(&1.status != :ok))
+    runtime_error_count = Enum.count(parsed_reviews, &(&1.status == :runtime_error))
+    parse_error_count = Enum.count(parsed_reviews, &(&1.status == :parse_error))
 
     fail_reviews = Enum.filter(valid_reviews, &(&1.verdict == "FAIL"))
     warn_reviews = Enum.filter(valid_reviews, &(&1.verdict == "WARN"))
     low_confidence_alert? = Enum.any?(low_confidence_reviews, &(&1.verdict in ["WARN", "FAIL"]))
 
     critical_fail? =
-      Enum.any?(fail_reviews, fn review ->
+      Enum.any?(parseable_reviews, fn review ->
         Enum.any?(review.findings, &(&1.severity == "critical"))
       end)
 
     verdict =
       cond do
-        valid_reviews == [] and parsed_reviews == [] -> "SKIP"
+        parsed_reviews == [] -> "FAIL"
         valid_reviews == [] and parseable_reviews != [] -> "WARN"
         valid_reviews == [] -> "FAIL"
         critical_fail? -> "FAIL"
@@ -370,7 +371,8 @@ defmodule Thinktank.StageRegistry do
     %{
       verdict: verdict,
       reviewers: Enum.count(valid_reviews),
-      failing_reviewers: length(fail_reviews) + invalid_review_count,
+      failing_reviewers: length(fail_reviews) + runtime_error_count,
+      invalid_reviewers: parse_error_count,
       warning_reviewers: length(warn_reviews),
       low_confidence_reviewers: length(low_confidence_reviews),
       reason: reason
@@ -630,12 +632,14 @@ defmodule Thinktank.StageRegistry do
   end
 
   defp build_changed_paths_block(paths) do
+    truncated? = length(paths) > 200
+
     paths
     |> Enum.take(200)
     |> Enum.map_join("\n", &"* #{&1}")
     |> case do
       "" -> "(none)"
-      block when length(paths) > 200 -> block <> "\n* ... [truncated]"
+      block when truncated? -> block <> "\n* ... [truncated]"
       block -> block
     end
   end

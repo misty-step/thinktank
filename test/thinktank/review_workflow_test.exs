@@ -358,6 +358,7 @@ defmodule Thinktank.ReviewWorkflowTest do
 
     assert result.context.final_verdict.verdict == "PASS"
     assert Enum.any?(result.context.parsed_reviews, &(&1.status == :parse_error))
+    assert result.context.final_verdict.invalid_reviewers == 1
   end
 
   test "review workflow handles empty diffs without forcing code-review routes" do
