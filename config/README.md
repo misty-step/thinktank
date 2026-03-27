@@ -1,53 +1,72 @@
-# thinktank Configuration Files
+# thinktank Configuration
 
-This directory contains documentation for thinktank configuration.
+ThinkTank loads typed YAML configuration from:
 
-## Model Configuration
+1. built-in defaults
+2. `~/.config/thinktank/config.yml`
+3. `.thinktank/config.yml` in the current repository
 
-As of the latest version, thinktank uses hardcoded model definitions in the `internal/models` package. Models are no longer configured via external YAML files, simplifying deployment and ensuring consistency.
+CLI flags override run-time inputs such as workflow input text, paths, mode, and review refs.
 
-## Supported Models
+## Top-Level Shape
 
-The following models are built into thinktank:
+```yaml
+providers:
+  openrouter:
+    adapter: openrouter
+    credential_env: THINKTANK_OPENROUTER_API_KEY
+    defaults:
+      fallback_env: OPENROUTER_API_KEY
 
-### OpenAI Models
-- `gpt-5.2` - Latest GPT-4 model with 1M token context window
-- `o3` - Optimized OpenAI model with reasoning capabilities
+agents:
+  architecture-reviewer:
+    provider: openrouter
+    model: openai/gpt-5.4
+    system_prompt: You are an architecture reviewer.
+    prompt: "Review this change: {{input_text}}"
+    tool_profile: review
+    thinking_level: high
+    retries: 1
+    timeout_ms: 900000
 
-### Gemini Models
-- `gemini-3-flash` - Google's advanced model with 1M token context
-- `gemini-3-flash` - Faster Gemini variant with 1M token context
-
-### OpenRouter Models
-- `openrouter/deepseek/deepseek-chat-v3-0324` - DeepSeek chat model
-- `openrouter/deepseek/deepseek-r1` - DeepSeek reasoning model
-- `openrouter/x-ai/grok-3-beta` - xAI's Grok model
-
-## Setup
-
-No configuration files need to be installed. Simply set the required API keys as environment variables:
-
-```bash
-export OPENROUTER_API_KEY="your-openrouter-api-key"  # All models now use OpenRouter
+workflows:
+  code-review:
+    description: Review the current branch against the base branch.
+    default_mode: deep
+    input_schema:
+      required:
+        - input_text
+    stages:
+      - name: prepare
+        type: prepare
+        kind: review_diff
+      - name: route
+        type: route
+        kind: static_agents
+        agents:
+          - architecture-reviewer
+      - name: fanout
+        type: fanout
+        kind: agents
+      - name: emit
+        type: emit
+        kind: artifacts
 ```
 
-## Adding New Models
+## Typed Specs
 
-To add new models, modify the `modelDefinitions` map in `internal/models/models.go` and submit a pull request.
+- `ProviderSpec`: provider id, adapter kind, credential env var, defaults
+- `AgentSpec`: name, provider, model, system prompt, prompt template, tool profile, thinking level, retries, timeout
+- `WorkflowSpec`: id, description, input schema, default mode, ordered stage list
+- `StageSpec`: `prepare`, `route`, `fanout`, `aggregate`, or `emit`, plus `kind`, `when`, retry, and concurrency
 
-## Usage
+## Built-In Workflows
 
-Use thinktank by specifying a model with the `--model` flag:
+- `research/default`
+- `review/cerberus`
 
-```bash
-# Using OpenAI models
-thinktank --model gpt-5.2 --instructions task.md src/
+## Current Provider Support
 
-# Using Gemini models
-thinktank --model gemini-3-flash --instructions task.md src/
+- `openrouter`
 
-# Using OpenRouter models
-thinktank --model openrouter/deepseek/deepseek-r1 --instructions task.md src/
-```
-
-All model parameters (context windows, token limits, default settings) are configured automatically. No additional configuration is required.
+Provider specs are first-class in config, but the initial implementation only ships the OpenRouter adapter.

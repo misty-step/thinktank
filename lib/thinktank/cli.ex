@@ -1,13 +1,9 @@
 defmodule Thinktank.CLI do
   @moduledoc """
-  CLI entry point for the thinktank escript.
-
-  Parses arguments, validates input, and dispatches to the
-  appropriate mode (quick or deep). Agent-friendly: structured
-  JSON output, meaningful exit codes, no interactive prompts.
+  CLI entry point for ThinkTank workflows.
   """
 
-  alias Thinktank.{Dispatch.Deep, Dispatch.Quick, Models, Output, Router, Synthesis}
+  alias Thinktank.{Config, Engine}
 
   @exit_codes %{
     success: 0,
@@ -27,17 +23,22 @@ defmodule Thinktank.CLI do
     strict: [
       help: :boolean,
       version: :boolean,
+      input: :string,
       paths: :keep,
-      quick: :boolean,
-      deep: :boolean,
       json: :boolean,
       output: :string,
+      quick: :boolean,
+      deep: :boolean,
       models: :string,
       roles: :string,
+      perspectives: :integer,
+      tier: :string,
       dry_run: :boolean,
       no_synthesis: :boolean,
-      perspectives: :integer,
-      tier: :string
+      base: :string,
+      head: :string,
+      repo: :string,
+      pr: :integer
     ],
     aliases: [
       h: :help,
@@ -45,7 +46,6 @@ defmodule Thinktank.CLI do
       q: :quick,
       d: :deep,
       o: :output,
-      n: :perspectives,
       t: :tier
     ]
   ]
@@ -53,16 +53,13 @@ defmodule Thinktank.CLI do
   @spec exit_codes() :: %{atom() => non_neg_integer()}
   def exit_codes, do: @exit_codes
 
-  @doc """
-  Escript entry point. Parses args, executes, and halts.
-  """
   @spec main([String.t()]) :: no_return()
   def main(args) do
     exit_code =
       args
       |> parse_args()
       |> then(fn
-        {:needs_stdin, parsed} -> try_stdin(parsed)
+        {:needs_stdin, parsed} -> maybe_read_stdin(parsed)
         other -> other
       end)
       |> execute()
@@ -70,13 +67,9 @@ defmodule Thinktank.CLI do
     System.halt(exit_code)
   end
 
-  @doc """
-  Execute a parsed command. Returns an exit code without halting.
-
-  Testable core — `main/1` is the only function that calls `System.halt/1`.
-  """
-  @spec execute({:ok, map()} | {:error, String.t()} | {:help, keyword()} | {:version, keyword()}) ::
-          non_neg_integer()
+  @spec execute(
+          {:ok, map()} | {:error, String.t()} | {:help, map()} | {:version, map()}
+        ) :: non_neg_integer()
   def execute({:help, _}) do
     IO.puts(usage_text())
     @exit_codes.success
@@ -89,21 +82,83 @@ defmodule Thinktank.CLI do
 
   def execute({:error, message}) do
     IO.puts(:stderr, "Error: #{message}")
-    IO.puts(:stderr, "Run 'thinktank --help' for usage.")
     @exit_codes.input_error
   end
 
-  def execute({:ok, opts}) do
-    run(opts)
+  def execute({:ok, %{action: :workflows_list} = command}) do
+    with {:ok, config} <- Config.load(cwd: command.cwd) do
+      Config.list_workflows(config)
+      |> Enum.each(fn workflow ->
+        IO.puts("#{workflow.id}\t#{workflow.description}")
+      end)
+
+      @exit_codes.success
+    else
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        @exit_codes.input_error
+    end
+  end
+
+  def execute({:ok, %{action: :workflows_show, workflow_id: workflow_id} = command}) do
+    with {:ok, config} <- Config.load(cwd: command.cwd),
+         {:ok, workflow} <- Config.workflow(config, workflow_id) do
+      rendered =
+        %{
+          id: workflow.id,
+          description: workflow.description,
+          default_mode: workflow.default_mode,
+          stages:
+            Enum.map(workflow.stages, fn stage ->
+              %{
+                name: stage.name,
+                type: stage.type,
+                kind: stage.kind,
+                when: stage.when,
+                retry: stage.retry,
+                concurrency: stage.concurrency
+              }
+            end)
+        }
+        |> Jason.encode!(pretty: true)
+
+      IO.puts(rendered)
+      @exit_codes.success
+    else
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        @exit_codes.input_error
+    end
+  end
+
+  def execute({:ok, %{action: :workflows_validate} = command}) do
+    case Config.load(cwd: command.cwd) do
+      {:ok, config} ->
+        IO.puts("Validated #{length(Config.list_workflows(config))} workflows")
+        @exit_codes.success
+
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        @exit_codes.input_error
+    end
+  end
+
+  def execute({:ok, %{action: :run} = command}) do
+    if command.dry_run do
+      emit(command, dry_run_output(command))
+      @exit_codes.success
+    else
+      run_workflow(command)
+    end
   end
 
   @doc false
   @spec parse_args([String.t()]) ::
           {:ok, map()}
           | {:error, String.t()}
-          | {:help, keyword()}
-          | {:version, keyword()}
-          | {:needs_stdin, keyword()}
+          | {:help, map()}
+          | {:version, map()}
+          | {:needs_stdin, map()}
   def parse_args(args) do
     {parsed, rest, invalid} = OptionParser.parse(args, @option_spec)
 
@@ -113,237 +168,247 @@ defmodule Thinktank.CLI do
         {:error, "unknown flag: #{flag}"}
 
       parsed[:help] ->
-        {:help, parsed}
+        {:help, %{}}
 
       parsed[:version] ->
-        {:version, parsed}
+        {:version, %{}}
 
       rest == [] ->
-        {:needs_stdin, parsed}
+        {:needs_stdin, build_research_command(parsed, nil)}
 
       true ->
-        case parse_tier(parsed[:tier]) do
-          {:ok, tier} -> {:ok, build_opts(Enum.join(rest, " "), parsed, tier)}
-          {:error, _} = err -> err
-        end
+        build_command(rest, parsed)
     end
   end
 
   @doc """
-  Returns the JSON string for dry-run output.
+  Dry-run output for the workflow engine CLI.
   """
   @spec dry_run_output(map()) :: String.t()
-  def dry_run_output(opts) do
+  def dry_run_output(command) do
     Jason.encode!(%{
-      mode: "dry_run",
-      instruction: opts.instruction,
-      paths: opts.paths,
-      perspectives: opts.perspectives,
-      dispatch_mode: to_string(opts.mode),
-      tier: to_string(opts.tier),
-      models: opts.models,
-      roles: opts.roles,
-      no_synthesis: opts.no_synthesis
+      action: command.action,
+      workflow: command.workflow_id,
+      mode: command.mode,
+      input: command.input,
+      output: command.output,
+      json: command.json
     })
   end
 
-  defp try_stdin(parsed) do
-    with true <- stdin_piped?(),
-         data when is_binary(data) <- IO.read(:stdio, :eof),
-         trimmed = String.trim(data),
-         false <- trimmed == "",
-         {:ok, tier} <- parse_tier(parsed[:tier]) do
-      {:ok, build_opts(trimmed, parsed, tier)}
-    else
-      {:error, _} = err -> err
-      _ -> {:error, "instruction argument required"}
+  defp build_command(["run", workflow_id | remainder], parsed) do
+    case parse_tier(parsed[:tier]) do
+      {:ok, tier} ->
+        input_text = resolve_input_text(parsed[:input], remainder)
+
+        if input_text == nil do
+          {:needs_stdin, build_run_command(workflow_id, parsed, nil, tier)}
+        else
+          {:ok, build_run_command(workflow_id, parsed, input_text, tier)}
+        end
+
+      {:error, _} = error ->
+        error
     end
   end
 
-  defp build_opts(instruction, parsed, tier) do
+  defp build_command(["research" | remainder], parsed) do
+    case parse_tier(parsed[:tier]) do
+      {:ok, tier} ->
+        input_text = resolve_input_text(parsed[:input], remainder)
+
+        if input_text == nil do
+          {:needs_stdin, build_research_command(parsed, nil, tier)}
+        else
+          {:ok, build_research_command(parsed, input_text, tier)}
+        end
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  defp build_command(["review" | remainder], parsed) do
+    case parse_tier(parsed[:tier]) do
+      {:ok, tier} ->
+        {:ok, build_review_command(parsed, resolve_input_text(parsed[:input], remainder), tier)}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  defp build_command(["workflows", "list"], parsed) do
+    {:ok, %{action: :workflows_list, cwd: File.cwd!(), json: parsed[:json] || false}}
+  end
+
+  defp build_command(["workflows", "show", workflow_id], parsed) do
+    {:ok,
+     %{
+       action: :workflows_show,
+       workflow_id: workflow_id,
+       cwd: File.cwd!(),
+       json: parsed[:json] || false
+     }}
+  end
+
+  defp build_command(["workflows", "validate"], parsed) do
+    {:ok, %{action: :workflows_validate, cwd: File.cwd!(), json: parsed[:json] || false}}
+  end
+
+  defp build_command(rest, parsed) do
+    case parse_tier(parsed[:tier]) do
+      {:ok, tier} -> {:ok, build_research_command(parsed, Enum.join(rest, " "), tier)}
+      {:error, _} = error -> error
+    end
+  end
+
+  defp resolve_input_text(value, _remainder) when is_binary(value) and value != "", do: value
+  defp resolve_input_text(_, []), do: nil
+  defp resolve_input_text(_, remainder), do: Enum.join(remainder, " ")
+
+  defp build_run_command(workflow_id, parsed, input_text, tier) do
+    common = build_common_command(parsed, workflow_id, tier)
+    Map.put(common, :input, build_input(parsed, input_text, tier))
+  end
+
+  defp build_research_command(parsed, input_text, tier \\ :standard) do
+    common = build_common_command(parsed, "research/default", tier)
+    Map.put(common, :input, build_input(parsed, input_text, tier))
+  end
+
+  defp build_review_command(parsed, input_text, tier) do
+    common = build_common_command(parsed, "review/cerberus", tier)
+
+    input =
+      build_input(parsed, input_text, tier)
+      |> maybe_put(:base, parsed[:base])
+      |> maybe_put(:head, parsed[:head])
+      |> maybe_put(:repo, parsed[:repo])
+      |> maybe_put(:pr, parsed[:pr])
+
+    Map.put(common, :input, input)
+  end
+
+  defp build_common_command(parsed, workflow_id, tier) do
     %{
-      instruction: instruction,
-      paths: parsed |> Keyword.get_values(:paths) |> Enum.map(&Path.expand/1),
-      mode: if(parsed[:quick], do: :quick, else: :deep),
+      action: :run,
+      workflow_id: workflow_id,
+      mode: mode_for(parsed),
       json: parsed[:json] || false,
       output: if(parsed[:output], do: Path.expand(parsed[:output])),
-      models: parse_csv(parsed[:models]),
-      roles: parse_csv(parsed[:roles]),
       dry_run: parsed[:dry_run] || false,
-      no_synthesis: parsed[:no_synthesis] || false,
-      perspectives: parsed[:perspectives] || 4,
+      cwd: File.cwd!(),
       tier: tier
     }
   end
 
-  defp run(%{dry_run: true} = opts) do
-    if opts.json do
-      IO.puts(dry_run_output(opts))
+  defp build_input(parsed, input_text, tier) do
+    %{}
+    |> maybe_put(:input_text, input_text)
+    |> Map.put(:paths, parsed |> Keyword.get_values(:paths) |> Enum.map(&Path.expand/1))
+    |> Map.put(:models, parse_csv(parsed[:models]))
+    |> Map.put(:roles, parse_csv(parsed[:roles]))
+    |> Map.put(:tier, tier)
+    |> maybe_put(:perspectives, parsed[:perspectives])
+    |> Map.put(:no_synthesis, parsed[:no_synthesis] || false)
+  end
+
+  defp maybe_put_stdin(command, input_text) do
+    put_in(command, [:input, :input_text], input_text)
+  end
+
+  defp maybe_read_stdin(command) do
+    with true <- stdin_piped?(),
+         data when is_binary(data) <- IO.read(:stdio, :eof),
+         trimmed = String.trim(data),
+         false <- trimmed == "" do
+      {:ok, maybe_put_stdin(command, trimmed)}
     else
-      IO.puts("Dry run: would dispatch #{opts.perspectives} perspectives in #{opts.mode} mode")
-      IO.puts("Instruction: #{opts.instruction}")
-
-      if opts.paths != [] do
-        IO.puts("Paths: #{Enum.join(opts.paths, ", ")}")
-      end
+      _ -> {:error, "input required"}
     end
-
-    @exit_codes.success
   end
 
-  defp run(%{mode: :quick} = opts) do
-    dispatch_and_finalize(opts, fn perspectives, instruction, paths ->
-      Quick.dispatch(perspectives, instruction, paths: paths)
-    end)
-  end
+  defp run_workflow(command) do
+    opts =
+      [
+        cwd: command.cwd,
+        mode: command.mode,
+        output: command.output,
+        agent_config_dir: agent_config_dir()
+      ]
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 
-  defp run(%{mode: :deep} = opts) do
-    dispatch_and_finalize(opts, fn perspectives, instruction, paths ->
-      deep_opts = [paths: paths, agent_config_dir: agent_config_dir()]
-      Deep.dispatch(perspectives, instruction, deep_opts)
-    end)
-  end
+    case Engine.run(command.workflow_id, command.input, opts) do
+      {:ok, result} ->
+        emit(command, successful_payload(command, result))
+        Map.get(result.context, :workflow_exit_code, 0)
 
-  defp dispatch_and_finalize(opts, dispatch_fn) do
-    case resolve_perspectives(opts) do
-      {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
-        @exit_codes.input_error
-
-      {:ok, perspectives, router_usage} ->
-        output_dir = opts.output || generate_output_dir()
-        Output.init_run(output_dir, perspectives, router_usage)
-
-        results = dispatch_fn.(perspectives, opts.instruction, opts.paths)
-        successes = for {:ok, role, text, usage} <- results, do: {role, text, usage}
-
-        for {role, text, usage} <- successes do
-          Output.write_perspective(output_dir, role, text, usage)
+      {:error, reason, output_dir} ->
+        if output_dir do
+          IO.puts(:stderr, "Output: #{output_dir}")
         end
 
-        synthesis_successes = for {role, text, _usage} <- successes, do: {role, text}
-        maybe_synthesize(opts, synthesis_successes, output_dir)
-        Output.complete_run(output_dir)
-        emit_result(opts, output_dir)
-        exit_code_for_results(successes)
+        IO.puts(:stderr, "Error: #{format_reason(reason)}")
+        @exit_codes.generic_error
     end
   end
 
-  defp maybe_synthesize(opts, successes, output_dir) do
-    if opts.no_synthesis or successes == [],
-      do: :noop,
-      else: do_synthesize(opts, successes, output_dir)
+  defp successful_payload(command, result) do
+    payload =
+      result.envelope
+      |> Map.put(:workflow, result.workflow.id)
+      |> Map.put(:output_dir, result.output_dir)
+
+    payload =
+      case result.context[:final_verdict] do
+        nil -> payload
+        verdict -> Map.put(payload, :final_verdict, verdict)
+      end
+
+    payload =
+      case result.context[:synthesis] do
+        nil -> payload
+        synthesis -> Map.put(payload, :synthesis_file, "synthesis.md") |> Map.put(:synthesis_usage, synthesis.usage)
+      end
+
+    if command.json, do: Jason.encode!(payload), else: render_success(payload)
   end
 
-  defp do_synthesize(opts, successes, output_dir) do
-    case Synthesis.synthesize(successes, opts.instruction, tier: opts.tier) do
-      {:ok, text, usage} -> Output.write_synthesis(output_dir, text, usage)
-      {:error, _} -> IO.puts(:stderr, "Warning: synthesis failed after retries")
+  defp render_success(payload) do
+    lines = [
+      "Workflow: #{payload.workflow}",
+      "Output: #{payload.output_dir}",
+      "Status: #{payload.status}"
+    ]
+
+    lines =
+      case payload[:final_verdict] do
+        nil -> lines
+        verdict -> lines ++ ["Verdict: #{verdict.verdict}"]
+      end
+
+    Enum.join(lines, "\n")
+  end
+
+  defp emit(_command, payload) when is_binary(payload) do
+    IO.puts(payload)
+  end
+
+  defp emit(_command, payload) do
+    IO.puts(payload)
+  end
+
+  defp format_reason({:stage_failed, stage_name, reason}), do: "stage #{stage_name} failed: #{inspect(reason)}"
+  defp format_reason(reason), do: inspect(reason)
+
+  defp mode_for(parsed) do
+    cond do
+      parsed[:quick] -> :quick
+      parsed[:deep] -> :deep
+      true -> nil
     end
   end
-
-  defp emit_result(opts, output_dir) do
-    if opts.json do
-      IO.puts(Jason.encode!(Output.result_envelope(output_dir)))
-    else
-      IO.puts("Output: #{output_dir}")
-    end
-  end
-
-  defp exit_code_for_results([]) do
-    IO.puts(:stderr, "Error: all perspective dispatches failed")
-    @exit_codes.generic_error
-  end
-
-  defp exit_code_for_results(_successes), do: @exit_codes.success
-
-  defp resolve_perspectives(opts) do
-    models = if opts.models != [], do: opts.models, else: Models.models_for_tier(opts.tier)
-
-    if opts.roles != [] do
-      {:ok, Router.manual_perspectives(opts.roles, models), nil}
-    else
-      Router.generate_perspectives(opts.instruction, opts.paths,
-        available_models: models,
-        perspectives: opts.perspectives,
-        tier: opts.tier
-      )
-    end
-  end
-
-  @doc """
-  Generate a unique timestamped output directory path.
-  """
-  @spec generate_output_dir() :: String.t()
-  def generate_output_dir do
-    timestamp = DateTime.utc_now() |> Calendar.strftime("%Y%m%d-%H%M%S")
-    suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
-    Path.join(System.tmp_dir!(), "thinktank-#{timestamp}-#{suffix}")
-  end
-
-  @doc """
-  Returns the usage help text.
-  """
-  @spec usage_text() :: String.t()
-  def usage_text do
-    """
-    thinktank — multi-perspective AI research tool
-
-    USAGE
-      thinktank <instruction> [options]
-      echo "instruction" | thinktank [options]
-
-    ARGUMENTS
-      <instruction>    Research question or task (required, or pipe via stdin)
-
-    OPTIONS
-      --paths PATH     Files/dirs for agent context (repeatable)
-      --quick, -q      Quick mode: parallel API calls, no tools
-      --deep, -d       Deep mode: Pi agent subprocesses (default)
-      --tier, -t TIER  Model tier: cheap, standard, premium (default: standard)
-      --json           Output structured JSON to stdout
-      --output, -o     Output directory (default: auto-generated)
-      --models LIST    Comma-separated model list (overrides tier)
-      --roles LIST     Comma-separated roles (bypasses router)
-      --perspectives N Number of perspectives (default: 4)
-      --dry-run        Show plan without executing
-      --no-synthesis   Skip synthesis step
-      --help, -h       Show this help
-      --version, -v    Show version
-
-    EXIT CODES
-      0   Success
-      1   Generic error
-      2   Authentication error
-      3   Rate limit exceeded
-      4   Invalid request
-      5   Server error
-      6   Network error
-      7   Input error
-      8   Content filtered
-      9   Insufficient credits
-      10  Cancelled
-
-    EXAMPLES
-      thinktank "review this auth flow" --paths ./src/auth
-      thinktank "suggest project names" --quick --tier cheap
-      thinktank "audit for security issues" --tier premium --perspectives 5
-      echo "compare approaches" | thinktank --quick
-    """
-  end
-
-  defp parse_tier(nil), do: {:ok, :standard}
-  defp parse_tier("cheap"), do: {:ok, :cheap}
-  defp parse_tier("standard"), do: {:ok, :standard}
-  defp parse_tier("premium"), do: {:ok, :premium}
-
-  defp parse_tier(other),
-    do: {:error, "invalid tier: #{other} (must be cheap, standard, or premium)"}
-
-  defp parse_csv(nil), do: []
-  defp parse_csv(str), do: str |> String.split(",") |> Enum.map(&String.trim/1)
-
-  defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
 
   @doc """
   Resolve agent config directory for deep mode Pi agents.
@@ -363,8 +428,69 @@ defmodule Thinktank.CLI do
     end
   end
 
+  @doc """
+  Returns the usage help text.
+  """
+  @spec usage_text() :: String.t()
+  def usage_text do
+    """
+    thinktank — workflow engine for multi-agent research and review
+
+    USAGE
+      thinktank run <workflow> --input "..." [options]
+      thinktank research "prompt" [options]
+      thinktank review [--base main --head HEAD] [options]
+      thinktank workflows list|show|validate
+
+    OPTIONS
+      --input TEXT     Workflow input text
+      --paths PATH     Files or directories for context (repeatable)
+      --quick, -q      Direct API fanout executor
+      --deep, -d       Agentic Pi subprocess executor
+      --tier, -t TIER  Model tier: cheap, standard, premium
+      --models LIST    Comma-separated model overrides
+      --roles LIST     Comma-separated routed research roles
+      --perspectives N Routed research perspective count
+      --json           Emit JSON to stdout
+      --output, -o     Output directory
+      --dry-run        Print the workflow contract without executing
+      --base REF       Review base ref
+      --head REF       Review head ref
+      --repo REPO      GitHub repository for PR review mode
+      --pr N           GitHub pull request number for PR review mode
+      --help, -h       Show this help
+      --version, -v    Show version
+
+    EXAMPLES
+      thinktank run research/default --input "compare these architectures" --paths ./lib --json
+      thinktank research "audit this auth flow" --paths ./lib/auth --deep
+      thinktank review --base origin/main --head HEAD
+      thinktank workflows show review/cerberus
+    """
+  end
+
+  defp parse_tier(nil), do: {:ok, :standard}
+  defp parse_tier("cheap"), do: {:ok, :cheap}
+  defp parse_tier("standard"), do: {:ok, :standard}
+  defp parse_tier("premium"), do: {:ok, :premium}
+  defp parse_tier(other), do: {:error, "invalid tier: #{other} (must be cheap, standard, or premium)"}
+
+  defp parse_csv(nil), do: []
+  defp parse_csv(""), do: []
+
+  defp parse_csv(str) do
+    str
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
+
   defp stdin_piped? do
-    # :io.columns/1 returns {:error, :enotsup} when stdin is not a terminal
     match?({:error, _}, :io.columns(:standard_io))
   rescue
     _ -> false

@@ -1,6 +1,6 @@
 # thinktank
 
-Multi-perspective AI research tool. Routes questions through an LLM-powered perspective router, dispatches agents in parallel (quick mode) or via Pi subprocesses (deep mode), and synthesizes results into structured artifacts.
+Workflow engine for multi-agent research and code review. ThinkTank loads typed workflow and agent configuration, routes work across multiple models, runs agents via direct API fanout or Pi subprocesses, and writes structured run artifacts.
 
 Built with Elixir/OTP. This is v5 — an Elixir rewrite of the [Go v4 codebase](https://github.com/misty-step/thinktank/tree/v4-archive).
 
@@ -20,46 +20,69 @@ mix escript.build
 export OPENROUTER_API_KEY="your-key"  # https://openrouter.ai/keys
 
 # Run
-./thinktank "analyze this codebase" --paths ./src --quick
+./thinktank research "analyze this codebase" --paths ./src --quick
 ```
 
 ## Usage
 
 ```bash
-thinktank <instruction> [options]
-echo "instruction" | thinktank [options]
+thinktank run <workflow> --input "..." [options]
+thinktank research "..." [options]
+thinktank review [options]
+thinktank workflows list|show|validate
 ```
 
 ### Options
 
 | Flag | Description |
 |------|-------------|
-| `--paths PATH` | Files/dirs for agent context (repeatable) |
-| `--quick, -q` | Quick mode: parallel API calls, no tools |
-| `--deep, -d` | Deep mode: Pi agent subprocesses (default) |
+| `--input TEXT` | Workflow input text |
+| `--paths PATH` | Files/dirs for workflow context (repeatable) |
+| `--quick, -q` | Direct API fanout executor |
+| `--deep, -d` | Pi subprocess executor |
 | `--json` | Output structured JSON to stdout |
 | `--output, -o` | Output directory (default: auto-generated) |
-| `--models LIST` | Comma-separated model list (overrides router) |
-| `--roles LIST` | Comma-separated roles (bypasses router) |
-| `--perspectives N` | Number of perspectives (default: 4) |
-| `--dry-run` | Show plan without executing |
-| `--no-synthesis` | Skip synthesis step |
+| `--models LIST` | Comma-separated model overrides for research routing |
+| `--roles LIST` | Comma-separated research roles (bypasses router) |
+| `--perspectives N` | Number of research perspectives |
+| `--base REF` | Review workflow base ref |
+| `--head REF` | Review workflow head ref |
+| `--repo REPO` | GitHub repo for PR review mode |
+| `--pr N` | GitHub PR number for PR review mode |
+| `--dry-run` | Print the resolved workflow contract without executing |
 
 ### Examples
 
 ```bash
-# Quick parallel analysis
-thinktank "review this auth flow" --paths ./src/auth --quick
+# Quick parallel research
+thinktank research "review this auth flow" --paths ./src/auth --quick
 
-# Deep mode with Pi agents
-thinktank "audit for security issues" --paths ./src --perspectives 5
+# Deep research run with Pi agents
+thinktank research "audit for security issues" --paths ./src --perspectives 5 --deep
 
-# Pipe instruction via stdin
-echo "compare approaches" | thinktank --models anthropic/claude-sonnet-4.6,openai/gpt-5.4 --quick
+# Native review workflow against the current branch diff
+thinktank review --base origin/main --head HEAD
 
-# Dry run to preview
-thinktank "suggest improvements" --paths ./lib --dry-run
+# Explicit workflow invocation
+thinktank run research/default --input "compare approaches" --models openai/gpt-5.4,anthropic/claude-sonnet-4.6 --quick
+
+# Show workflow shape
+thinktank workflows show review/cerberus
 ```
+
+## Configuration
+
+ThinkTank loads configuration with this precedence:
+
+1. built-in defaults
+2. `~/.config/thinktank/config.yml`
+3. `.thinktank/config.yml` in the current repository
+4. CLI flags
+
+Built-in workflows:
+
+- `research/default`
+- `review/cerberus`
 
 ### Exit Codes
 

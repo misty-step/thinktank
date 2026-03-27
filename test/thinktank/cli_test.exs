@@ -6,321 +6,164 @@ defmodule Thinktank.CLITest do
   alias Thinktank.CLI
 
   describe "parse_args/1" do
-    test "parses instruction as positional argument" do
-      assert {:ok, %{instruction: "review this code"}} = CLI.parse_args(["review this code"])
+    test "parses legacy positional prompt as research workflow" do
+      assert {:ok, command} = CLI.parse_args(["compare approaches"])
+      assert command.action == :run
+      assert command.workflow_id == "research/default"
+      assert command.input.input_text == "compare approaches"
     end
 
-    test "joins multiple positional args into instruction" do
-      assert {:ok, %{instruction: "review this code"}} =
-               CLI.parse_args(["review", "this", "code"])
+    test "parses explicit research subcommand" do
+      assert {:ok, command} = CLI.parse_args(["research", "audit", "this", "--paths", "./lib"])
+      assert command.workflow_id == "research/default"
+      assert command.input.input_text == "audit this"
+      assert command.input.paths == [Path.expand("./lib")]
     end
 
-    test "returns :needs_stdin when no instruction provided" do
-      assert {:needs_stdin, _parsed} = CLI.parse_args([])
+    test "parses run subcommand with workflow id and input flag" do
+      assert {:ok, command} =
+               CLI.parse_args([
+                 "run",
+                 "research/default",
+                 "--input",
+                 "tradeoffs",
+                 "--models",
+                 "openai/gpt-5.4,anthropic/claude-sonnet-4.6"
+               ])
+
+      assert command.workflow_id == "research/default"
+      assert command.input.input_text == "tradeoffs"
+
+      assert command.input.models == [
+               "openai/gpt-5.4",
+               "anthropic/claude-sonnet-4.6"
+             ]
     end
 
-    test "parses --help flag" do
-      assert {:help, _} = CLI.parse_args(["--help"])
+    test "parses review subcommand flags" do
+      assert {:ok, command} =
+               CLI.parse_args([
+                 "review",
+                 "--base",
+                 "origin/main",
+                 "--head",
+                 "HEAD",
+                 "--repo",
+                 "misty-step/thinktank",
+                 "--pr",
+                 "42"
+               ])
+
+      assert command.workflow_id == "review/cerberus"
+      assert command.input.base == "origin/main"
+      assert command.input.head == "HEAD"
+      assert command.input.repo == "misty-step/thinktank"
+      assert command.input.pr == 42
     end
 
-    test "parses -h alias" do
-      assert {:help, _} = CLI.parse_args(["-h"])
+    test "parses workflow management commands" do
+      assert {:ok, %{action: :workflows_list}} = CLI.parse_args(["workflows", "list"])
+      assert {:ok, %{action: :workflows_validate}} = CLI.parse_args(["workflows", "validate"])
+
+      assert {:ok, %{action: :workflows_show, workflow_id: "review/cerberus"}} =
+               CLI.parse_args(["workflows", "show", "review/cerberus"])
     end
 
-    test "parses --version flag" do
-      assert {:version, _} = CLI.parse_args(["--version"])
+    test "returns :needs_stdin when no input is provided" do
+      assert {:needs_stdin, %{workflow_id: "research/default"}} = CLI.parse_args([])
+      assert {:needs_stdin, %{workflow_id: "research/default"}} = CLI.parse_args(["research"])
+      assert {:needs_stdin, %{workflow_id: "research/default"}} = CLI.parse_args(["run", "research/default"])
     end
 
-    test "defaults to deep mode" do
-      {:ok, opts} = CLI.parse_args(["test"])
-      assert opts.mode == :deep
+    test "parses quick and deep executor flags" do
+      assert {:ok, %{mode: :quick}} = CLI.parse_args(["research", "test", "--quick"])
+      assert {:ok, %{mode: :deep}} = CLI.parse_args(["review", "--deep"])
     end
 
-    test "parses --quick flag" do
-      {:ok, opts} = CLI.parse_args(["test", "--quick"])
-      assert opts.mode == :quick
+    test "defaults tier to standard and parses other tiers" do
+      assert {:ok, %{input: %{tier: :standard}}} = CLI.parse_args(["research", "test"])
+      assert {:ok, %{input: %{tier: :cheap}}} = CLI.parse_args(["research", "test", "--tier", "cheap"])
+      assert {:ok, %{input: %{tier: :premium}}} = CLI.parse_args(["research", "test", "--tier", "premium"])
     end
 
-    test "parses --paths flag" do
-      {:ok, opts} = CLI.parse_args(["test", "--paths", "./src"])
-      assert opts.paths == [Path.expand("./src")]
+    test "returns errors for invalid tier and unknown flags" do
+      assert {:error, "invalid tier: bogus" <> _} = CLI.parse_args(["research", "test", "--tier", "bogus"])
+      assert {:error, "unknown flag: --bogus"} = CLI.parse_args(["research", "test", "--bogus"])
     end
 
-    test "parses multiple --paths flags" do
-      {:ok, opts} = CLI.parse_args(["test", "--paths", "./src", "--paths", "./lib"])
-      assert opts.paths == [Path.expand("./src"), Path.expand("./lib")]
-    end
-
-    test "parses --json flag" do
-      {:ok, opts} = CLI.parse_args(["test", "--json"])
-      assert opts.json == true
-    end
-
-    test "parses --output flag and expands path" do
-      {:ok, opts} = CLI.parse_args(["test", "--output", "./results"])
-      assert opts.output == Path.expand("./results")
-    end
-
-    test "parses --models as comma-separated list" do
-      {:ok, opts} = CLI.parse_args(["test", "--models", "claude-opus-4-6,gpt-5.4"])
-      assert opts.models == ["claude-opus-4-6", "gpt-5.4"]
-    end
-
-    test "parses --roles as comma-separated list" do
-      {:ok, opts} = CLI.parse_args(["test", "--roles", "security auditor, perf engineer"])
-      assert opts.roles == ["security auditor", "perf engineer"]
-    end
-
-    test "parses --perspectives count" do
-      {:ok, opts} = CLI.parse_args(["test", "--perspectives", "5"])
-      assert opts.perspectives == 5
-    end
-
-    test "defaults perspectives to 4" do
-      {:ok, opts} = CLI.parse_args(["test"])
-      assert opts.perspectives == 4
-    end
-
-    test "defaults tier to standard" do
-      {:ok, opts} = CLI.parse_args(["test"])
-      assert opts.tier == :standard
-    end
-
-    test "parses --tier cheap" do
-      {:ok, opts} = CLI.parse_args(["test", "--tier", "cheap"])
-      assert opts.tier == :cheap
-    end
-
-    test "parses --tier premium" do
-      {:ok, opts} = CLI.parse_args(["test", "--tier", "premium"])
-      assert opts.tier == :premium
-    end
-
-    test "parses -t alias for tier" do
-      {:ok, opts} = CLI.parse_args(["test", "-t", "cheap"])
-      assert opts.tier == :cheap
-    end
-
-    test "returns error for invalid tier" do
-      assert {:error, "invalid tier: bogus" <> _} = CLI.parse_args(["test", "--tier", "bogus"])
-    end
-
-    test "parses --dry-run flag" do
-      {:ok, opts} = CLI.parse_args(["test", "--dry-run"])
-      assert opts.dry_run == true
-    end
-
-    test "parses --no-synthesis flag" do
-      {:ok, opts} = CLI.parse_args(["test", "--no-synthesis"])
-      assert opts.no_synthesis == true
-    end
-
-    test "returns error for unknown flags" do
-      assert {:error, "unknown flag: --bogus"} = CLI.parse_args(["test", "--bogus"])
-    end
-  end
-
-  describe "exit_codes/0" do
-    test "defines all 11 exit codes" do
-      codes = CLI.exit_codes()
-      assert codes.success == 0
-      assert codes.generic_error == 1
-      assert codes.auth_error == 2
-      assert codes.rate_limit == 3
-      assert codes.invalid_request == 4
-      assert codes.server_error == 5
-      assert codes.network_error == 6
-      assert codes.input_error == 7
-      assert codes.content_filtered == 8
-      assert codes.insufficient_credits == 9
-      assert codes.cancelled == 10
-    end
-  end
-
-  describe "parse_args/1 — edge cases" do
-    test "empty models string parses to single empty string" do
-      {:ok, opts} = CLI.parse_args(["test", "--models", ""])
-      assert opts.models == [""]
-    end
-
-    test "--deep flag explicitly sets deep mode" do
-      {:ok, opts} = CLI.parse_args(["test", "--deep"])
-      assert opts.mode == :deep
+    test "parses dry run and output flags" do
+      assert {:ok, command} = CLI.parse_args(["research", "test", "--dry-run", "--output", "./tmp"])
+      assert command.dry_run == true
+      assert command.output == Path.expand("./tmp")
     end
   end
 
   describe "dry_run_output/1" do
-    test "produces valid JSON with all expected fields" do
-      {:ok, opts} = CLI.parse_args(["test instruction", "--dry-run", "--json"])
-      json = CLI.dry_run_output(opts)
-      assert {:ok, decoded} = Jason.decode(json)
+    test "renders workflow-oriented JSON" do
+      {:ok, command} = CLI.parse_args(["research", "test prompt", "--dry-run", "--json", "--paths", "./lib"])
+      decoded = CLI.dry_run_output(command) |> Jason.decode!()
 
-      assert decoded["mode"] == "dry_run"
-      assert decoded["instruction"] == "test instruction"
-      assert is_list(decoded["paths"])
-      assert is_integer(decoded["perspectives"])
-      assert is_binary(decoded["dispatch_mode"])
-      assert is_list(decoded["models"])
-      assert is_list(decoded["roles"])
-      assert is_boolean(decoded["no_synthesis"])
-      assert decoded["tier"] == "standard"
-    end
-
-    test "paths are included when provided" do
-      {:ok, opts} = CLI.parse_args(["test", "--dry-run", "--paths", "./src"])
-      json = CLI.dry_run_output(opts)
-      decoded = Jason.decode!(json)
-
-      assert decoded["paths"] == [Path.expand("./src")]
-    end
-
-    test "models and roles are included when provided" do
-      {:ok, opts} =
-        CLI.parse_args([
-          "test",
-          "--dry-run",
-          "--models",
-          "model-a,model-b",
-          "--roles",
-          "auditor,reviewer"
-        ])
-
-      json = CLI.dry_run_output(opts)
-      decoded = Jason.decode!(json)
-
-      assert decoded["models"] == ["model-a", "model-b"]
-      assert decoded["roles"] == ["auditor", "reviewer"]
+      assert decoded["action"] == "run"
+      assert decoded["workflow"] == "research/default"
+      assert decoded["input"]["input_text"] == "test prompt"
+      assert decoded["input"]["paths"] == [Path.expand("./lib")]
     end
   end
 
-  describe "execute/1 — help" do
-    test "prints usage text and returns success exit code" do
+  describe "execute/1" do
+    test "prints usage text for help" do
       output =
         capture_io(fn ->
-          assert CLI.execute({:help, []}) == 0
+          assert CLI.execute({:help, %{}}) == 0
         end)
 
       assert output =~ "thinktank"
-      assert output =~ "USAGE"
-      assert output =~ "--help"
+      assert output =~ "workflows"
     end
-  end
 
-  describe "execute/1 — version" do
-    test "prints version string and returns success exit code" do
+    test "prints version for version requests" do
       output =
         capture_io(fn ->
-          assert CLI.execute({:version, []}) == 0
+          assert CLI.execute({:version, %{}}) == 0
         end)
 
       assert output =~ "thinktank "
     end
-  end
 
-  describe "execute/1 — error" do
-    test "prints error to stderr and returns input_error exit code" do
+    test "prints errors to stderr" do
       stderr =
         capture_io(:stderr, fn ->
           assert CLI.execute({:error, "bad input"}) == 7
         end)
 
       assert stderr =~ "Error: bad input"
-      assert stderr =~ "Run 'thinktank --help' for usage."
     end
-  end
 
-  describe "execute/1 — dry run" do
-    test "text mode prints plan summary and returns success" do
-      {:ok, opts} = CLI.parse_args(["test question", "--dry-run"])
+    test "dry run prints JSON contract" do
+      {:ok, command} = CLI.parse_args(["research", "test", "--dry-run"])
 
       output =
         capture_io(fn ->
-          assert CLI.execute({:ok, opts}) == 0
-        end)
-
-      assert output =~ "Dry run: would dispatch 4 perspectives in deep mode"
-      assert output =~ "Instruction: test question"
-    end
-
-    test "text mode includes paths when provided" do
-      {:ok, opts} = CLI.parse_args(["test", "--dry-run", "--paths", "./src"])
-
-      output =
-        capture_io(fn ->
-          assert CLI.execute({:ok, opts}) == 0
-        end)
-
-      assert output =~ "Paths:"
-      assert output =~ "src"
-    end
-
-    test "json mode outputs valid JSON and returns success" do
-      {:ok, opts} = CLI.parse_args(["test question", "--dry-run", "--json"])
-
-      output =
-        capture_io(fn ->
-          assert CLI.execute({:ok, opts}) == 0
+          assert CLI.execute({:ok, command}) == 0
         end)
 
       assert {:ok, decoded} = Jason.decode(String.trim(output))
-      assert decoded["mode"] == "dry_run"
-      assert decoded["instruction"] == "test question"
-    end
-
-    test "quick mode flag is reflected in dry run" do
-      {:ok, opts} = CLI.parse_args(["test", "--dry-run", "--quick"])
-
-      output =
-        capture_io(fn ->
-          assert CLI.execute({:ok, opts}) == 0
-        end)
-
-      assert output =~ "quick mode"
+      assert decoded["workflow"] == "research/default"
+      assert decoded["input"]["input_text"] == "test"
     end
   end
 
   describe "usage_text/0" do
-    test "includes all sections" do
+    test "documents workflow-oriented commands and flags" do
       text = CLI.usage_text()
-      assert text =~ "USAGE"
-      assert text =~ "ARGUMENTS"
-      assert text =~ "OPTIONS"
-      assert text =~ "EXIT CODES"
-      assert text =~ "EXAMPLES"
-    end
-
-    test "documents all flags" do
-      text = CLI.usage_text()
+      assert text =~ "thinktank run <workflow>"
+      assert text =~ "thinktank research"
+      assert text =~ "thinktank review"
+      assert text =~ "thinktank workflows list|show|validate"
+      assert text =~ "--input"
       assert text =~ "--paths"
-      assert text =~ "--quick"
-      assert text =~ "--deep"
-      assert text =~ "--tier"
-      assert text =~ "--json"
-      assert text =~ "--output"
-      assert text =~ "--models"
-      assert text =~ "--roles"
-      assert text =~ "--perspectives"
-      assert text =~ "--dry-run"
-      assert text =~ "--no-synthesis"
-      assert text =~ "--help"
-      assert text =~ "--version"
-    end
-  end
-
-  describe "generate_output_dir/0" do
-    test "returns path under system tmp dir" do
-      dir = CLI.generate_output_dir()
-      assert String.starts_with?(dir, System.tmp_dir!())
-    end
-
-    test "includes thinktank prefix with timestamp and random suffix" do
-      dir = CLI.generate_output_dir()
-      assert Path.basename(dir) =~ ~r/^thinktank-\d{8}-\d{6}-[0-9a-f]{8}$/
-    end
-
-    test "generates unique paths" do
-      dirs = for _ <- 1..5, do: CLI.generate_output_dir()
-      assert length(Enum.uniq(dirs)) == 5
+      assert text =~ "--base"
+      assert text =~ "--repo"
     end
   end
 
@@ -334,13 +177,11 @@ defmodule Thinktank.CLITest do
 
     test "returns CWD/agent_config when directory exists and no env var" do
       System.delete_env("THINKTANK_AGENT_CONFIG")
-      dir = CLI.agent_config_dir()
-      assert dir == Path.join(File.cwd!(), "agent_config")
+      assert CLI.agent_config_dir() == Path.join(File.cwd!(), "agent_config")
     end
 
     test "returns nil when no env var and no agent_config dir exists" do
       System.delete_env("THINKTANK_AGENT_CONFIG")
-      # Run in a tmp dir that has no agent_config subdirectory
       tmp = System.tmp_dir!()
       cwd = File.cwd!()
       File.cd!(tmp)

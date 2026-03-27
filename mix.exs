@@ -27,6 +27,7 @@ defmodule Thinktank.MixProject do
     [
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
+      {:yaml_elixir, "~> 2.11"},
       {:muontrap, "~> 1.6"},
       {:plug, "~> 1.16", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
