@@ -6,13 +6,14 @@ defmodule Thinktank.WorkflowSpec do
   alias Thinktank.StageSpec
 
   @enforce_keys [:id, :description, :stages]
-  defstruct [:id, :description, input_schema: %{}, default_mode: :quick, stages: []]
+  defstruct [:id, :description, input_schema: %{}, default_mode: :quick, execution_mode: :flexible, stages: []]
 
   @type t :: %__MODULE__{
           id: String.t(),
           description: String.t(),
           input_schema: map(),
           default_mode: :quick | :deep,
+          execution_mode: :flexible | :quick | :deep,
           stages: [StageSpec.t()]
         }
 
@@ -20,13 +21,15 @@ defmodule Thinktank.WorkflowSpec do
   def from_pair(id, %{} = raw) when is_binary(id) do
     with {:ok, description} <- require_description(raw["description"]),
          {:ok, stages} <- parse_stages(raw["stages"]),
-         {:ok, default_mode} <- parse_mode(Map.get(raw, "default_mode", "quick")) do
+         {:ok, default_mode} <- parse_mode(Map.get(raw, "default_mode", "quick")),
+         {:ok, execution_mode} <- parse_execution_mode(Map.get(raw, "execution_mode", "flexible")) do
       {:ok,
        %__MODULE__{
          id: id,
          description: description,
          input_schema: Map.get(raw, "input_schema", %{}),
          default_mode: default_mode,
+         execution_mode: execution_mode,
          stages: stages
        }}
     end
@@ -54,4 +57,12 @@ defmodule Thinktank.WorkflowSpec do
   defp parse_mode(:quick), do: {:ok, :quick}
   defp parse_mode(:deep), do: {:ok, :deep}
   defp parse_mode(_), do: {:error, "workflow default_mode must be quick or deep"}
+
+  defp parse_execution_mode("flexible"), do: {:ok, :flexible}
+  defp parse_execution_mode("quick"), do: {:ok, :quick}
+  defp parse_execution_mode("deep"), do: {:ok, :deep}
+  defp parse_execution_mode(:flexible), do: {:ok, :flexible}
+  defp parse_execution_mode(:quick), do: {:ok, :quick}
+  defp parse_execution_mode(:deep), do: {:ok, :deep}
+  defp parse_execution_mode(_), do: {:error, "workflow execution_mode must be flexible, quick, or deep"}
 end

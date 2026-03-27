@@ -3,11 +3,6 @@ defmodule Thinktank.ReviewWorkflowTest do
 
   alias Thinktank.Engine
 
-  defp decode_request(conn) do
-    {:ok, body, conn} = Plug.Conn.read_body(conn)
-    {conn, Jason.decode!(body)}
-  end
-
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
@@ -50,6 +45,7 @@ defmodule Thinktank.ReviewWorkflowTest do
 
   test "runs local diff review workflow and aggregates verdicts" do
     tmp = unique_tmp_dir("thinktank-review")
+    branch_name = "feature-#{System.unique_integer([:positive])}"
     File.write!(Path.join(tmp, "lib_app.ex"), "defmodule App do\n  def ok, do: :ok\nend\n")
 
     git!(tmp, ["init", "-b", "main"])
@@ -57,19 +53,25 @@ defmodule Thinktank.ReviewWorkflowTest do
     git!(tmp, ["config", "user.name", "ThinkTank Test"])
     git!(tmp, ["add", "."])
     git!(tmp, ["commit", "-m", "base"])
-    git!(tmp, ["checkout", "-b", "feature"])
+    git!(tmp, ["checkout", "-b", branch_name])
 
     File.write!(Path.join(tmp, "lib_app.ex"), "defmodule App do\n  def ok(user), do: user.token\nend\n")
     git!(tmp, ["add", "."])
     git!(tmp, ["commit", "-m", "change"])
 
+    test_pid = self()
+
     runner = fn _cmd, ["-c", shell_cmd], _opts ->
+      send(test_pid, {:shell_cmd, shell_cmd})
+      [_, prompt_file] = Regex.run(~r/-p @'([^']+)'/, shell_cmd)
+      prompt = File.read!(prompt_file)
+
       output =
         cond do
-          shell_cmd =~ "You are guard" ->
+          prompt =~ "You are guard" ->
             "Guard analysis\n```json\n#{review_output("guard", "FAIL", "critical")}\n```"
 
-          shell_cmd =~ "You are trace" ->
+          prompt =~ "You are trace" ->
             "Trace analysis\n```json\n#{review_output("trace", "PASS", "info")}\n```"
 
           true ->
@@ -93,101 +95,20 @@ defmodule Thinktank.ReviewWorkflowTest do
     assert result.context.final_verdict.verdict == "FAIL"
     assert File.exists?(Path.join(result.output_dir, "verdict.json"))
     assert File.exists?(Path.join(result.output_dir, "review.md"))
+    assert_receive {:shell_cmd, shell_cmd}
+    assert shell_cmd =~ "--tools read,grep,find,ls,bash"
+    refute shell_cmd =~ "```diff"
   end
 
-  test "quick review mode uses structured verdicts for all reviewers" do
-    tmp = unique_tmp_dir("thinktank-review-quick")
-    File.write!(Path.join(tmp, "lib_app.ex"), "defmodule App do\n  def ok, do: :ok\nend\n")
+  test "review workflow rejects non-agentic mode requests" do
+    tmp = unique_tmp_dir("thinktank-review-mode")
 
-    git!(tmp, ["init", "-b", "main"])
-    git!(tmp, ["config", "user.email", "test@example.com"])
-    git!(tmp, ["config", "user.name", "ThinkTank Test"])
-    git!(tmp, ["add", "."])
-    git!(tmp, ["commit", "-m", "base"])
-    git!(tmp, ["checkout", "-b", "feature"])
-
-    File.write!(Path.join(tmp, "lib_app.ex"), "defmodule App do\n  def ok(user), do: user.token\nend\n")
-    git!(tmp, ["add", "."])
-    git!(tmp, ["commit", "-m", "change"])
-
-    Req.Test.stub(__MODULE__, fn conn ->
-      {conn, payload} = decode_request(conn)
-
-      assert get_in(payload, ["response_format", "json_schema", "schema", "properties", "verdict", "enum"]) != nil
-
-      reviewer =
-        get_in(payload, ["messages", Access.at(0), "content"])
-        |> to_string()
-        |> then(fn content ->
-          cond do
-            String.contains?(content, "You are trace") -> "trace"
-            String.contains?(content, "You are guard") -> "guard"
-            String.contains?(content, "You are atlas") -> "atlas"
-            true -> "proof"
-          end
-        end)
-
-      verdict =
-        case reviewer do
-          "guard" -> "FAIL"
-          _ -> "PASS"
-        end
-
-      Req.Test.json(conn, %{
-        "choices" => [
-          %{
-            "message" => %{
-              "content" =>
-                Jason.encode!(%{
-                  reviewer: reviewer,
-                  perspective: reviewer,
-                  verdict: verdict,
-                  confidence: 0.95,
-                  summary: "#{reviewer} summary",
-                  findings:
-                    if verdict == "PASS" do
-                      []
-                    else
-                      [
-                        %{
-                          severity: "critical",
-                          category: "logic",
-                          title: "#{reviewer} finding",
-                          description: "Problem",
-                          suggestion: "Fix it",
-                          file: "lib/app.ex",
-                          line: 12
-                        }
-                      ]
-                    end,
-                  stats: %{
-                    files_reviewed: 1,
-                    files_with_issues: if(verdict == "PASS", do: 0, else: 1),
-                    critical: if(verdict == "FAIL", do: 1, else: 0),
-                    major: 0,
-                    minor: 0,
-                    info: 0
-                  }
-                })
-            }
-          }
-        ],
-        "usage" => %{"prompt_tokens" => 10, "completion_tokens" => 10, "total_tokens" => 20},
-        "cost" => 0.001
-      })
-    end)
-
-    assert {:ok, result} =
+    assert {:error, {:mode_not_allowed, "review/cerberus", :quick, :deep}, nil} =
              Engine.run(
                "review/cerberus",
                %{base: "main", head: "HEAD"},
                cwd: tmp,
-               mode: :quick,
-               openrouter_opts: [api_key: "test-key", plug: {Req.Test, __MODULE__}]
+               mode: :quick
              )
-
-    assert result.context.final_verdict.verdict == "FAIL"
-    assert Enum.count(result.context.parsed_reviews, &(&1.status == :ok)) == 4
-    assert Enum.any?(result.envelope.artifacts, &(&1["name"] == "guard-verdict"))
   end
 end

@@ -17,6 +17,7 @@ defmodule Thinktank.ConfigTest do
       assert Map.has_key?(config.workflows, "research/default")
       assert Map.has_key?(config.workflows, "review/cerberus")
       assert Map.has_key?(config.agents, "trace")
+      assert config.workflows["review/cerberus"].execution_mode == :deep
     end
 
     test "repo config overrides user config and adds custom workflows" do

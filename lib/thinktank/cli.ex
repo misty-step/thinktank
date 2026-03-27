@@ -108,6 +108,7 @@ defmodule Thinktank.CLI do
           id: workflow.id,
           description: workflow.description,
           default_mode: workflow.default_mode,
+          execution_mode: workflow.execution_mode,
           stages:
             Enum.map(workflow.stages, fn stage ->
               %{
@@ -197,18 +198,36 @@ defmodule Thinktank.CLI do
   end
 
   defp build_command(["run", workflow_id | remainder], parsed) do
-    case parse_tier(parsed[:tier]) do
-      {:ok, tier} ->
-        input_text = resolve_input_text(parsed[:input], remainder)
+    if workflow_id == "review/cerberus" and parsed[:quick] do
+      {:error, "review/cerberus is agentic-only; remove --quick"}
+    else
+      case parse_tier(parsed[:tier]) do
+        {:ok, tier} ->
+          input_text = resolve_input_text(parsed[:input], remainder)
 
-        if input_text == nil do
-          {:needs_stdin, build_run_command(workflow_id, parsed, nil, tier)}
-        else
-          {:ok, build_run_command(workflow_id, parsed, input_text, tier)}
-        end
+          if input_text == nil do
+            {:needs_stdin, build_run_command(workflow_id, parsed, nil, tier)}
+          else
+            {:ok, build_run_command(workflow_id, parsed, input_text, tier)}
+          end
 
-      {:error, _} = error ->
-        error
+        {:error, _} = error ->
+          error
+      end
+    end
+  end
+
+  defp build_command(["review" | remainder], parsed) do
+    if parsed[:quick] do
+      {:error, "thinktank review is agentic-only; remove --quick"}
+    else
+      case parse_tier(parsed[:tier]) do
+        {:ok, tier} ->
+          {:ok, build_review_command(parsed, resolve_input_text(parsed[:input], remainder), tier)}
+
+        {:error, _} = error ->
+          error
+      end
     end
   end
 
@@ -222,16 +241,6 @@ defmodule Thinktank.CLI do
         else
           {:ok, build_research_command(parsed, input_text, tier)}
         end
-
-      {:error, _} = error ->
-        error
-    end
-  end
-
-  defp build_command(["review" | remainder], parsed) do
-    case parse_tier(parsed[:tier]) do
-      {:ok, tier} ->
-        {:ok, build_review_command(parsed, resolve_input_text(parsed[:input], remainder), tier)}
 
       {:error, _} = error ->
         error
@@ -400,6 +409,12 @@ defmodule Thinktank.CLI do
   end
 
   defp format_reason({:stage_failed, stage_name, reason}), do: "stage #{stage_name} failed: #{inspect(reason)}"
+  defp format_reason({:mode_not_allowed, workflow_id, requested, required}),
+    do: "#{workflow_id} requires #{required} mode; got #{requested}"
+
+  defp format_reason({:invalid_workflow_mode_config, workflow_id, default_mode, required}),
+    do: "#{workflow_id} default_mode #{default_mode} conflicts with execution_mode #{required}"
+
   defp format_reason(reason), do: inspect(reason)
 
   defp mode_for(parsed) do

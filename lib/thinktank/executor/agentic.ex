@@ -15,7 +15,7 @@ defmodule Thinktank.Executor.Agentic do
 
   @spec run([AgentSpec.t()], RunContract.t(), map(), Config.t(), keyword()) :: [result()]
   def run(agents, %RunContract{} = contract, context, %Config{} = config, opts \\ []) do
-    runner = Keyword.get(opts, :runner) || Thinktank.Dispatch.Deep.default_runner()
+    runner = Keyword.get(opts, :runner) || default_runner()
     timeout = Enum.max(Enum.map(agents, & &1.timeout_ms), fn -> :timer.minutes(30) end)
 
     tasks =
@@ -63,8 +63,9 @@ defmodule Thinktank.Executor.Agentic do
 
     prompt = "#{agent.system_prompt}\n\n#{rendered_prompt}"
 
-    shell_cmd = build_shell_cmd(agent, prompt, tool_list(agent))
-    cmd_opts = build_cmd_opts(agent, config.providers[agent.provider], opts)
+    prompt_file = write_prompt_file(contract, agent, prompt)
+    shell_cmd = build_shell_cmd(agent, prompt_file, tool_list(agent))
+    cmd_opts = build_cmd_opts(agent, contract, config.providers[agent.provider], opts)
 
     case runner.("sh", ["-c", shell_cmd], cmd_opts) do
       {output, 0} ->
@@ -93,16 +94,16 @@ defmodule Thinktank.Executor.Agentic do
       }
   end
 
-  defp build_shell_cmd(agent, prompt, tools) do
-    escaped_prompt = prompt |> String.replace("'", "'\\''")
+  defp build_shell_cmd(agent, prompt_file, tools) do
     escaped_model = agent.model |> String.replace("'", "'\\''")
+    escaped_prompt_file = prompt_file |> String.replace("'", "'\\''")
 
     "exec pi --no-session --no-skills --model '#{escaped_model}'" <>
-      " --tools #{Enum.join(tools, ",")} -p '#{escaped_prompt}' < /dev/null"
+      " --tools #{Enum.join(tools, ",")} -p @'#{escaped_prompt_file}' < /dev/null"
   end
 
-  defp build_cmd_opts(agent, provider, opts) do
-    base_env = maybe_agent_config_env(opts[:agent_config_dir] || Thinktank.CLI.agent_config_dir())
+  defp build_cmd_opts(agent, contract, provider, opts) do
+    base_env = maybe_agent_config_env(build_agent_home(contract, agent, opts[:agent_config_dir] || Thinktank.CLI.agent_config_dir()))
     provider_env = provider_env(provider)
 
     timeout = agent.timeout_ms
@@ -131,12 +132,63 @@ defmodule Thinktank.Executor.Agentic do
 
   defp tool_list(%AgentSpec{tools: tools}) when is_list(tools) and tools != [], do: tools
   defp tool_list(%AgentSpec{tool_profile: "research"}), do: ["read", "grep", "find", "bash"]
-  defp tool_list(%AgentSpec{tool_profile: "review"}), do: ["read", "grep", "find", "ls"]
+  defp tool_list(%AgentSpec{tool_profile: "review"}), do: ["read", "grep", "find", "ls", "bash"]
   defp tool_list(_), do: ["read", "grep", "find"]
+
+  defp write_prompt_file(contract, agent, prompt) do
+    dir = Path.join(contract.artifact_dir, "prompts")
+    File.mkdir_p!(dir)
+    path = Path.join(dir, "#{safe_name(agent.name)}.md")
+    File.write!(path, prompt)
+    path
+  end
+
+  defp build_agent_home(contract, agent, nil) do
+    dir = Path.join([contract.artifact_dir, "pi-home", safe_name(agent.name)])
+    File.mkdir_p!(dir)
+    dir
+  end
+
+  defp build_agent_home(contract, agent, base_dir) do
+    dir = Path.join([contract.artifact_dir, "pi-home", safe_name(agent.name)])
+
+    unless File.exists?(dir) do
+      File.mkdir_p!(Path.dirname(dir))
+      File.cp_r!(base_dir, dir)
+    end
+
+    dir
+  end
+
+  defp safe_name(name) do
+    name
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/, "-")
+    |> String.trim("-")
+  end
 
   defp stringify_keys(map) do
     map
     |> Enum.map(fn {key, value} -> {to_string(key), value} end)
     |> Enum.into(%{})
+  end
+
+  @doc false
+  def default_runner do
+    script = :escript.script_name() |> List.to_string()
+
+    cond do
+      script == "" ->
+        Thinktank.Dispatch.Deep.default_runner()
+
+      script == "mix" ->
+        Thinktank.Dispatch.Deep.default_runner()
+
+      Path.basename(script) == "mix" ->
+        Thinktank.Dispatch.Deep.default_runner()
+
+      true ->
+        &Thinktank.Dispatch.Deep.system_cmd/3
+    end
   end
 end

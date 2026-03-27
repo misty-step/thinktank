@@ -61,6 +61,14 @@ defmodule Thinktank.CLITest do
       assert command.input.pr == 42
     end
 
+    test "rejects quick mode for review workflows" do
+      assert {:error, "thinktank review is agentic-only; remove --quick"} =
+               CLI.parse_args(["review", "--quick"])
+
+      assert {:error, "review/cerberus is agentic-only; remove --quick"} =
+               CLI.parse_args(["run", "review/cerberus", "--quick"])
+    end
+
     test "parses workflow management commands" do
       assert {:ok, %{action: :workflows_list}} = CLI.parse_args(["workflows", "list"])
       assert {:ok, %{action: :workflows_validate}} = CLI.parse_args(["workflows", "validate"])

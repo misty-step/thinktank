@@ -32,8 +32,8 @@ defmodule Thinktank.Engine do
 
     with {:ok, config} <- Config.load(cwd: cwd),
          {:ok, workflow} <- Config.workflow(config, workflow_id),
-         :ok <- validate_input(workflow, input) do
-      mode = Keyword.get(opts, :mode, workflow.default_mode)
+         :ok <- validate_input(workflow, input),
+         {:ok, mode} <- resolve_mode(workflow, Keyword.get(opts, :mode)) do
       output_dir = Keyword.get(opts, :output, generate_output_dir(workflow_id))
 
       contract = %RunContract{
@@ -65,6 +65,9 @@ defmodule Thinktank.Engine do
           RunStore.complete_run(output_dir, "failed")
           {:error, reason, output_dir}
       end
+    else
+      {:error, reason} -> {:error, reason, nil}
+      reason -> {:error, reason, nil}
     end
   end
 
@@ -149,11 +152,12 @@ defmodule Thinktank.Engine do
            ),
          diff_text: prepared.diff_text,
          changed_paths: prepared.changed_paths,
+         changed_paths_block: build_changed_paths_block(prepared.changed_paths),
          base_ref: prepared.base_ref,
          head_ref: prepared.head_ref,
          review_metadata: prepared.metadata,
          diff_summary: diff_summary,
-         review_bundle: build_review_bundle(prepared, diff_summary),
+         review_bundle: build_review_bundle(prepared, diff_summary, contract.workspace_root),
          result_kind: :review
        }}
     end
@@ -373,6 +377,27 @@ defmodule Thinktank.Engine do
 
   defp validate_input(_workflow, _input), do: :ok
 
+  defp resolve_mode(%WorkflowSpec{default_mode: default_mode, execution_mode: :flexible}, nil), do: {:ok, default_mode}
+  defp resolve_mode(%WorkflowSpec{execution_mode: :flexible}, requested) when requested in [:quick, :deep], do: {:ok, requested}
+
+  defp resolve_mode(%WorkflowSpec{id: id, default_mode: default_mode, execution_mode: required_mode}, nil)
+       when required_mode in [:quick, :deep] do
+    if default_mode == required_mode do
+      {:ok, default_mode}
+    else
+      {:error, {:invalid_workflow_mode_config, id, default_mode, required_mode}}
+    end
+  end
+
+  defp resolve_mode(%WorkflowSpec{id: id, execution_mode: required_mode}, requested)
+       when required_mode in [:quick, :deep] and requested in [:quick, :deep] do
+    if requested == required_mode do
+      {:ok, requested}
+    else
+      {:error, {:mode_not_allowed, id, requested, required_mode}}
+    end
+  end
+
   defp select_models(input) do
     models = input_value(input, :models, [])
     tier = input_value(input, :tier, :standard)
@@ -481,29 +506,48 @@ defmodule Thinktank.Engine do
     match?({:ok, _}, optional_cmd("git", ["rev-parse", "--verify", ref], cwd))
   end
 
-  defp build_review_bundle(prepared, diff_summary) do
-    changed_files =
-      prepared.changed_paths
-      |> Enum.map_join("\n", &"* #{&1}")
-
-    diff_text = truncate(prepared.diff_text, 120_000)
+  defp build_review_bundle(prepared, diff_summary, workspace_root) do
+    changed_files = build_changed_paths_block(prepared.changed_paths)
+    title = get_in(prepared.metadata, ["title"]) || "n/a"
+    pr_body = prepared.metadata |> Map.get("body", "") |> truncate(2_000)
 
     """
-    Review context:
+    Review target:
+    - Workspace root: #{workspace_root}
     - Base ref: #{prepared.base_ref}
     - Head ref: #{prepared.head_ref}
     - Changed files: #{length(prepared.changed_paths)}
     - Size bucket: #{diff_summary.size_bucket}
     - Model tier: #{diff_summary.model_tier}
+    - PR title: #{title}
 
     Changed paths:
     #{changed_files}
 
-    Diff:
-    ```diff
-    #{diff_text}
-    ```
+    PR body:
+    #{if(String.trim(pr_body) == "", do: "(empty)", else: pr_body)}
+
+    Inspect the change directly with your tools before making claims.
+    Useful commands:
+    - git diff --no-ext-diff #{prepared.base_ref}...#{prepared.head_ref}
+    - git diff --no-ext-diff #{prepared.base_ref}...#{prepared.head_ref} -- <path>
+    - git show #{prepared.head_ref}:<path>
+    - git blame #{prepared.head_ref} -- <path>
+    - rg "<symbol>" #{workspace_root}
+
+    Do not rely only on this summary. Use the repo, diff, and nearby code to verify each finding.
     """
+  end
+
+  defp build_changed_paths_block(paths) do
+    paths
+    |> Enum.take(200)
+    |> Enum.map_join("\n", &"* #{&1}")
+    |> case do
+      "" -> "(none)"
+      block when length(paths) > 200 -> block <> "\n* ... [truncated]"
+      block -> block
+    end
   end
 
   defp extract_changed_paths(diff_text) do

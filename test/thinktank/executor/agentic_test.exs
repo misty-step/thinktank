@@ -67,4 +67,57 @@ defmodule Thinktank.Executor.AgenticTest do
     assert result.status == :ok
     assert result.output =~ "stub reviewer output"
   end
+
+  test "uses an isolated pi home per agent run" do
+    tmp = unique_tmp_dir("thinktank-agentic-home")
+    test_pid = self()
+
+    agent = %AgentSpec{
+      name: "Trace Guard",
+      provider: "openrouter",
+      model: "openai/gpt-5.4",
+      system_prompt: "You are a reviewer.",
+      prompt: "{{input_text}}",
+      tool_profile: "review",
+      timeout_ms: 5_000
+    }
+
+    contract = %RunContract{
+      workflow_id: "review/cerberus",
+      workspace_root: tmp,
+      input: %{input_text: "Review this"},
+      artifact_dir: Path.join(tmp, "out"),
+      adapter_context: %{},
+      mode: :deep
+    }
+
+    config = %Config{
+      providers: %{
+        "openrouter" => %ProviderSpec{
+          id: "openrouter",
+          adapter: :openrouter,
+          credential_env: "THINKTANK_OPENROUTER_API_KEY",
+          defaults: %{}
+        }
+      },
+      agents: %{},
+      workflows: %{},
+      sources: %{}
+    }
+
+    runner = fn _cmd, _args, opts ->
+      env = Keyword.fetch!(opts, :env)
+      pi_home = env |> Enum.into(%{}) |> Map.fetch!("PI_CODING_AGENT_DIR")
+      send(test_pid, {:pi_home, pi_home})
+      {"stub reviewer output", 0}
+    end
+
+    [result] = Agentic.run([agent], contract, %{}, config, runner: runner)
+
+    assert result.status == :ok
+
+    assert_receive {:pi_home, pi_home}
+    assert pi_home == Path.join(contract.artifact_dir, "pi-home/trace-guard")
+    assert File.dir?(pi_home)
+  end
 end

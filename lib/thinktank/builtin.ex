@@ -24,6 +24,7 @@ defmodule Thinktank.Builtin do
           "description" => "Multi-perspective research workflow with routing, parallel fanout, and synthesis.",
           "input_schema" => %{"required" => ["input_text"]},
           "default_mode" => "quick",
+          "execution_mode" => "flexible",
           "stages" => [
             %{"name" => "prepare", "type" => "prepare", "kind" => "research_input"},
             %{
@@ -45,7 +46,8 @@ defmodule Thinktank.Builtin do
         "review/cerberus" => %{
           "description" => "Diff-aware multi-agent code review with reviewer routing and verdict aggregation.",
           "input_schema" => %{},
-          "default_mode" => "quick",
+          "default_mode" => "deep",
+          "execution_mode" => "deep",
           "stages" => [
             %{"name" => "prepare", "type" => "prepare", "kind" => "review_diff"},
             %{
@@ -95,7 +97,10 @@ defmodule Thinktank.Builtin do
 
     {{review_bundle}}
 
-    Review only issues you can ground in the provided diff or nearby repository context.
+    This workflow is agentic. Use your tools to inspect the repository, the branch diff,
+    and any nearby code or tests you need before deciding.
+
+    Review only issues you can ground in the actual code, diff, or repository context.
     If there is not enough evidence for a claim, do not report it.
 
     Return a short markdown review followed by exactly one fenced ```json block.
