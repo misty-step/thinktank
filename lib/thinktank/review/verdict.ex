@@ -29,6 +29,52 @@ defmodule Thinktank.Review.Verdict do
           stats: map()
         }
 
+  @spec json_schema() :: map()
+  def json_schema do
+    %{
+      type: "object",
+      additionalProperties: false,
+      required: @required_root_keys,
+      properties: %{
+        "reviewer" => %{type: "string"},
+        "perspective" => %{type: "string"},
+        "verdict" => %{type: "string", enum: Enum.sort(MapSet.to_list(@valid_verdicts))},
+        "confidence" => %{type: "number", minimum: 0.0, maximum: 1.0},
+        "summary" => %{type: "string"},
+        "findings" => %{
+          type: "array",
+          items: %{
+            type: "object",
+            additionalProperties: false,
+            required: @required_finding_keys,
+            properties: %{
+              "severity" => %{type: "string", enum: Enum.sort(MapSet.to_list(@valid_severities))},
+              "category" => %{type: "string"},
+              "title" => %{type: "string"},
+              "description" => %{type: "string"},
+              "suggestion" => %{type: "string"},
+              "file" => %{type: "string"},
+              "line" => %{type: "integer", minimum: 0}
+            }
+          }
+        },
+        "stats" => %{
+          type: "object",
+          additionalProperties: false,
+          required: @required_stats_keys,
+          properties: %{
+            "files_reviewed" => %{type: "integer", minimum: 0},
+            "files_with_issues" => %{type: "integer", minimum: 0},
+            "critical" => %{type: "integer", minimum: 0},
+            "major" => %{type: "integer", minimum: 0},
+            "minor" => %{type: "integer", minimum: 0},
+            "info" => %{type: "integer", minimum: 0}
+          }
+        }
+      }
+    }
+  end
+
   @spec parse(String.t()) :: {:ok, t()} | {:error, term()}
   def parse(text) when is_binary(text) do
     with {:ok, json_text} <- extract_json(text),

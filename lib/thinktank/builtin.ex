@@ -45,7 +45,7 @@ defmodule Thinktank.Builtin do
         "review/cerberus" => %{
           "description" => "Diff-aware multi-agent code review with reviewer routing and verdict aggregation.",
           "input_schema" => %{},
-          "default_mode" => "deep",
+          "default_mode" => "quick",
           "stages" => [
             %{"name" => "prepare", "type" => "prepare", "kind" => "review_diff"},
             %{
@@ -95,7 +95,12 @@ defmodule Thinktank.Builtin do
 
     {{review_bundle}}
 
-    Return a concise review and finish with one fenced ```json block.
+    Review only issues you can ground in the provided diff or nearby repository context.
+    If there is not enough evidence for a claim, do not report it.
+
+    Return a short markdown review followed by exactly one fenced ```json block.
+    The JSON must be valid and must not contain comments or unescaped quotes.
+    If you find no substantive issues, return verdict PASS with findings [].
 
     The JSON object must include:
     - reviewer

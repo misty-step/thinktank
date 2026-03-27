@@ -4,6 +4,7 @@ defmodule Thinktank.Executor.Direct do
   """
 
   alias Thinktank.{AgentSpec, Config, OpenRouter, RunContract, Template}
+  alias Thinktank.Review.Verdict
 
   @type result :: %{
           agent: AgentSpec.t(),
@@ -52,7 +53,7 @@ defmodule Thinktank.Executor.Direct do
     attempt(agent.retries + 1, fn ->
       case provider.adapter do
         :openrouter ->
-          case OpenRouter.chat(agent.model, agent.system_prompt, prompt, provider_opts ++ openrouter_opts) do
+          case call_openrouter(agent, contract, prompt, provider_opts ++ openrouter_opts) do
             {:ok, text, usage} ->
               {:ok, %{agent: agent, status: :ok, output: text || "", usage: usage, error: nil}}
 
@@ -120,4 +121,26 @@ defmodule Thinktank.Executor.Direct do
 
     if is_binary(key) and key != "", do: [api_key: key], else: []
   end
+
+  defp call_openrouter(agent, contract, prompt, opts) do
+    if structured_review?(agent, contract) do
+      case OpenRouter.chat_structured(
+             agent.model,
+             agent.system_prompt,
+             prompt,
+             Verdict.json_schema(),
+             opts
+           ) do
+        {:ok, map, usage} -> {:ok, Jason.encode!(map, pretty: true), usage}
+        {:error, error} -> {:error, error}
+      end
+    else
+      OpenRouter.chat(agent.model, agent.system_prompt, prompt, opts)
+    end
+  end
+
+  defp structured_review?(%AgentSpec{tool_profile: "review"}, %RunContract{workflow_id: "review/cerberus"}),
+    do: true
+
+  defp structured_review?(_, _), do: false
 end
