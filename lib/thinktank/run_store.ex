@@ -9,10 +9,10 @@ defmodule Thinktank.RunStore do
 
   @spec init_run(Path.t(), RunContract.t(), WorkflowSpec.t()) :: :ok
   def init_run(output_dir, %RunContract{} = contract, %WorkflowSpec{} = workflow) do
-    File.mkdir_p!(output_dir)
-    File.mkdir_p!(Path.join(output_dir, "stages"))
-    File.mkdir_p!(Path.join(output_dir, "agents"))
-    File.mkdir_p!(Path.join(output_dir, "artifacts"))
+    mkdir_private!(output_dir)
+    mkdir_private!(Path.join(output_dir, "stages"))
+    mkdir_private!(Path.join(output_dir, "agents"))
+    mkdir_private!(Path.join(output_dir, "artifacts"))
 
     manifest = %{
       "version" => version(),
@@ -189,6 +189,11 @@ defmodule Thinktank.RunStore do
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9]+/, "-")
     |> String.trim("-")
+  end
+
+  defp mkdir_private!(path) do
+    File.mkdir_p!(path)
+    File.chmod!(path, 0o700)
   end
 
   defp version, do: Application.spec(:thinktank, :vsn) |> to_string()

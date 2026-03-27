@@ -17,6 +17,7 @@ defmodule Thinktank.Config do
   @spec load(keyword()) :: {:ok, t()} | {:error, String.t()}
   def load(opts \\ []) do
     cwd = Keyword.get(opts, :cwd, File.cwd!())
+    trust_repo_config = Keyword.get(opts, :trust_repo_config, trust_repo_config?())
 
     user_path =
       Keyword.get(opts, :user_config_path, Path.join(user_config_dir(opts), "config.yml"))
@@ -25,6 +26,8 @@ defmodule Thinktank.Config do
 
     with {:ok, user_raw} <- load_yaml_if_present(user_path),
          {:ok, repo_raw} <- load_yaml_if_present(repo_path) do
+      repo_raw = sanitize_repo_config(repo_raw, trust_repo_config)
+
       raw =
         Builtin.raw_config()
         |> deep_merge(user_raw)
@@ -167,5 +170,12 @@ defmodule Thinktank.Config do
     Map.merge(left, right, fn _key, lval, rval ->
       if is_map(lval) and is_map(rval), do: deep_merge(lval, rval), else: rval
     end)
+  end
+
+  defp sanitize_repo_config(raw, true), do: raw
+  defp sanitize_repo_config(raw, false), do: Map.delete(raw, "providers")
+
+  defp trust_repo_config? do
+    System.get_env("THINKTANK_TRUST_REPO_CONFIG") in ["1", "true", "TRUE", "yes", "YES"]
   end
 end

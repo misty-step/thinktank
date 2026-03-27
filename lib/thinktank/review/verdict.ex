@@ -16,7 +16,7 @@ defmodule Thinktank.Review.Verdict do
           description: String.t(),
           suggestion: String.t(),
           file: String.t(),
-          line: non_neg_integer()
+          line: non_neg_integer() | nil
         }
 
   @type t :: %{
@@ -54,7 +54,12 @@ defmodule Thinktank.Review.Verdict do
               "description" => %{type: "string"},
               "suggestion" => %{type: "string"},
               "file" => %{type: "string"},
-              "line" => %{type: "integer", minimum: 0}
+              "line" => %{
+                anyOf: [
+                  %{type: "integer", minimum: 0},
+                  %{type: "null"}
+                ]
+              }
             }
           }
         },
@@ -169,7 +174,7 @@ defmodule Thinktank.Review.Verdict do
       not MapSet.member?(@valid_severities, finding["severity"]) ->
         {:error, {:invalid_severity, finding["severity"]}}
 
-      not is_integer(finding["line"]) or finding["line"] < 0 ->
+      not valid_line?(finding["line"]) ->
         {:error, {:invalid_line, finding["line"]}}
 
       true ->
@@ -187,6 +192,10 @@ defmodule Thinktank.Review.Verdict do
   end
 
   defp validate_finding(_), do: {:error, :invalid_finding}
+
+  defp valid_line?(nil), do: true
+  defp valid_line?(line) when is_integer(line) and line >= 0, do: true
+  defp valid_line?(_), do: false
 
   defp validate_stats(%{} = stats) do
     missing = Enum.filter(@required_stats_keys, &(not Map.has_key?(stats, &1)))

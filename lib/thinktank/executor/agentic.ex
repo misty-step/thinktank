@@ -125,7 +125,12 @@ defmodule Thinktank.Executor.Agentic do
 
     timeout = agent.timeout_ms
 
-    [stderr_to_stdout: true, timeout: timeout, env: base_env ++ provider_env]
+    [
+      stderr_to_stdout: true,
+      timeout: timeout,
+      env: base_env ++ provider_env,
+      cd: contract.workspace_root
+    ]
   end
 
   defp maybe_agent_config_env(nil), do: []

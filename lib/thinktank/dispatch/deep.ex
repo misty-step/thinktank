@@ -108,7 +108,7 @@ defmodule Thinktank.Dispatch.Deep do
 
   @doc false
   def default_runner do
-    if muontrap_available?(), do: &MuonTrap.cmd/3, else: &system_cmd/3
+    if muontrap_available?(), do: &muontrap_cmd/3, else: &system_cmd/3
   end
 
   @doc false
@@ -127,15 +127,28 @@ defmodule Thinktank.Dispatch.Deep do
   def system_cmd(cmd, args, opts) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     env = Keyword.get(opts, :env, [])
+    cd = Keyword.get(opts, :cd)
+    cmd_opts = [stderr_to_stdout: true, env: env] ++ if(cd, do: [cd: cd], else: [])
 
     task =
       Task.async(fn ->
-        System.cmd(cmd, args, stderr_to_stdout: true, env: env)
+        System.cmd(cmd, args, cmd_opts)
       end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, {output, exit_code}} -> {output, exit_code}
       nil -> {"", :timeout}
     end
+  end
+
+  defp muontrap_cmd(cmd, args, opts) do
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    env = Keyword.get(opts, :env, [])
+    cd = Keyword.get(opts, :cd)
+
+    cmd_opts =
+      [stderr_to_stdout: true, timeout: timeout, env: env] ++ if(cd, do: [cd: cd], else: [])
+
+    MuonTrap.cmd(cmd, args, cmd_opts)
   end
 end

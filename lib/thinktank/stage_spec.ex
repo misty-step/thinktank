@@ -3,14 +3,9 @@ defmodule Thinktank.StageSpec do
   Typed stage definition for workflow execution.
   """
 
+  alias Thinktank.StageRegistry
+
   @valid_types ~w(prepare route fanout aggregate emit)
-  @valid_kinds %{
-    prepare: MapSet.new(["research_input", "review_diff"]),
-    route: MapSet.new(["research_router", "cerberus_review", "static_agents"]),
-    fanout: MapSet.new(["agents"]),
-    aggregate: MapSet.new(["research_synthesis", "cerberus_verdict"]),
-    emit: MapSet.new(["artifacts"])
-  }
 
   @enforce_keys [:name, :type, :kind]
   defstruct [:name, :type, :kind, when: true, retry: 0, concurrency: nil, options: %{}]
@@ -67,7 +62,7 @@ defmodule Thinktank.StageSpec do
     do: {:error, "stage kind is required"}
 
   defp parse_kind(type, kind) do
-    if MapSet.member?(Map.fetch!(@valid_kinds, type), kind) do
+    if kind in supported_kinds(type) do
       {:ok, kind}
     else
       {:error,
@@ -75,12 +70,7 @@ defmodule Thinktank.StageSpec do
     end
   end
 
-  defp supported_kinds(type) do
-    type
-    |> then(&Map.fetch!(@valid_kinds, &1))
-    |> MapSet.to_list()
-    |> Enum.sort()
-  end
+  defp supported_kinds(type), do: StageRegistry.supported_kinds(type)
 
   defp non_neg_int(value, _default) when is_integer(value) and value >= 0, do: value
 
