@@ -130,4 +130,14 @@ defmodule Thinktank.Review.VerdictTest do
 
     assert {:error, {:invalid_markdown_finding_row, _row}} = Verdict.parse(text)
   end
+
+  test "returns an error for malformed json verdict blocks instead of crashing" do
+    text = """
+    ```json
+    {"invalid":
+    ```
+    """
+
+    assert {:error, {:missing_markdown_field, "Reviewer"}} = Verdict.parse(text)
+  end
 end

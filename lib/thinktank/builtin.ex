@@ -144,6 +144,11 @@ defmodule Thinktank.Builtin do
     first-party provider wiring are deliberate design choices for now, not defects by themselves.
     Fixed v1 routing heuristics such as the built-in diff-size buckets are also deliberate unless
     they contradict a documented contract or cause a concrete bug here.
+    Fail-closed review behavior when no valid reviewer verdicts are produced is deliberate.
+    Separate repo trust controls for YAML config versus agent home directories are deliberate,
+    because agent homes contain executable and stateful resources.
+    Ignore untouched legacy modules unless they are exercised by the current workflow path or
+    directly implicated by the diff.
     Do not report roadmap requests, alternative abstractions, or generic missing-test suggestions
     unless they reveal a concrete bug, regression, security problem, or violated contract here.
 

@@ -326,16 +326,19 @@ defmodule Thinktank.StageRegistry do
 
   @doc false
   def aggregate_review_verdict(parsed_reviews) do
-    valid_reviews =
+    parseable_reviews =
       parsed_reviews
       |> Enum.filter(&match?(%{status: :ok, verdict: _}, &1))
       |> Enum.map(& &1.verdict)
-      |> Enum.filter(&(&1.confidence >= 0.7))
+
+    {valid_reviews, low_confidence_reviews} =
+      Enum.split_with(parseable_reviews, &(&1.confidence >= 0.7))
 
     invalid_review_count = Enum.count(parsed_reviews, &(&1.status != :ok))
 
     fail_reviews = Enum.filter(valid_reviews, &(&1.verdict == "FAIL"))
     warn_reviews = Enum.filter(valid_reviews, &(&1.verdict == "WARN"))
+    low_confidence_alert? = Enum.any?(low_confidence_reviews, &(&1.verdict in ["WARN", "FAIL"]))
 
     critical_fail? =
       Enum.any?(fail_reviews, fn review ->
@@ -345,19 +348,32 @@ defmodule Thinktank.StageRegistry do
     verdict =
       cond do
         valid_reviews == [] and parsed_reviews == [] -> "SKIP"
+        valid_reviews == [] and parseable_reviews != [] -> "WARN"
         valid_reviews == [] -> "FAIL"
         critical_fail? -> "FAIL"
         length(fail_reviews) >= 2 -> "FAIL"
         warn_reviews != [] -> "WARN"
         length(fail_reviews) == 1 -> "WARN"
+        low_confidence_alert? -> "WARN"
         true -> "PASS"
+      end
+
+    reason =
+      cond do
+        parsed_reviews == [] -> "no_reviewers"
+        valid_reviews == [] and parseable_reviews != [] -> "low_confidence_only"
+        valid_reviews == [] -> "no_valid_reviews"
+        low_confidence_reviews != [] -> "low_confidence_excluded"
+        true -> nil
       end
 
     %{
       verdict: verdict,
       reviewers: Enum.count(valid_reviews),
       failing_reviewers: length(fail_reviews) + invalid_review_count,
-      warning_reviewers: length(warn_reviews)
+      warning_reviewers: length(warn_reviews),
+      low_confidence_reviewers: length(low_confidence_reviews),
+      reason: reason
     }
   end
 
@@ -392,10 +408,12 @@ defmodule Thinktank.StageRegistry do
     # Cerberus Review
 
     Final verdict: **#{final_verdict.verdict}**
+    #{if(final_verdict.reason, do: "Reason: #{final_verdict.reason}", else: nil)}
 
     Routed panel: #{Enum.join(context.review_route.panel, ", ")}
     Size bucket: #{context.diff_summary.size_bucket}
     Model tier: #{context.diff_summary.model_tier}
+    Low-confidence reviewers excluded from verdict: #{final_verdict.low_confidence_reviewers}
 
     ## Reviewers
     #{reviewer_lines}

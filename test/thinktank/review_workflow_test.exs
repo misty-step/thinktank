@@ -73,14 +73,7 @@ defmodule Thinktank.ReviewWorkflowTest do
         printf '%s\\n' '--'
       } >> "#{log_path}"
 
-      export REVIEWER="$reviewer"
-
-      cat <<'EOF'
-      Review
-      ```json
-      {"reviewer":"$REVIEWER","perspective":"$REVIEWER","verdict":"PASS","confidence":0.9,"summary":"ok","findings":[],"stats":{"files_reviewed":1,"files_with_issues":0,"critical":0,"major":0,"minor":0,"info":0}}
-      ```
-      EOF
+      printf 'Review\\n```json\\n{"reviewer":"%s","perspective":"%s","verdict":"PASS","confidence":0.9,"summary":"ok","findings":[],"stats":{"files_reviewed":1,"files_with_issues":0,"critical":0,"major":0,"minor":0,"info":0}}\\n```\\n' "$reviewer" "$reviewer"
       """
     )
 

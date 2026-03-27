@@ -61,4 +61,19 @@ defmodule Thinktank.Review.DiffTest do
              security_hint: true
            }) == :pro
   end
+
+  test "ignores malformed diff headers without crashing" do
+    diff = """
+    diff --git a/lib/app.ex
+    @@ -1,1 +1,1 @@
+    -old
+    +new
+    """
+
+    summary = Diff.parse(diff)
+
+    assert summary.total_files == 0
+    assert summary.total_changed_lines == 0
+    assert summary.size_bucket == :small
+  end
 end

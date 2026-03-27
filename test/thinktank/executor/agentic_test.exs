@@ -435,6 +435,52 @@ defmodule Thinktank.Executor.AgenticTest do
     assert :ets.lookup_element(attempts, :count, 2) == 2
   end
 
+  test "returns timeout errors when the runner times out" do
+    tmp = unique_tmp_dir("thinktank-agentic-timeout")
+
+    agent = %AgentSpec{
+      name: "trace",
+      provider: "openrouter",
+      model: "openai/gpt-5.4",
+      system_prompt: "You are a reviewer.",
+      prompt: "{{input_text}}",
+      tool_profile: "review",
+      timeout_ms: 5_000
+    }
+
+    contract = %RunContract{
+      workflow_id: "review/cerberus",
+      workspace_root: tmp,
+      input: %{input_text: "Review this"},
+      artifact_dir: Path.join(tmp, "out"),
+      adapter_context: %{},
+      mode: :deep
+    }
+
+    config = %Config{
+      providers: %{
+        "openrouter" => %ProviderSpec{
+          id: "openrouter",
+          adapter: :openrouter,
+          credential_env: "THINKTANK_OPENROUTER_API_KEY",
+          defaults: %{}
+        }
+      },
+      agents: %{},
+      workflows: %{},
+      sources: %{}
+    }
+
+    [result] =
+      Agentic.run([agent], contract, %{}, config,
+        runner: fn _cmd, _args, _opts -> {"partial output", :timeout} end
+      )
+
+    assert result.status == :error
+    assert result.output == "partial output"
+    assert result.error == %{category: :timeout}
+  end
+
   test "honors fanout concurrency" do
     tmp = unique_tmp_dir("thinktank-agentic-concurrency")
     test_pid = self()
