@@ -596,9 +596,14 @@ defmodule Thinktank.StageRegistry do
 
     Useful tools and targets:
     - Read the diff file above for exact changed lines
-    - Use `read` on files under #{workspace_root}
-    - Use `grep` or `find` to inspect nearby code referenced by changed paths
+    - Use `read` on changed files first, then on nearby supporting files under #{workspace_root}
+    - Use `grep` or `find` for targeted follow-up on symbols referenced by changed paths
     - Use `ls` to orient inside the workspace when needed
+
+    Review scope:
+    - Keep the investigation diff-first and local to touched code unless the change clearly reaches farther
+    - Treat v1 routing heuristics such as small<=50, medium<=200, large<=500, xlarge>500 as deliberate defaults
+    - The aggregate verdict treats malformed or crashed reviewer outputs as invalid, so return valid JSON exactly once
 
     Do not rely only on this summary. Use the repo, diff, and nearby code to verify each finding.
     """

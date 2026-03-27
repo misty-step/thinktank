@@ -280,6 +280,8 @@ defmodule Thinktank.Executor.AgenticTest do
     assert_receive {:command, "sh", args}
     assert Enum.at(args, 1) == "exec < /dev/null; exec \"$@\""
     assert Enum.member?(args, "pi")
+    assert Enum.member?(args, "--thinking")
+    assert Enum.member?(args, "medium")
     assert Enum.member?(args, "--tools")
     assert Enum.member?(args, "read,$(touch /tmp/pwned)")
   end

@@ -12,12 +12,38 @@ defmodule Thinktank.Builtin do
         }
       },
       "agents" => %{
-        "trace" => reviewer_agent("trace", "x-ai/grok-4.1-fast", trace_prompt()),
-        "guard" => reviewer_agent("guard", "google/gemini-3-flash-preview", guard_prompt()),
-        "proof" => reviewer_agent("proof", "deepseek/deepseek-v3.2", proof_prompt()),
-        "atlas" => reviewer_agent("atlas", "openai/gpt-5.4", atlas_prompt()),
-        "fuse" => reviewer_agent("fuse", "anthropic/claude-sonnet-4.6", fuse_prompt()),
-        "craft" => reviewer_agent("craft", "mistralai/mistral-large-2512", craft_prompt())
+        "trace" =>
+          reviewer_agent("trace", "x-ai/grok-4.1-fast", trace_prompt(), thinking_level: "medium"),
+        "guard" =>
+          reviewer_agent(
+            "guard",
+            "google/gemini-3-flash-preview",
+            guard_prompt(),
+            thinking_level: "low"
+          ),
+        "proof" =>
+          reviewer_agent(
+            "proof",
+            "mistralai/mistral-large-2512",
+            proof_prompt(),
+            thinking_level: "medium"
+          ),
+        "atlas" =>
+          reviewer_agent(
+            "atlas",
+            "anthropic/claude-sonnet-4.6",
+            atlas_prompt(),
+            thinking_level: "medium"
+          ),
+        "fuse" =>
+          reviewer_agent("fuse", "openai/gpt-5.4", fuse_prompt(), thinking_level: "medium"),
+        "craft" =>
+          reviewer_agent(
+            "craft",
+            "deepseek/deepseek-v3.2",
+            craft_prompt(),
+            thinking_level: "medium"
+          )
       },
       "workflows" => %{
         "research/default" => %{
@@ -84,16 +110,16 @@ defmodule Thinktank.Builtin do
     }
   end
 
-  defp reviewer_agent(name, model, system_prompt) do
+  defp reviewer_agent(name, model, system_prompt, opts) do
     %{
       "provider" => "openrouter",
       "model" => model,
       "system_prompt" => system_prompt,
       "prompt" => review_prompt_template(),
       "tool_profile" => "review",
-      "thinking_level" => "high",
-      "retries" => 1,
-      "timeout_ms" => :timer.minutes(15),
+      "thinking_level" => Keyword.get(opts, :thinking_level, "medium"),
+      "retries" => Keyword.get(opts, :retries, 0),
+      "timeout_ms" => Keyword.get(opts, :timeout_ms, :timer.minutes(6)),
       "metadata" => %{"perspective" => name}
     }
   end
@@ -106,6 +132,9 @@ defmodule Thinktank.Builtin do
 
     This workflow is agentic. Use your tools to inspect the repository, the branch diff,
     and any nearby code or tests you need before deciding.
+    Start with the diff file and changed paths, then inspect only the changed files and the
+    nearest supporting modules or tests needed to verify a claim. Do not do broad repository
+    sweeps when the diff and adjacent code are enough.
     Deep review runs with file-system tools, not an unrestricted shell. Read the diff file
     and changed files directly instead of assuming shell access.
 
@@ -113,6 +142,8 @@ defmodule Thinktank.Builtin do
     If there is not enough evidence for a claim, do not report it.
     Respect the stated v1 scope in this change. The constrained built-in stage graph and
     first-party provider wiring are deliberate design choices for now, not defects by themselves.
+    Fixed v1 routing heuristics such as the built-in diff-size buckets are also deliberate unless
+    they contradict a documented contract or cause a concrete bug here.
     Do not report roadmap requests, alternative abstractions, or generic missing-test suggestions
     unless they reveal a concrete bug, regression, security problem, or violated contract here.
 

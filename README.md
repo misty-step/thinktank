@@ -85,6 +85,14 @@ Built-in workflows:
 - `research/default`
 - `review/cerberus`
 
+### Review Workflow Notes
+
+- `review/cerberus` is agentic-only and runs Pi subprocess reviewers against the checked-out workspace.
+- Reviewers are expected to work diff-first: inspect `inputs/review.diff`, then the changed files, then adjacent code or tests only as needed.
+- The built-in review router uses fixed v1 diff-size heuristics: `small <= 50`, `medium <= 200`, `large <= 500`, `xlarge > 500`.
+- The aggregate review verdict treats malformed or crashed reviewer outputs as invalid reviewers. If every reviewer is invalid, the overall review fails.
+- Repository-local `agent_config/` is only loaded when `THINKTANK_TRUST_REPO_AGENT_CONFIG=1` is set.
+
 ### Exit Codes
 
 | Code | Meaning |

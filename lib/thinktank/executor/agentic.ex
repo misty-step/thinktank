@@ -141,6 +141,8 @@ defmodule Thinktank.Executor.Agentic do
        "--no-skills",
        "--model",
        agent.model,
+       "--thinking",
+       agent.thinking_level,
        "--tools",
        Enum.join(tools, ","),
        "-p",
