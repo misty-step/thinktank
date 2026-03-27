@@ -15,7 +15,7 @@ defmodule Thinktank.Executor.Agentic do
 
   @spec run([AgentSpec.t()], RunContract.t(), map(), Config.t(), keyword()) :: [result()]
   def run(agents, %RunContract{} = contract, context, %Config{} = config, opts \\ []) do
-    runner = Keyword.get(opts, :runner, Thinktank.Dispatch.Deep.default_runner())
+    runner = Keyword.get(opts, :runner) || Thinktank.Dispatch.Deep.default_runner()
     timeout = Enum.max(Enum.map(agents, & &1.timeout_ms), fn -> :timer.minutes(30) end)
 
     tasks =
