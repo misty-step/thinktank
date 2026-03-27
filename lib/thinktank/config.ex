@@ -25,7 +25,7 @@ defmodule Thinktank.Config do
     repo_path = Keyword.get(opts, :repo_config_path, Path.join(cwd, ".thinktank/config.yml"))
 
     with {:ok, user_raw} <- load_yaml_if_present(user_path),
-         {:ok, repo_raw} <- load_yaml_if_present(repo_path) do
+         {:ok, repo_raw} <- load_repo_yaml(repo_path, trust_repo_config) do
       repo_raw = sanitize_repo_config(repo_raw, trust_repo_config)
 
       raw =
@@ -124,15 +124,32 @@ defmodule Thinktank.Config do
     Enum.reduce_while(stages, :ok, fn stage, :ok ->
       case stage.kind do
         "static_agents" ->
-          case validate_named_agents(stage.options["agents"], agents) do
-            :ok -> {:cont, :ok}
+          with :ok <- validate_named_agents_option(stage.options["agents"], agents, "agents") do
+            {:cont, :ok}
+          else
             {:error, reason} -> {:halt, {:error, reason}}
           end
 
         "cerberus_review" ->
-          with :ok <- validate_named_agents(stage.options["always_include"], agents),
-               :ok <- validate_named_agents(stage.options["include_if_code_changed"], agents),
-               :ok <- validate_named_agents(stage.options["fallback_panel"], agents) do
+          with :ok <- validate_panel_size(stage.options["panel_size"]),
+               :ok <-
+                 validate_named_agents_option(
+                   stage.options["always_include"],
+                   agents,
+                   "always_include"
+                 ),
+               :ok <-
+                 validate_named_agents_option(
+                   stage.options["include_if_code_changed"],
+                   agents,
+                   "include_if_code_changed"
+                 ),
+               :ok <-
+                 validate_named_agents_option(
+                   stage.options["fallback_panel"],
+                   agents,
+                   "fallback_panel"
+                 ) do
             {:cont, :ok}
           else
             {:error, reason} -> {:halt, {:error, reason}}
@@ -143,6 +160,34 @@ defmodule Thinktank.Config do
       end
     end)
   end
+
+  defp validate_named_agents_option(nil, _agents, _field), do: :ok
+
+  defp validate_named_agents_option(agent_names, agents, _field) when is_list(agent_names) do
+    case validate_named_agents(agent_names, agents) do
+      :ok -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp validate_named_agents_option(_value, _agents, field),
+    do: {:error, "workflow option #{field} must be a list of agent names"}
+
+  defp validate_panel_size(nil), do: :ok
+  defp validate_panel_size(value) when is_integer(value) and value > 0, do: :ok
+
+  defp validate_panel_size(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> :ok
+      _ -> {:error, "workflow option panel_size must be a positive integer"}
+    end
+  end
+
+  defp validate_panel_size(_value),
+    do: {:error, "workflow option panel_size must be a positive integer"}
+
+  defp load_repo_yaml(_path, false), do: {:ok, %{}}
+  defp load_repo_yaml(path, true), do: load_yaml_if_present(path)
 
   defp validate_named_agents(agent_names, agents) when is_list(agent_names) do
     case Enum.find(agent_names, &(not Map.has_key?(agents, &1))) do

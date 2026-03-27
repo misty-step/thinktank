@@ -71,4 +71,37 @@ defmodule Thinktank.RunStoreTest do
     assert Enum.any?(envelope.agents, &(&1["name"] == "trace"))
     assert Enum.any?(envelope.artifacts, &(&1["name"] == "review"))
   end
+
+  test "disambiguates stage and agent filenames with stable hashes" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-store-hash"), "run")
+
+    contract = %RunContract{
+      workflow_id: "research/default",
+      workspace_root: File.cwd!(),
+      input: %{},
+      artifact_dir: output_dir,
+      adapter_context: %{},
+      mode: :quick
+    }
+
+    workflow = %WorkflowSpec{
+      id: "research/default",
+      description: "Demo",
+      stages: []
+    }
+
+    RunStore.init_run(output_dir, contract, workflow)
+    RunStore.record_stage(output_dir, "A B", "complete", 1, %{})
+    RunStore.record_stage(output_dir, "a-b", "complete", 1, %{})
+    RunStore.record_agent_result(output_dir, "Trace Guard", "one", %{})
+    RunStore.record_agent_result(output_dir, "Trace/Guard", "two", %{})
+
+    stage_files = Path.join(output_dir, "stages") |> File.ls!() |> Enum.sort()
+    agent_files = Path.join(output_dir, "agents") |> File.ls!() |> Enum.sort()
+
+    assert length(stage_files) == 2
+    assert length(agent_files) == 2
+    assert Enum.uniq(stage_files) == stage_files
+    assert Enum.uniq(agent_files) == agent_files
+  end
 end

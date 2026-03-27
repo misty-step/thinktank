@@ -117,6 +117,16 @@ defmodule Thinktank.ConfigTest do
       assert config.providers["openrouter"].credential_env == "THINKTANK_OPENROUTER_API_KEY"
     end
 
+    test "untrusted repo config is skipped before parsing" do
+      tmp = unique_tmp_dir("thinktank-untrusted-malformed")
+      repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+      File.mkdir_p!(Path.dirname(repo_cfg))
+      File.write!(repo_cfg, ":\n  - broken")
+
+      assert {:ok, config} = Config.load(cwd: tmp)
+      assert Map.has_key?(config.workflows, "research/default")
+    end
+
     test "returns an error when a static workflow references an unknown agent" do
       tmp = unique_tmp_dir("thinktank-invalid")
       repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
@@ -216,6 +226,34 @@ defmodule Thinktank.ConfigTest do
       )
 
       assert {:error, "workflow references unknown agent ghost"} =
+               Config.load(cwd: tmp, trust_repo_config: true)
+    end
+
+    test "returns an error when stage option shapes are invalid" do
+      tmp = unique_tmp_dir("thinktank-invalid-stage-options")
+      repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+      File.mkdir_p!(Path.dirname(repo_cfg))
+
+      File.write!(
+        repo_cfg,
+        """
+        workflows:
+          demo/invalid:
+            description: Invalid workflow
+            stages:
+              - type: prepare
+                kind: research_input
+              - type: route
+                kind: static_agents
+                agents: trace
+              - type: fanout
+                kind: agents
+              - type: emit
+                kind: artifacts
+        """
+      )
+
+      assert {:error, "workflow option agents must be a list of agent names"} =
                Config.load(cwd: tmp, trust_repo_config: true)
     end
 

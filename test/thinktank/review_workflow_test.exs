@@ -52,7 +52,7 @@ defmodule Thinktank.ReviewWorkflowTest do
 
   test "runs local diff review workflow and aggregates verdicts" do
     tmp = unique_tmp_dir("thinktank-review")
-    branch_name = "feature-#{System.unique_integer([:positive])}"
+    branch_name = "feature-#{System.unique_integer([:positive, :monotonic])}"
     File.write!(Path.join(tmp, "lib_app.ex"), "defmodule App do\n  def ok, do: :ok\nend\n")
 
     git!(tmp, ["init", "-b", "main"])

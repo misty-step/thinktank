@@ -46,7 +46,7 @@ defmodule Thinktank.RunStore do
 
   @spec record_stage(Path.t(), String.t(), String.t(), non_neg_integer(), map()) :: :ok
   def record_stage(output_dir, stage_name, status, attempts, data \\ %{}) do
-    file = Path.join(["stages", "#{slugify(stage_name)}.json"])
+    file = Path.join(["stages", "#{stable_slug(stage_name)}.json"])
     write_json(Path.join(output_dir, file), data)
 
     update_manifest(output_dir, fn manifest ->
@@ -65,7 +65,7 @@ defmodule Thinktank.RunStore do
 
   @spec record_agent_result(Path.t(), String.t(), String.t(), map()) :: :ok
   def record_agent_result(output_dir, agent_name, output, metadata \\ %{}) do
-    file = Path.join(["agents", "#{slugify(agent_name)}.md"])
+    file = Path.join(["agents", "#{stable_slug(agent_name)}.md"])
     File.write!(Path.join(output_dir, file), output)
 
     update_manifest(output_dir, fn manifest ->
@@ -189,6 +189,15 @@ defmodule Thinktank.RunStore do
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9]+/, "-")
     |> String.trim("-")
+  end
+
+  defp stable_slug(name) do
+    suffix =
+      :crypto.hash(:sha256, name)
+      |> Base.encode16(case: :lower)
+      |> binary_part(0, 8)
+
+    "#{slugify(name)}-#{suffix}"
   end
 
   defp mkdir_private!(path) do
