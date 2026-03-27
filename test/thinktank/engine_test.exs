@@ -1,7 +1,7 @@
 defmodule Thinktank.EngineTest do
   use ExUnit.Case, async: false
 
-  alias Thinktank.Engine
+  alias Thinktank.{Engine, StageSpec}
 
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
@@ -421,6 +421,38 @@ defmodule Thinktank.EngineTest do
 
       assert is_binary(output_dir)
     end
+  end
+
+  test "should_run?/2 skips falsey and empty context values" do
+    assert Engine.should_run?(
+             %StageSpec{name: "a", type: :emit, kind: "artifacts", when: nil},
+             %{}
+           )
+
+    refute Engine.should_run?(
+             %StageSpec{name: "a", type: :emit, kind: "artifacts", when: false},
+             %{}
+           )
+
+    refute Engine.should_run?(
+             %StageSpec{name: "a", type: :emit, kind: "artifacts", when: "missing"},
+             %{}
+           )
+
+    refute Engine.should_run?(
+             %StageSpec{name: "a", type: :emit, kind: "artifacts", when: "empty_string"},
+             %{empty_string: ""}
+           )
+
+    refute Engine.should_run?(
+             %StageSpec{name: "a", type: :emit, kind: "artifacts", when: "empty_list"},
+             %{empty_list: []}
+           )
+
+    assert Engine.should_run?(
+             %StageSpec{name: "a", type: :emit, kind: "artifacts", when: "value"},
+             %{value: "present"}
+           )
   end
 
   describe "resolve_context_path/2" do

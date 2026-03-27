@@ -161,24 +161,26 @@ defmodule Thinktank.StageRegistry do
       |> Enum.uniq()
       |> Enum.take(panel_size)
 
-    agents = Enum.map(selected_names, &Map.fetch!(config.agents, &1))
-
-    {:ok,
-     %{
-       agents: agents,
-       review_route: %{
-         panel: selected_names,
-         size_bucket: context.diff_summary.size_bucket,
-         model_tier: context.diff_summary.model_tier,
-         code_changed: context.diff_summary.code_changed
-       }
-     }}
+    with {:ok, agents} <- fetch_agents(config.agents, selected_names) do
+      {:ok,
+       %{
+         agents: agents,
+         review_route: %{
+           panel: selected_names,
+           size_bucket: context.diff_summary.size_bucket,
+           model_tier: context.diff_summary.model_tier,
+           code_changed: context.diff_summary.code_changed
+         }
+       }}
+    end
   end
 
   def static_agents(stage, _context, _contract, config, _opts) do
     names = stage.options["agents"] || []
-    agents = Enum.map(names, &Map.fetch!(config.agents, &1))
-    {:ok, %{agents: agents}}
+
+    with {:ok, agents} <- fetch_agents(config.agents, names) do
+      {:ok, %{agents: agents}}
+    end
   end
 
   def fanout_agents(stage, context, contract, config, opts) do
@@ -330,7 +332,7 @@ defmodule Thinktank.StageRegistry do
       |> Enum.map(& &1.verdict)
       |> Enum.filter(&(&1.confidence >= 0.7))
 
-    invalid_review_count = Enum.count(parsed_reviews) - length(valid_reviews)
+    invalid_review_count = Enum.count(parsed_reviews, &(&1.status != :ok))
 
     fail_reviews = Enum.filter(valid_reviews, &(&1.verdict == "FAIL"))
     warn_reviews = Enum.filter(valid_reviews, &(&1.verdict == "WARN"))
@@ -686,6 +688,19 @@ defmodule Thinktank.StageRegistry do
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9]+/, "-")
     |> String.trim("-")
+  end
+
+  defp fetch_agents(agents_by_name, names) do
+    Enum.reduce_while(names, {:ok, []}, fn name, {:ok, acc} ->
+      case Map.fetch(agents_by_name, name) do
+        {:ok, agent} -> {:cont, {:ok, [agent | acc]}}
+        :error -> {:halt, {:error, {:unknown_agent, name}}}
+      end
+    end)
+    |> case do
+      {:ok, agents} -> {:ok, Enum.reverse(agents)}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp persist_diff_file(output_dir, diff_text) do

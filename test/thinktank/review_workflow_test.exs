@@ -316,4 +316,131 @@ defmodule Thinktank.ReviewWorkflowTest do
 
     assert result.context.final_verdict.verdict == "PASS"
   end
+
+  test "review workflow marks malformed reviewer output as invalid without crashing" do
+    tmp = unique_tmp_dir("thinktank-review-malformed")
+    branch_name = "feature-#{System.unique_integer([:positive, :monotonic])}"
+    File.write!(Path.join(tmp, "lib_app.ex"), "defmodule App do\n  def ok, do: :ok\nend\n")
+
+    git!(tmp, ["init", "-b", "main"])
+    git!(tmp, ["config", "user.email", "test@example.com"])
+    git!(tmp, ["config", "user.name", "ThinkTank Test"])
+    git!(tmp, ["add", "."])
+    git!(tmp, ["commit", "-m", "base"])
+    git!(tmp, ["checkout", "-b", branch_name])
+
+    File.write!(
+      Path.join(tmp, "lib_app.ex"),
+      "defmodule App do\n  def ok(user), do: user.token\nend\n"
+    )
+
+    git!(tmp, ["add", "."])
+    git!(tmp, ["commit", "-m", "change"])
+
+    runner = fn _cmd, ["-c", _shell_cmd | args], _opts ->
+      [_, prompt_file] =
+        Enum.chunk_every(args, 2, 1, :discard) |> Enum.find(fn [flag, _value] -> flag == "-p" end)
+
+      prompt = File.read!(String.trim_leading(prompt_file, "@"))
+
+      output =
+        if prompt =~ "You are trace" do
+          "Trace analysis without a verdict block"
+        else
+          "Review\n```json\n#{review_output("reviewer", "PASS", "info")}\n```"
+        end
+
+      {output, 0}
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "review/cerberus",
+               %{base: "main", head: "HEAD"},
+               cwd: tmp,
+               mode: :deep,
+               runner: runner,
+               agent_config_dir: nil
+             )
+
+    assert result.context.final_verdict.verdict == "PASS"
+    assert Enum.any?(result.context.parsed_reviews, &(&1.status == :parse_error))
+  end
+
+  test "review workflow handles empty diffs without forcing code-review routes" do
+    tmp = unique_tmp_dir("thinktank-review-empty")
+    File.write!(Path.join(tmp, "lib_app.ex"), "defmodule App do\n  def ok, do: :ok\nend\n")
+
+    git!(tmp, ["init", "-b", "main"])
+    git!(tmp, ["config", "user.email", "test@example.com"])
+    git!(tmp, ["config", "user.name", "ThinkTank Test"])
+    git!(tmp, ["add", "."])
+    git!(tmp, ["commit", "-m", "base"])
+
+    runner = fn _cmd, _args, _opts ->
+      {"Review\n```json\n#{review_output("reviewer", "PASS", "info")}\n```", 0}
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "review/cerberus",
+               %{base: "HEAD", head: "HEAD"},
+               cwd: tmp,
+               mode: :deep,
+               runner: runner,
+               agent_config_dir: nil
+             )
+
+    assert result.context.final_verdict.verdict == "PASS"
+    assert result.context.diff_summary.total_changed_lines == 0
+    assert result.context.review_route.code_changed == false
+    refute Enum.member?(result.context.review_route.panel, "guard")
+  end
+
+  test "review workflow propagates agent timeouts as invalid reviewer results" do
+    tmp = unique_tmp_dir("thinktank-review-timeout")
+    branch_name = "feature-#{System.unique_integer([:positive, :monotonic])}"
+    File.write!(Path.join(tmp, "lib_app.ex"), "defmodule App do\n  def ok, do: :ok\nend\n")
+
+    git!(tmp, ["init", "-b", "main"])
+    git!(tmp, ["config", "user.email", "test@example.com"])
+    git!(tmp, ["config", "user.name", "ThinkTank Test"])
+    git!(tmp, ["add", "."])
+    git!(tmp, ["commit", "-m", "base"])
+    git!(tmp, ["checkout", "-b", branch_name])
+
+    File.write!(
+      Path.join(tmp, "lib_app.ex"),
+      "defmodule App do\n  def ok(user), do: user.token\nend\n"
+    )
+
+    git!(tmp, ["add", "."])
+    git!(tmp, ["commit", "-m", "change"])
+
+    runner = fn _cmd, ["-c", _shell_cmd | args], _opts ->
+      [_, prompt_file] =
+        Enum.chunk_every(args, 2, 1, :discard) |> Enum.find(fn [flag, _value] -> flag == "-p" end)
+
+      prompt = File.read!(String.trim_leading(prompt_file, "@"))
+
+      if prompt =~ "You are proof" do
+        {"partial output", :timeout}
+      else
+        {"Review\n```json\n#{review_output("reviewer", "PASS", "info")}\n```", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "review/cerberus",
+               %{base: "main", head: "HEAD"},
+               cwd: tmp,
+               mode: :deep,
+               runner: runner,
+               agent_config_dir: nil
+             )
+
+    assert result.context.final_verdict.verdict == "PASS"
+    assert Enum.any?(result.context.parsed_reviews, &(&1.status == :runtime_error))
+  end
 end
