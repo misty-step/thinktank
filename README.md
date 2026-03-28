@@ -5,7 +5,8 @@ Thin Pi bench launcher for research and code review.
 ThinkTank defines named Pi agents, groups them into benches, launches them in
 parallel against the current workspace, and writes raw artifacts. It does not
 precompute semantic context, route through a workflow DSL, or parse agent prose
-with regexes.
+with regexes. Review benches can optionally run a planning agent first to pick
+the reviewer subset and write a lightweight context pack.
 
 Built with Elixir/OTP.
 
@@ -37,6 +38,7 @@ export OPENROUTER_API_KEY="your-key"
 thinktank run <bench> --input "..." [options]
 thinktank research "..." [options]
 thinktank review [options]
+thinktank review eval <contract-or-dir> [--bench <bench>]
 thinktank benches list|show|validate
 ```
 
@@ -59,6 +61,7 @@ thinktank benches list|show|validate
 | `--head REF` | Review head ref |
 | `--repo REPO` | Review repo owner/name |
 | `--pr N` | Review pull request number |
+| `--bench BENCH` | Bench override for `review eval` |
 
 ### Examples
 
@@ -68,6 +71,9 @@ thinktank research "what is wrong with this architecture?" --paths ./lib
 
 # Fixed review bench
 thinktank review --base origin/main --head HEAD
+
+# Replay frozen review workloads through a different bench
+thinktank review eval ./tmp/review-run --bench review/constellation
 
 # Explicit bench invocation with a subset of agents
 thinktank run review/cerberus --input "Review this branch" --agents trace,guard
@@ -89,6 +95,7 @@ Built-in benches:
 
 - `research/default`
 - `review/cerberus`
+- `review/constellation`
 
 Config shape:
 
@@ -113,6 +120,7 @@ benches:
     kind: review
     description: Fixed review bench
     agents: [trace, guard, atlas, proof]
+    planner: marshal
     synthesizer: review-synth
     concurrency: 4
     default_task: Review the current change and report only real issues with evidence.
@@ -138,6 +146,7 @@ benches:
     kind: review
     description: Security-focused review bench
     agents: [guard]
+    planner: marshal
     default_task: Review the current change for real security issues.
 ```
 
@@ -152,6 +161,9 @@ Each run writes:
 - `summary.md` — synthesizer output when enabled
 - `synthesis.md` for research benches
 - `review.md` for review benches
+- `review/context.json` and `review/context.md` for review benches
+- `review/plan.json` and `review/plan.md` for review benches
+- `review/planner.md` when a planner agent runs
 - `manifest.json` — run metadata and artifact index
 
 ThinkTank records raw outputs and run metadata. It does not attempt to recover
@@ -159,12 +171,25 @@ structure from agent prose after the fact.
 
 ## Review Notes
 
-- `review/cerberus` does not materialize a diff bundle. Reviewers are expected
+- Review benches do not materialize a patch bundle. Reviewers are still expected
   to inspect the repo and git state themselves.
+- ThinkTank may write a light review context pack and review plan before
+  launching reviewers. These are orientation artifacts, not substitutes for
+  repository exploration.
+- `review/cerberus` uses a small default roster with `marshal` as planner.
+- `review/constellation` exposes the full cross-model reviewer bench for wider
+  coverage and experimentation.
 - `--base`, `--head`, `--repo`, and `--pr` are orientation hints for the
   reviewers and synthesizer.
 - Repository-local `agent_config/` is only loaded when
   `THINKTANK_TRUST_REPO_AGENT_CONFIG=1` is set.
+
+## Replay Eval
+
+`thinktank review eval` is intentionally narrow. It replays one or more saved
+`contract.json` review workloads through a bench and writes fresh artifacts so
+you can compare benches on the same frozen inputs. It does not impose an
+automatic scoring framework.
 
 ## Development
 

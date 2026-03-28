@@ -81,6 +81,15 @@ defmodule Thinktank.RunStore do
     end)
   end
 
+  @spec set_planned_agents(Path.t(), [String.t()]) :: :ok
+  def set_planned_agents(output_dir, planned_agents) when is_list(planned_agents) do
+    names = Enum.filter(planned_agents, &is_binary/1)
+
+    update_manifest(output_dir, fn manifest ->
+      %{manifest | "planned_agents" => names}
+    end)
+  end
+
   @spec result_envelope(Path.t()) :: map()
   def result_envelope(output_dir) do
     manifest = read_manifest(output_dir)

@@ -61,4 +61,24 @@ defmodule Thinktank.RunStoreTest do
     assert Enum.any?(envelope.agents, &(&1["name"] == "systems"))
     assert Enum.any?(envelope.artifacts, &(&1["name"] == "summary"))
   end
+
+  test "updates manifest with dynamically planned agents" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-store-planned"), "run")
+
+    contract = %RunContract{
+      bench_id: "review/cerberus",
+      workspace_root: File.cwd!(),
+      input: %{input_text: "review"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{id: "review/cerberus", description: "Review", agents: ["trace", "guard"]}
+
+    RunStore.init_run(output_dir, contract, bench)
+    RunStore.set_planned_agents(output_dir, ["trace"])
+
+    manifest = output_dir |> Path.join("manifest.json") |> File.read!() |> Jason.decode!()
+    assert manifest["planned_agents"] == ["trace"]
+  end
 end

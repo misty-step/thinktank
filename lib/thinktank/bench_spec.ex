@@ -9,6 +9,7 @@ defmodule Thinktank.BenchSpec do
     :description,
     kind: :default,
     agents: [],
+    planner: nil,
     synthesizer: nil,
     concurrency: nil,
     default_task: nil
@@ -21,6 +22,7 @@ defmodule Thinktank.BenchSpec do
           description: String.t(),
           kind: kind(),
           agents: [String.t()],
+          planner: String.t() | nil,
           synthesizer: String.t() | nil,
           concurrency: pos_integer() | nil,
           default_task: String.t() | nil
@@ -31,6 +33,7 @@ defmodule Thinktank.BenchSpec do
     with {:ok, description} <- require_string(raw, "description"),
          {:ok, kind} <- parse_kind(raw["kind"]),
          {:ok, agents} <- require_agent_names(raw["agents"]),
+         {:ok, planner} <- optional_string(raw["planner"]),
          {:ok, synthesizer} <- optional_string(raw["synthesizer"]),
          {:ok, concurrency} <- parse_concurrency(raw["concurrency"]),
          {:ok, default_task} <- optional_string(raw["default_task"]) do
@@ -40,6 +43,7 @@ defmodule Thinktank.BenchSpec do
          description: description,
          kind: kind,
          agents: agents,
+         planner: planner,
          synthesizer: synthesizer,
          concurrency: concurrency,
          default_task: default_task

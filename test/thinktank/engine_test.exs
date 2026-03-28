@@ -14,6 +14,19 @@ defmodule Thinktank.EngineTest do
     args |> Enum.at(index + 1) |> String.trim_leading("@")
   end
 
+  defp git!(cwd, args) do
+    case System.cmd("git", args, cd: cwd, stderr_to_stdout: true) do
+      {output, 0} -> output
+      {output, status} -> flunk("git #{Enum.join(args, " ")} failed (#{status}): #{output}")
+    end
+  end
+
+  defp init_git_repo!(cwd) do
+    git!(cwd, ["init"])
+    git!(cwd, ["config", "user.email", "thinktank@example.com"])
+    git!(cwd, ["config", "user.name", "ThinkTank Test"])
+  end
+
   test "runs a bench, records raw agent outputs, and writes a synthesized summary" do
     cwd = unique_tmp_dir("thinktank-engine")
 
@@ -21,10 +34,26 @@ defmodule Thinktank.EngineTest do
       path = prompt_path(args)
       prompt = File.read!(path)
 
-      if String.contains?(prompt, "Agent outputs:") do
-        {"Synthesized summary\n\n" <> prompt, 0}
-      else
-        {"Raw agent report\n\n" <> prompt, 0}
+      cond do
+        String.contains?(prompt, "Return JSON only with this shape:") ->
+          {Jason.encode!(%{
+             "summary" => "Focus the bench on correctness, architecture, and tests.",
+             "selected_agents" => [
+               %{
+                 "name" => "trace",
+                 "brief" => "Focus on behavioral regressions in the changed paths."
+               },
+               %{"name" => "atlas", "brief" => "Focus on coupling and boundary changes."},
+               %{"name" => "proof", "brief" => "Focus on regression coverage gaps."}
+             ],
+             "synthesis_brief" => "Prioritize reviewer overlap and grounded defects."
+           }), 0}
+
+        String.contains?(prompt, "Agent outputs:") ->
+          {"Synthesized summary\n\n" <> prompt, 0}
+
+        true ->
+          {"Raw agent report\n\n" <> prompt, 0}
       end
     end
 
@@ -46,7 +75,11 @@ defmodule Thinktank.EngineTest do
     assert result.envelope.status == "complete"
     assert File.exists?(Path.join(result.output_dir, "review.md"))
     assert File.read!(Path.join(result.output_dir, "review.md")) =~ "Synthesized summary"
-    assert Enum.count(result.results) == 4
+    assert Enum.map(result.agents, & &1.name) == ["trace", "atlas", "proof"]
+    assert Enum.count(result.results) == 3
+    assert File.exists?(Path.join(result.output_dir, "review/context.json"))
+    assert File.exists?(Path.join(result.output_dir, "review/plan.json"))
+    assert File.exists?(Path.join(result.output_dir, "review/planner.md"))
   end
 
   test "marks the run as degraded when an agent fails" do
@@ -154,6 +187,94 @@ defmodule Thinktank.EngineTest do
     assert File.exists?(Path.join(result.output_dir, "review.md"))
     assert File.read!(Path.join(result.output_dir, "review.md")) =~ "Synthesized review"
     refute File.exists?(Path.join(result.output_dir, "synthesis.md"))
+  end
+
+  test "review runs write context and plan artifacts and focus the reviewer subset" do
+    cwd = unique_tmp_dir("thinktank-engine-focused-review")
+    init_git_repo!(cwd)
+
+    File.mkdir_p!(Path.join(cwd, "lib"))
+    File.write!(Path.join(cwd, "lib/demo.ex"), "defmodule Demo do\n  def run, do: :ok\nend\n")
+    git!(cwd, ["add", "."])
+    git!(cwd, ["commit", "-m", "initial"])
+
+    File.write!(
+      Path.join(cwd, "lib/demo.ex"),
+      "defmodule Demo do\n  def run, do: :updated\nend\n"
+    )
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Return JSON only with this shape:") do
+        {Jason.encode!(%{
+           "summary" => "Keep the bench focused on correctness and architecture.",
+           "selected_agents" => [
+             %{"name" => "trace", "brief" => "Check behavioral regressions."},
+             %{"name" => "atlas", "brief" => "Check boundary and coupling changes."}
+           ],
+           "synthesis_brief" => "Prefer grounded defects."
+         }), 0}
+      else
+        {"ok", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "review/cerberus",
+               %{input_text: "Review this branch", no_synthesis: true},
+               cwd: cwd,
+               runner: runner
+             )
+
+    assert File.exists?(Path.join(result.output_dir, "review/context.json"))
+    assert File.exists?(Path.join(result.output_dir, "review/plan.json"))
+    assert File.exists?(Path.join(result.output_dir, "review/context.md"))
+    assert File.exists?(Path.join(result.output_dir, "review/plan.md"))
+
+    plan = result.output_dir |> Path.join("review/plan.json") |> File.read!() |> Jason.decode!()
+    selected = Enum.map(plan["selected_agents"], & &1["name"])
+
+    assert selected == Enum.map(result.agents, & &1.name)
+    assert selected == ["trace", "atlas"]
+    assert Enum.member?(selected, "trace")
+    assert plan["source"] == "planner"
+
+    prompts = Path.wildcard(Path.join(result.output_dir, "prompts/*.md"))
+    assert prompts != []
+    assert Enum.any?(prompts, &(File.read!(&1) =~ "Assigned brief:"))
+  end
+
+  test "review planner preserves explicit reviewer overrides" do
+    cwd = unique_tmp_dir("thinktank-engine-explicit-review")
+    init_git_repo!(cwd)
+
+    File.mkdir_p!(Path.join(cwd, "lib"))
+    File.write!(Path.join(cwd, "lib/demo.ex"), "defmodule Demo do\n  def run, do: :ok\nend\n")
+    git!(cwd, ["add", "."])
+    git!(cwd, ["commit", "-m", "initial"])
+
+    File.write!(
+      Path.join(cwd, "lib/demo.ex"),
+      "defmodule Demo do\n  def run, do: :updated\nend\n"
+    )
+
+    runner = fn _cmd, _args, _opts -> {"ok", 0} end
+
+    assert {:ok, result} =
+             Engine.run(
+               "review/cerberus",
+               %{input_text: "Review this branch", agents: ["guard"], no_synthesis: true},
+               cwd: cwd,
+               runner: runner
+             )
+
+    assert Enum.map(result.agents, & &1.name) == ["guard"]
+
+    plan = result.output_dir |> Path.join("review/plan.json") |> File.read!() |> Jason.decode!()
+    assert plan["source"] == "manual"
+    assert Enum.map(plan["selected_agents"], & &1["name"]) == ["guard"]
   end
 
   test "does not replace malformed input_text with a bench default task" do
