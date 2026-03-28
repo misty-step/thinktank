@@ -393,6 +393,9 @@ defmodule Thinktank.Builtin do
     Review plan:
     {{review_plan}}
 
+    Synthesis brief from planner:
+    {{synthesis_brief}}
+
     Agent outputs:
     {{agent_outputs}}
     """
