@@ -9,6 +9,7 @@ defmodule Thinktank.BenchSpecTest do
                "kind" => "review",
                "description" => "Review bench",
                "agents" => ["trace", "guard"],
+               "planner" => "marshal",
                "synthesizer" => "review-synth",
                "concurrency" => "2",
                "default_task" => "Review this"
@@ -17,6 +18,7 @@ defmodule Thinktank.BenchSpecTest do
     assert bench.id == "review/cerberus"
     assert bench.kind == :review
     assert bench.agents == ["trace", "guard"]
+    assert bench.planner == "marshal"
     assert bench.synthesizer == "review-synth"
     assert bench.concurrency == 2
   end

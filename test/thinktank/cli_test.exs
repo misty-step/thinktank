@@ -67,6 +67,23 @@ defmodule Thinktank.CLITest do
     assert command.input.pr == 42
   end
 
+  test "parses review eval command" do
+    assert {:ok, command} =
+             CLI.parse_args([
+               "review",
+               "eval",
+               "./tmp/review-run",
+               "--bench",
+               "review/constellation",
+               "--json"
+             ])
+
+    assert command.action == :review_eval
+    assert command.target == Path.expand("./tmp/review-run")
+    assert command.bench_id == "review/constellation"
+    assert command.json == true
+  end
+
   test "requires --repo when --pr is provided for review" do
     assert {:error, "review/cerberus requires --repo when --pr is provided"} =
              CLI.parse_args(["review", "--pr", "42"])
@@ -250,6 +267,19 @@ defmodule Thinktank.CLITest do
     assert output =~ "Bench: research/default"
     assert output =~ "Description:"
     assert output =~ "Input: test prompt"
+  end
+
+  test "dry run JSON includes planner metadata for review benches" do
+    {:ok, command} = CLI.parse_args(["review", "--dry-run", "--json"])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == 0
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert decoded["bench"] == "review/cerberus"
+    assert decoded["planner"] == "marshal"
   end
 
   test "uses env trust for repo config when the flag is omitted" do

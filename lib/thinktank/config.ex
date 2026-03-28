@@ -130,8 +130,10 @@ defmodule Thinktank.Config do
   defp bench_reference_error(bench, agents) do
     case validate_named_agents(bench.agents, agents) do
       :ok ->
-        case validate_optional_agent(bench.synthesizer, agents) do
-          :ok -> nil
+        with :ok <- validate_optional_agent(bench.planner, agents, "planner"),
+             :ok <- validate_optional_agent(bench.synthesizer, agents, "synthesizer") do
+          nil
+        else
           {:error, reason} -> reason
         end
 
@@ -150,9 +152,9 @@ defmodule Thinktank.Config do
   defp validate_named_agents(_, _agents),
     do: {:error, "bench agents must be a list of agent names"}
 
-  defp validate_optional_agent(nil, _agents), do: :ok
+  defp validate_optional_agent(nil, _agents, _field), do: :ok
 
-  defp validate_optional_agent(agent_name, agents) when is_binary(agent_name) do
+  defp validate_optional_agent(agent_name, agents, _field) when is_binary(agent_name) do
     if Map.has_key?(agents, agent_name) do
       :ok
     else
@@ -160,8 +162,8 @@ defmodule Thinktank.Config do
     end
   end
 
-  defp validate_optional_agent(_, _agents),
-    do: {:error, "bench synthesizer must be an agent name"}
+  defp validate_optional_agent(_, _agents, field),
+    do: {:error, "bench #{field} must be an agent name"}
 
   defp load_repo_yaml(_path, false), do: {:ok, %{}}
   defp load_repo_yaml(path, true), do: load_yaml_if_present(path)

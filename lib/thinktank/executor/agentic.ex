@@ -84,6 +84,7 @@ defmodule Thinktank.Executor.Agentic do
       |> Template.render(
         contract.input
         |> Map.merge(context)
+        |> Map.merge(stringify_keys(agent.metadata))
         |> Map.merge(%{
           "agent_name" => agent.name,
           "bench_id" => contract.bench_id,

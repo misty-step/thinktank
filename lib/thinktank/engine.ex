@@ -12,6 +12,7 @@ defmodule Thinktank.Engine do
   }
 
   alias Thinktank.Executor.Agentic
+  alias Thinktank.Review.{Context, Planner}
 
   @type run_result :: %{
           contract: RunContract.t(),
@@ -19,6 +20,7 @@ defmodule Thinktank.Engine do
           output_dir: String.t(),
           envelope: map(),
           agents: [AgentSpec.t()],
+          planner: AgentSpec.t() | nil,
           synthesizer: AgentSpec.t() | nil,
           results: [Agentic.result()],
           synthesis: Agentic.result() | nil
@@ -30,6 +32,7 @@ defmodule Thinktank.Engine do
           config: Config.t(),
           output_dir: String.t(),
           agents: [AgentSpec.t()],
+          planner: AgentSpec.t() | nil,
           synthesizer: AgentSpec.t() | nil
         }
 
@@ -46,6 +49,7 @@ defmodule Thinktank.Engine do
          {:ok, bench} <- Config.bench(config, bench_id),
          {:ok, input} <- normalize_input(bench, input),
          {:ok, agents} <- resolve_agents(bench, config, input),
+         {:ok, planner} <- resolve_planner(bench, config),
          {:ok, synthesizer} <- resolve_synthesizer(bench, config) do
       output_dir = Keyword.get(opts, :output, generate_output_dir(bench_id))
 
@@ -64,6 +68,7 @@ defmodule Thinktank.Engine do
          contract: contract,
          output_dir: output_dir,
          agents: agents,
+         planner: planner,
          synthesizer: synthesizer
        }}
     else
@@ -83,16 +88,20 @@ defmodule Thinktank.Engine do
          contract: contract,
          output_dir: output_dir,
          agents: agents,
+         planner: planner,
          synthesizer: synthesizer
        }} ->
         RunStore.init_run(output_dir, contract, bench)
         write_task_artifact(output_dir, contract.input)
 
-        context = %{"paths_hint" => render_paths_hint(contract.input)}
+        {planned_agents, context} =
+          prepare_execution(bench, agents, planner, contract, config, opts, output_dir)
+
+        RunStore.set_planned_agents(output_dir, Enum.map(planned_agents, & &1.name))
 
         results =
-          Agentic.run(agents, contract, context, config,
-            concurrency: bench.concurrency || length(agents),
+          Agentic.run(planned_agents, contract, context, config,
+            concurrency: bench.concurrency || length(planned_agents),
             agent_config_dir: opts[:agent_config_dir],
             runner: opts[:runner]
           )
@@ -119,7 +128,8 @@ defmodule Thinktank.Engine do
           bench: bench,
           output_dir: output_dir,
           envelope: RunStore.result_envelope(output_dir),
-          agents: agents,
+          agents: planned_agents,
+          planner: planner,
           synthesizer: synthesizer,
           results: results,
           synthesis: synthesis
@@ -275,6 +285,82 @@ defmodule Thinktank.Engine do
 
   defp normalize_input(_bench, _input), do: {:error, "input must be a map"}
 
+  defp prepare_execution(
+         %BenchSpec{kind: :review},
+         agents,
+         planner,
+         contract,
+         config,
+         opts,
+         output_dir
+       ) do
+    review_context = Context.capture(contract.workspace_root, contract.input)
+    planning = plan_review(agents, planner, contract, review_context, config, opts)
+    planned_agents = Planner.apply_plan(planning.plan, agents)
+    write_review_artifacts(output_dir, review_context, planning)
+
+    context = %{
+      "paths_hint" => render_paths_hint(contract.input),
+      "review_context" => Context.render(review_context),
+      "review_plan" => Planner.render(planning.plan)
+    }
+
+    {planned_agents, context}
+  end
+
+  defp prepare_execution(_bench, agents, _planner, contract, _config, _opts, _output_dir) do
+    {agents, %{"paths_hint" => render_paths_hint(contract.input)}}
+  end
+
+  defp plan_review(
+         agents,
+         planner,
+         contract,
+         review_context,
+         config,
+         opts
+       ) do
+    selected_agents = Map.get(contract.input, "agents", [])
+
+    cond do
+      selected_agents != [] ->
+        Planner.manual(agents)
+
+      true ->
+        Planner.create(planner, agents, contract, review_context, config,
+          agent_config_dir: opts[:agent_config_dir],
+          runner: opts[:runner]
+        )
+    end
+  end
+
+  defp write_review_artifacts(output_dir, review_context, %{plan: plan} = planning) do
+    RunStore.write_json_artifact(
+      output_dir,
+      "review-context",
+      "review/context.json",
+      review_context
+    )
+
+    RunStore.write_text_artifact(
+      output_dir,
+      "review-context-summary",
+      "review/context.md",
+      Context.render(review_context)
+    )
+
+    RunStore.write_json_artifact(output_dir, "review-plan", "review/plan.json", plan)
+
+    RunStore.write_text_artifact(
+      output_dir,
+      "review-plan-summary",
+      "review/plan.md",
+      Planner.render(plan)
+    )
+
+    maybe_write_planner_artifact(output_dir, planning)
+  end
+
   defp resolve_agents(%BenchSpec{agents: bench_agents}, %Config{agents: agents}, input) do
     names =
       case Map.get(input, "agents", []) do
@@ -284,6 +370,15 @@ defmodule Thinktank.Engine do
       end
 
     fetch_agents(agents, names)
+  end
+
+  defp resolve_planner(%BenchSpec{planner: nil}, _config), do: {:ok, nil}
+
+  defp resolve_planner(%BenchSpec{planner: name}, %Config{agents: agents}) do
+    case Map.fetch(agents, name) do
+      {:ok, agent} -> {:ok, agent}
+      :error -> {:error, "unknown planner: #{name}"}
+    end
   end
 
   defp resolve_synthesizer(%BenchSpec{synthesizer: nil}, _config), do: {:ok, nil}
@@ -335,6 +430,22 @@ defmodule Thinktank.Engine do
   end
 
   defp render_paths_hint(_), do: "- none specified"
+
+  defp maybe_write_planner_artifact(_output_dir, %{planner_result: nil}), do: :ok
+
+  defp maybe_write_planner_artifact(output_dir, %{planner_result: planner_result}) do
+    output =
+      case planner_result.status do
+        :ok ->
+          planner_result.output
+
+        :error ->
+          planner_result.output <>
+            if(planner_result.error, do: "\n\nERROR: #{inspect(planner_result.error)}", else: "")
+      end
+
+    RunStore.write_text_artifact(output_dir, "review-planner", "review/planner.md", output)
+  end
 
   defp valid_input_text?(value) when is_binary(value), do: String.trim(value) != ""
   defp valid_input_text?(_), do: false

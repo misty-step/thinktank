@@ -272,4 +272,38 @@ defmodule Thinktank.Executor.AgenticTest do
 
     assert_receive {:openrouter_key, "fallback-secret"}
   end
+
+  test "renders agent metadata into the prompt context" do
+    tmp = unique_tmp_dir("thinktank-agentic-metadata")
+    test_pid = self()
+
+    agent = %AgentSpec{
+      name: "trace",
+      provider: "openrouter",
+      model: "openai/gpt-5.4",
+      system_prompt: "You are a reviewer.",
+      task_prompt: "Role={{review_role}}\nBrief={{review_brief}}",
+      timeout_ms: 5_000,
+      metadata: %{"review_role" => "correctness", "review_brief" => "Focus on regressions."}
+    }
+
+    runner = fn _cmd, args, _opts ->
+      prompt =
+        args
+        |> Enum.drop_while(&(&1 != "-p"))
+        |> Enum.at(1)
+        |> String.trim_leading("@")
+        |> File.read!()
+
+      send(test_pid, {:prompt, prompt})
+      {"ok", 0}
+    end
+
+    [result] = Agentic.run([agent], contract(tmp), %{}, config(), runner: runner)
+
+    assert result.status == :ok
+    assert_receive {:prompt, prompt}
+    assert prompt =~ "Role=correctness"
+    assert prompt =~ "Brief=Focus on regressions."
+  end
 end

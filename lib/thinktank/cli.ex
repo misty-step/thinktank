@@ -4,6 +4,7 @@ defmodule Thinktank.CLI do
   """
 
   alias Thinktank.{BenchSpec, Config, Engine}
+  alias Thinktank.Review.Eval
 
   @exit_codes %{
     success: 0,
@@ -18,6 +19,7 @@ defmodule Thinktank.CLI do
       input: :string,
       paths: :keep,
       agents: :string,
+      bench: :string,
       json: :boolean,
       output: :string,
       dry_run: :boolean,
@@ -94,6 +96,7 @@ defmodule Thinktank.CLI do
           description: bench.description,
           kind: bench.kind,
           agents: bench.agents,
+          planner: bench.planner,
           synthesizer: bench.synthesizer,
           concurrency: bench.concurrency,
           default_task: bench.default_task
@@ -126,6 +129,26 @@ defmodule Thinktank.CLI do
       dry_run(command)
     else
       run_bench(command)
+    end
+  end
+
+  def execute({:ok, %{action: :review_eval} = command}) do
+    eval_opts =
+      [bench_id: command.bench_id, output: command.output]
+      |> maybe_put_opt(:trust_repo_config, command.trust_repo_config)
+
+    case Eval.run(command.target, eval_opts) do
+      {:ok, result} ->
+        emit_eval(command, result)
+
+        case result.status do
+          "complete" -> @exit_codes.success
+          _ -> @exit_codes.generic_error
+        end
+
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{format_reason(reason)}")
+        @exit_codes.input_error
     end
   end
 
@@ -170,6 +193,7 @@ defmodule Thinktank.CLI do
       bench: resolved.bench.id,
       description: resolved.bench.description,
       agents: Enum.map(resolved.agents, & &1.name),
+      planner: resolved.planner && resolved.planner.name,
       synthesizer: resolved.synthesizer && resolved.synthesizer.name,
       input: command.input,
       output: resolved.output_dir,
@@ -183,6 +207,7 @@ defmodule Thinktank.CLI do
       Bench: #{payload.bench}
       Description: #{payload.description}
       Agents: #{Enum.join(payload.agents, ", ")}
+      Planner: #{payload.planner || "none"}
       Synthesizer: #{payload.synthesizer || "none"}
       Input: #{payload.input.input_text}
       Output: #{payload.output}
@@ -203,6 +228,21 @@ defmodule Thinktank.CLI do
       end
     end
   end
+
+  defp build_command(["review", "eval", target], parsed) do
+    {:ok,
+     %{
+       action: :review_eval,
+       target: Path.expand(target),
+       bench_id: parsed[:bench],
+       cwd: File.cwd!(),
+       json: parsed[:json] || false,
+       output: parsed[:output] && Path.expand(parsed[:output]),
+       trust_repo_config: parsed[:trust_repo_config]
+     }}
+  end
+
+  defp build_command(["review", "eval"], _parsed), do: {:error, "review eval requires a path"}
 
   defp build_command(["review" | remainder], parsed) do
     with {:ok, config, bench} <- resolve_bench("review/cerberus", parsed),
@@ -402,6 +442,19 @@ defmodule Thinktank.CLI do
     """)
   end
 
+  defp emit_eval(%{json: true}, payload), do: IO.puts(Jason.encode!(payload))
+
+  defp emit_eval(_command, payload) do
+    IO.puts("""
+    Review eval: #{payload.target}
+    Status: #{payload.status}
+    Output: #{payload.output_dir}
+
+    Cases:
+    #{render_eval_case_lines(payload.cases)}
+    """)
+  end
+
   defp render_agent_lines(agents) do
     Enum.map_join(agents, "\n", fn agent ->
       status = get_in(agent, ["metadata", "status"]) || "unknown"
@@ -412,6 +465,12 @@ defmodule Thinktank.CLI do
   defp render_artifact_lines(artifacts) do
     Enum.map_join(artifacts, "\n", fn artifact ->
       "- #{artifact["name"]}: #{artifact["file"]}"
+    end)
+  end
+
+  defp render_eval_case_lines(cases) do
+    Enum.map_join(cases, "\n", fn case_result ->
+      "- #{case_result.case_id}: #{case_result.status} (#{case_result.bench})"
     end)
   end
 
@@ -520,6 +579,7 @@ defmodule Thinktank.CLI do
       thinktank run <bench> --input "..." [options]
       thinktank research "..." [options]
       thinktank review [options]
+      thinktank review eval <contract-or-dir> [--bench <bench>]
       thinktank benches list|show|validate
 
     Options:
@@ -539,6 +599,7 @@ defmodule Thinktank.CLI do
     Examples:
       thinktank research "analyze this codebase" --paths ./lib
       thinktank review --base origin/main --head HEAD
+      thinktank review eval ./tmp/review-run --bench review/constellation
       thinktank run review/cerberus --input "Review this branch" --agents trace,guard
       thinktank benches show research/default
     """
