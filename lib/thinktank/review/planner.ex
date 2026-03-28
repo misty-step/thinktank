@@ -282,7 +282,6 @@ defmodule Thinktank.Review.Planner do
 
   defp format_error(nil), do: "unknown error"
   defp format_error(error) when is_map(error), do: inspect(error)
-  defp format_error(error), do: to_string(error)
 
   defp render_paths_hint(input) when is_map(input) do
     case Map.get(input, "paths", []) do
