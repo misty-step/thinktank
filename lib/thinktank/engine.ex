@@ -238,6 +238,7 @@ defmodule Thinktank.Engine do
       end
 
     RunStore.record_agent_result(output_dir, result.agent.name, output, %{
+      instance_id: result.instance_id,
       status: result.status,
       model: result.agent.model,
       provider: result.agent.provider,

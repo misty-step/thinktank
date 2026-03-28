@@ -37,18 +37,21 @@ defmodule Thinktank.RunStore do
 
   @spec record_agent_result(Path.t(), String.t(), String.t(), map()) :: :ok
   def record_agent_result(output_dir, agent_name, output, metadata \\ %{}) do
-    file = Path.join(["agents", "#{stable_slug(agent_name)}.md"])
+    metadata = normalize(metadata)
+    instance_id = agent_instance_id(agent_name, metadata)
+    file = Path.join(["agents", "#{instance_id}.md"])
     File.write!(Path.join(output_dir, file), output)
 
     update_manifest(output_dir, fn manifest ->
       agents =
         manifest["agents"]
-        |> Enum.reject(&(&1["name"] == agent_name))
+        |> Enum.reject(&(&1["id"] == instance_id))
         |> Kernel.++([
           %{
+            "id" => instance_id,
             "name" => agent_name,
             "file" => file,
-            "metadata" => normalize(metadata)
+            "metadata" => metadata
           }
         ])
 
@@ -169,6 +172,10 @@ defmodule Thinktank.RunStore do
       |> binary_part(0, 8)
 
     "#{slugify(name)}-#{suffix}"
+  end
+
+  defp agent_instance_id(agent_name, metadata) do
+    Map.get(metadata, "instance_id") || stable_slug(agent_name)
   end
 
   defp mkdir_private!(path) do

@@ -44,7 +44,7 @@ defmodule Thinktank.CLI do
       args
       |> parse_args()
       |> then(fn
-        {:needs_stdin, parsed} -> maybe_read_stdin(parsed)
+        {:needs_stdin, parsed} -> read_stdin(parsed)
         other -> other
       end)
       |> execute()
@@ -407,18 +407,26 @@ defmodule Thinktank.CLI do
   defp review_bench?(%BenchSpec{kind: :review}), do: true
   defp review_bench?(_), do: false
 
-  defp maybe_read_stdin(command) do
-    input =
-      IO.read(:stdio, :all)
-      |> case do
-        data when is_binary(data) -> String.trim(data)
-        _ -> ""
-      end
+  @doc false
+  @spec read_stdin(map(), keyword()) :: {:ok, map()} | {:error, String.t()}
+  def read_stdin(command, opts \\ []) do
+    if stdin_piped?(opts) do
+      input =
+        opts
+        |> Keyword.get(:reader, &IO.read/2)
+        |> then(& &1.(:stdio, :all))
+        |> case do
+          data when is_binary(data) -> String.trim(data)
+          _ -> ""
+        end
 
-    if input == "" do
-      {:error, "input text is required"}
+      if input == "" do
+        {:error, "input text is required"}
+      else
+        {:ok, put_in(command.input.input_text, input)}
+      end
     else
-      {:ok, put_in(command.input.input_text, input)}
+      {:error, "input text is required"}
     end
   end
 
@@ -451,6 +459,19 @@ defmodule Thinktank.CLI do
       dir = Path.join(cwd, "agent_config")
       if File.dir?(dir), do: dir
     end
+  end
+
+  defp stdin_piped?(opts) do
+    case Keyword.get(opts, :stdin_piped?, &stdin_piped?/0) do
+      fun when is_function(fun, 0) -> fun.()
+      value -> value
+    end
+  end
+
+  defp stdin_piped? do
+    match?({:error, _}, :io.columns(:standard_io))
+  rescue
+    _ -> false
   end
 
   defp trust_repo_agent_config? do

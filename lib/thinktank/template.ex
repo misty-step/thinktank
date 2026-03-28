@@ -3,16 +3,16 @@ defmodule Thinktank.Template do
   Small placeholder renderer used by workflow prompts.
   """
 
+  @placeholder ~r/\{\{([^}]+)\}\}/
+
   @spec render(String.t(), map()) :: String.t()
   def render(template, vars) when is_binary(template) and is_map(vars) do
-    Enum.reduce(vars, template, fn {key, value}, acc ->
-      placeholder = "{{#{key}}}"
+    vars = stringify_keys(vars)
 
-      if String.contains?(acc, placeholder) do
-        String.replace(acc, placeholder, stringify(value))
-      else
-        acc
-      end
+    Regex.replace(@placeholder, template, fn _match, key ->
+      vars
+      |> Map.get(String.trim(key))
+      |> stringify()
     end)
   end
 
@@ -23,4 +23,10 @@ defmodule Thinktank.Template do
   defp stringify(%{} = value), do: Jason.encode!(value, pretty: true)
   defp stringify(nil), do: ""
   defp stringify(value), do: inspect(value)
+
+  defp stringify_keys(map) do
+    map
+    |> Enum.map(fn {key, value} -> {to_string(key), value} end)
+    |> Enum.into(%{})
+  end
 end

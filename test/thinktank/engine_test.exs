@@ -92,6 +92,28 @@ defmodule Thinktank.EngineTest do
     refute File.exists?(Path.join(result.output_dir, "synthesis.md"))
   end
 
+  test "preserves separate artifacts when the same agent runs twice" do
+    cwd = unique_tmp_dir("thinktank-engine-duplicate-agents")
+
+    runner = fn _cmd, _args, _opts -> {"ok", 0} end
+
+    assert {:ok, result} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems", "systems"], no_synthesis: true},
+               cwd: cwd,
+               runner: runner
+             )
+
+    assert Enum.map(result.agents, & &1.name) == ["systems", "systems"]
+    assert Enum.count(result.results) == 2
+    assert Enum.map(result.envelope.agents, & &1["name"]) == ["systems", "systems"]
+
+    files = Enum.map(result.envelope.agents, & &1["file"])
+    assert length(Enum.uniq(files)) == 2
+    assert Enum.all?(files, &File.exists?(Path.join(result.output_dir, &1)))
+  end
+
   test "custom review benches emit review artifacts based on bench kind" do
     cwd = unique_tmp_dir("thinktank-engine-custom-review")
     config_path = Path.join([cwd, ".thinktank", "config.yml"])

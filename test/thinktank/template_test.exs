@@ -34,4 +34,21 @@ defmodule Thinktank.TemplateTest do
     assert rendered =~ ~s("ok": true)
     assert rendered =~ "nil="
   end
+
+  test "replaces missing placeholders with empty strings without touching values" do
+    rendered =
+      Template.render(
+        """
+        repo={{repo}}
+        text={{text}}
+        head={{head}}
+        """,
+        %{"text" => "literal {{repo}}"}
+      )
+
+    [repo_line, text_line, head_line] = String.split(rendered, "\n", trim: true)
+    assert repo_line == "repo="
+    assert text_line == "text=literal {{repo}}"
+    assert head_line == "head="
+  end
 end

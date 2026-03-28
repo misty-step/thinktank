@@ -188,6 +188,28 @@ defmodule Thinktank.CLITest do
              CLI.parse_args(["run", "research/default"])
   end
 
+  test "read_stdin fails fast when stdin is interactive" do
+    command = %{bench_id: "research/default", input: %{input_text: nil}}
+
+    assert {:error, "input text is required"} =
+             CLI.read_stdin(command,
+               stdin_piped?: false,
+               reader: fn _, _ -> flunk("stdin reader should not run without piped input") end
+             )
+  end
+
+  test "read_stdin trims piped input" do
+    command = %{bench_id: "research/default", input: %{input_text: nil}}
+
+    assert {:ok, updated} =
+             CLI.read_stdin(command,
+               stdin_piped?: true,
+               reader: fn :stdio, :all -> "  inspect this branch  \n" end
+             )
+
+    assert updated.input.input_text == "inspect this branch"
+  end
+
   test "dry run prints bench-oriented JSON contract" do
     {:ok, command} =
       CLI.parse_args(["research", "test prompt", "--dry-run", "--json", "--paths", "./lib"])

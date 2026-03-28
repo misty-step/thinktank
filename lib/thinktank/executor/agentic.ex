@@ -11,6 +11,7 @@ defmodule Thinktank.Executor.Agentic do
 
   @type result :: %{
           agent: AgentSpec.t(),
+          instance_id: String.t(),
           status: :ok | :error,
           output: String.t(),
           usage: nil,
@@ -60,6 +61,8 @@ defmodule Thinktank.Executor.Agentic do
   end
 
   defp run_agent(agent, index, contract, context, config, runner, opts) do
+    instance_id = agent_instance_id(agent, index)
+
     rendered_prompt =
       agent.task_prompt
       |> Template.render(
@@ -74,17 +77,27 @@ defmodule Thinktank.Executor.Agentic do
       )
 
     prompt = "#{agent.system_prompt}\n\n#{rendered_prompt}"
-    prompt_file = write_prompt_file(contract, agent, index, prompt)
+    prompt_file = write_prompt_file(contract, instance_id, prompt)
     {cmd, args} = build_command(agent, prompt_file, tool_list(agent))
-    cmd_opts = build_cmd_opts(agent, index, contract, config.providers[agent.provider], opts)
+
+    cmd_opts =
+      build_cmd_opts(agent, instance_id, contract, config.providers[agent.provider], opts)
 
     case attempt(agent.retries + 1, fn -> run_once(runner, cmd, args, cmd_opts) end) do
       {:ok, output} ->
-        %{agent: agent, status: :ok, output: output, usage: nil, error: nil}
+        %{
+          agent: agent,
+          instance_id: instance_id,
+          status: :ok,
+          output: output,
+          usage: nil,
+          error: nil
+        }
 
       {:error, %{output: output} = error} ->
         %{
           agent: agent,
+          instance_id: instance_id,
           status: :error,
           output: output,
           usage: nil,
@@ -95,6 +108,7 @@ defmodule Thinktank.Executor.Agentic do
     error ->
       %{
         agent: agent,
+        instance_id: agent_instance_id(agent, index),
         status: :error,
         output: "",
         usage: nil,
@@ -154,9 +168,9 @@ defmodule Thinktank.Executor.Agentic do
      ]}
   end
 
-  defp build_cmd_opts(agent, index, contract, provider, opts) do
+  defp build_cmd_opts(agent, instance_id, contract, provider, opts) do
     base_env =
-      maybe_agent_config_env(build_agent_home(contract, agent, index, opts[:agent_config_dir]))
+      maybe_agent_config_env(build_agent_home(contract, instance_id, opts[:agent_config_dir]))
 
     provider_env = provider_env(provider)
 
@@ -202,22 +216,22 @@ defmodule Thinktank.Executor.Agentic do
     |> Enum.uniq()
   end
 
-  defp write_prompt_file(contract, agent, index, prompt) do
+  defp write_prompt_file(contract, instance_id, prompt) do
     dir = Path.join(contract.artifact_dir, "prompts")
     File.mkdir_p!(dir)
-    path = Path.join(dir, "#{agent_slug(agent, index)}.md")
+    path = Path.join(dir, "#{instance_id}.md")
     File.write!(path, prompt)
     path
   end
 
-  defp build_agent_home(contract, agent, index, nil) do
-    dir = Path.join([contract.artifact_dir, "pi-home", agent_slug(agent, index)])
+  defp build_agent_home(contract, instance_id, nil) do
+    dir = Path.join([contract.artifact_dir, "pi-home", instance_id])
     File.mkdir_p!(dir)
     dir
   end
 
-  defp build_agent_home(contract, agent, index, base_dir) do
-    dir = Path.join([contract.artifact_dir, "pi-home", agent_slug(agent, index)])
+  defp build_agent_home(contract, instance_id, base_dir) do
+    dir = Path.join([contract.artifact_dir, "pi-home", instance_id])
 
     unless File.exists?(dir) do
       validate_agent_config_dir!(base_dir)
@@ -228,7 +242,7 @@ defmodule Thinktank.Executor.Agentic do
     dir
   end
 
-  defp agent_slug(%AgentSpec{name: name}, index) do
+  defp agent_instance_id(%AgentSpec{name: name}, index) do
     suffix =
       :crypto.hash(:sha256, name)
       |> Base.encode16(case: :lower)

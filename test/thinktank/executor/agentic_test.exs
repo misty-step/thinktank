@@ -100,6 +100,7 @@ defmodule Thinktank.Executor.AgenticTest do
   test "rejects trusted agent config trees that contain symlinks" do
     tmp = unique_tmp_dir("thinktank-agentic-symlink")
     base_dir = Path.join(tmp, "agent-config")
+    File.rm_rf!(base_dir)
     File.mkdir_p!(base_dir)
     File.write!(Path.join(base_dir, "settings.json"), "{}")
     File.ln_s!("/tmp", Path.join(base_dir, "outside"))
