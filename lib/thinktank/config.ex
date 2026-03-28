@@ -104,12 +104,7 @@ defmodule Thinktank.Config do
 
   defp validate_references(benches, agents, providers) do
     with :ok <- validate_agent_providers(agents, providers) do
-      Enum.reduce_while(benches, :ok, fn {_id, bench}, :ok ->
-        case validate_bench_references(bench, agents) do
-          :ok -> {:cont, :ok}
-          {:error, reason} -> {:halt, {:error, reason}}
-        end
-      end)
+      validate_bench_references(benches, agents)
     end
   end
 
@@ -123,10 +118,25 @@ defmodule Thinktank.Config do
     end)
   end
 
-  defp validate_bench_references(bench, agents) do
-    with :ok <- validate_named_agents(bench.agents, agents),
-         :ok <- validate_optional_agent(bench.synthesizer, agents) do
-      :ok
+  defp validate_bench_references(benches, agents) do
+    Enum.reduce_while(benches, :ok, fn {_id, bench}, :ok ->
+      case bench_reference_error(bench, agents) do
+        nil -> {:cont, :ok}
+        reason -> {:halt, {:error, "bench #{bench.id}: #{reason}"}}
+      end
+    end)
+  end
+
+  defp bench_reference_error(bench, agents) do
+    case validate_named_agents(bench.agents, agents) do
+      :ok ->
+        case validate_optional_agent(bench.synthesizer, agents) do
+          :ok -> nil
+          {:error, reason} -> reason
+        end
+
+      {:error, reason} ->
+        reason
     end
   end
 

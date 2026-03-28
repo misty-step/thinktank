@@ -75,61 +75,63 @@ defmodule Thinktank.Engine do
   @spec run(String.t(), map(), keyword()) ::
           {:ok, run_result()} | {:error, term(), String.t() | nil}
   def run(bench_id, input, opts \\ []) do
-    with {:ok,
-          %{
-            config: config,
-            bench: bench,
-            contract: contract,
-            output_dir: output_dir,
-            agents: agents,
-            synthesizer: synthesizer
-          }} <- resolve(bench_id, input, opts) do
-      RunStore.init_run(output_dir, contract, bench)
-      write_task_artifact(output_dir, contract.input)
+    case resolve(bench_id, input, opts) do
+      {:ok,
+       %{
+         config: config,
+         bench: bench,
+         contract: contract,
+         output_dir: output_dir,
+         agents: agents,
+         synthesizer: synthesizer
+       }} ->
+        RunStore.init_run(output_dir, contract, bench)
+        write_task_artifact(output_dir, contract.input)
 
-      context = %{"paths_hint" => render_paths_hint(contract.input)}
+        context = %{"paths_hint" => render_paths_hint(contract.input)}
 
-      results =
-        Agentic.run(agents, contract, context, config,
-          concurrency: bench.concurrency || length(agents),
-          agent_config_dir: opts[:agent_config_dir],
-          runner: opts[:runner]
-        )
+        results =
+          Agentic.run(agents, contract, context, config,
+            concurrency: bench.concurrency || length(agents),
+            agent_config_dir: opts[:agent_config_dir],
+            runner: opts[:runner]
+          )
 
-      Enum.each(results, &record_result(output_dir, &1))
+        Enum.each(results, &record_result(output_dir, &1))
 
-      synthesis =
-        maybe_run_synthesizer(
-          synthesizer,
-          results,
-          bench,
-          contract,
-          config,
-          context,
-          opts,
-          output_dir
-        )
+        synthesis =
+          maybe_run_synthesizer(
+            synthesizer,
+            results,
+            bench,
+            contract,
+            config,
+            context,
+            opts,
+            output_dir
+          )
 
-      status = derive_status(results, synthesis)
-      RunStore.complete_run(output_dir, status)
+        status = derive_status(results, synthesis)
+        RunStore.complete_run(output_dir, status)
 
-      run_result = %{
-        contract: contract,
-        bench: bench,
-        output_dir: output_dir,
-        envelope: RunStore.result_envelope(output_dir),
-        agents: agents,
-        synthesizer: synthesizer,
-        results: results,
-        synthesis: synthesis
-      }
+        run_result = %{
+          contract: contract,
+          bench: bench,
+          output_dir: output_dir,
+          envelope: RunStore.result_envelope(output_dir),
+          agents: agents,
+          synthesizer: synthesizer,
+          results: results,
+          synthesis: synthesis
+        }
 
-      case status do
-        "failed" -> {:error, :no_successful_agents, output_dir}
-        _ -> {:ok, run_result}
-      end
-    else
-      {:error, reason, output_dir} -> {:error, reason, output_dir}
+        case status do
+          "failed" -> {:error, :no_successful_agents, output_dir}
+          _ -> {:ok, run_result}
+        end
+
+      {:error, reason, output_dir} ->
+        {:error, reason, output_dir}
     end
   end
 
@@ -218,7 +220,7 @@ defmodule Thinktank.Engine do
 
   defp write_task_artifact(output_dir, input) do
     task =
-      [Map.get(input, "input_text") || input[:input_text], render_paths_hint(input)]
+      [Map.get(input, "input_text"), render_paths_hint(input)]
       |> Enum.reject(&(&1 in [nil, ""]))
       |> Enum.join("\n\n")
 
@@ -297,10 +299,14 @@ defmodule Thinktank.Engine do
     names
     |> Enum.reduce_while({:ok, []}, fn name, {:ok, acc} ->
       case Map.fetch(agents, name) do
-        {:ok, agent} -> {:cont, {:ok, acc ++ [agent]}}
+        {:ok, agent} -> {:cont, {:ok, [agent | acc]}}
         :error -> {:halt, {:error, "unknown agent: #{name}"}}
       end
     end)
+    |> case do
+      {:ok, fetched_agents} -> {:ok, Enum.reverse(fetched_agents)}
+      error -> error
+    end
   end
 
   defp render_agent_outputs(results) do

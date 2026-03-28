@@ -51,22 +51,19 @@ defmodule Thinktank.BenchSpec do
 
   defp require_string(raw, key) do
     case raw[key] do
-      value when is_binary(value) and value != "" -> {:ok, value}
-      _ -> {:error, "bench #{key} is required"}
+      value when is_binary(value) ->
+        present_string(value, "bench #{key} is required")
+
+      _ ->
+        {:error, "bench #{key} is required"}
     end
   end
 
   defp require_agent_names(agent_names) when is_list(agent_names) do
-    names =
-      agent_names
-      |> Enum.filter(&is_binary/1)
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == ""))
-
-    if names == [] do
-      {:error, "bench agents must be a non-empty list of agent names"}
-    else
-      {:ok, names}
+    case collect_agent_names(agent_names) do
+      {:ok, []} -> {:error, "bench agents must be a non-empty list of agent names"}
+      {:ok, names} -> {:ok, names}
+      :invalid -> {:error, "bench agents must be a non-empty list of agent names"}
     end
   end
 
@@ -81,8 +78,10 @@ defmodule Thinktank.BenchSpec do
   defp parse_kind(_), do: {:error, "bench kind must be one of: default, research, review"}
 
   defp optional_string(nil), do: {:ok, nil}
-  defp optional_string(value) when is_binary(value) and value != "", do: {:ok, value}
-  defp optional_string(""), do: {:ok, nil}
+
+  defp optional_string(value) when is_binary(value),
+    do: present_string(value, invalid_optional_string())
+
   defp optional_string(_), do: {:error, "bench optional string fields must be strings"}
 
   defp parse_concurrency(nil), do: {:ok, nil}
@@ -96,4 +95,27 @@ defmodule Thinktank.BenchSpec do
   end
 
   defp parse_concurrency(_), do: {:error, "bench concurrency must be a positive integer"}
+
+  defp present_string(value, error) when is_binary(value) do
+    trimmed = String.trim(value)
+    if trimmed == "", do: error, else: {:ok, trimmed}
+  end
+
+  defp present_string(_value, error), do: error
+
+  defp invalid_optional_string, do: {:error, "bench optional string fields must be strings"}
+
+  defp collect_agent_names(agent_names) do
+    agent_names
+    |> Enum.reduce_while([], fn entry, acc ->
+      case present_string(entry, :invalid) do
+        {:ok, name} -> {:cont, [name | acc]}
+        :invalid -> {:halt, :invalid}
+      end
+    end)
+    |> case do
+      :invalid -> :invalid
+      names -> {:ok, Enum.reverse(names)}
+    end
+  end
 end

@@ -70,15 +70,15 @@ defmodule Thinktank.CLI do
   end
 
   def execute({:ok, %{action: :benches_list} = command}) do
-    with {:ok, config} <-
-           Config.load(cwd: command.cwd, trust_repo_config: command.trust_repo_config) do
-      Config.list_benches(config)
-      |> Enum.each(fn bench ->
-        IO.puts("#{bench.id}\t#{bench.description}")
-      end)
+    case load_config(command) do
+      {:ok, config} ->
+        Config.list_benches(config)
+        |> Enum.each(fn bench ->
+          IO.puts("#{bench.id}\t#{bench.description}")
+        end)
 
-      @exit_codes.success
-    else
+        @exit_codes.success
+
       {:error, reason} ->
         IO.puts(:stderr, "Error: #{reason}")
         @exit_codes.input_error
@@ -86,8 +86,7 @@ defmodule Thinktank.CLI do
   end
 
   def execute({:ok, %{action: :benches_show, bench_id: bench_id} = command}) do
-    with {:ok, config} <-
-           Config.load(cwd: command.cwd, trust_repo_config: command.trust_repo_config),
+    with {:ok, config} <- load_config(command),
          {:ok, bench} <- Config.bench(config, bench_id) do
       rendered =
         %{
@@ -111,7 +110,7 @@ defmodule Thinktank.CLI do
   end
 
   def execute({:ok, %{action: :benches_validate} = command}) do
-    case Config.load(cwd: command.cwd, trust_repo_config: command.trust_repo_config) do
+    case load_config(command) do
       {:ok, config} ->
         IO.puts("Validated #{length(Config.list_benches(config))} benches")
         @exit_codes.success
@@ -152,7 +151,11 @@ defmodule Thinktank.CLI do
         {:version, %{}}
 
       rest == [] ->
-        build_fixed_bench_command("research/default", parsed, nil)
+        build_fixed_bench_command(
+          "research/default",
+          parsed,
+          resolve_input_text(parsed[:input], [])
+        )
 
       true ->
         build_command(rest, parsed)
@@ -205,13 +208,15 @@ defmodule Thinktank.CLI do
     build_fixed_bench_command("research/default", parsed, input_text)
   end
 
+  defp build_command(["run"], _parsed), do: {:error, "run requires a bench id"}
+
   defp build_command([group, "list"], parsed) when group in ["benches", "workflows"] do
     {:ok,
      %{
        action: :benches_list,
        cwd: File.cwd!(),
        json: parsed[:json] || false,
-       trust_repo_config: parsed[:trust_repo_config] || false
+       trust_repo_config: parsed[:trust_repo_config]
      }}
   end
 
@@ -222,7 +227,7 @@ defmodule Thinktank.CLI do
        bench_id: bench_id,
        cwd: File.cwd!(),
        json: parsed[:json] || false,
-       trust_repo_config: parsed[:trust_repo_config] || false
+       trust_repo_config: parsed[:trust_repo_config]
      }}
   end
 
@@ -232,8 +237,12 @@ defmodule Thinktank.CLI do
        action: :benches_validate,
        cwd: File.cwd!(),
        json: parsed[:json] || false,
-       trust_repo_config: parsed[:trust_repo_config] || false
+       trust_repo_config: parsed[:trust_repo_config]
      }}
+  end
+
+  defp build_command([group | _rest], _parsed) when group in ["benches", "workflows"] do
+    {:error, "#{group} expects list, show <bench>, or validate"}
   end
 
   defp build_command(rest, parsed) do
@@ -274,10 +283,10 @@ defmodule Thinktank.CLI do
       json: parsed[:json] || false,
       output: parsed[:output] && Path.expand(parsed[:output]),
       dry_run: parsed[:dry_run] || false,
-      trust_repo_config: parsed[:trust_repo_config] || false,
+      trust_repo_config: parsed[:trust_repo_config],
       input: %{
         input_text: input_text,
-        paths: normalize_paths(parsed[:paths]),
+        paths: normalize_paths(Keyword.get_values(parsed, :paths)),
         agents: parse_agent_list(parsed[:agents]),
         no_synthesis: parsed[:no_synthesis] || false
       }
@@ -313,10 +322,10 @@ defmodule Thinktank.CLI do
     run_opts =
       [
         cwd: command.cwd,
-        trust_repo_config: command.trust_repo_config,
         output: command.output,
         agent_config_dir: agent_config_dir
       ]
+      |> maybe_put_opt(:trust_repo_config, command.trust_repo_config)
       |> maybe_put_opt(:config, Map.get(command, :config))
 
     case Engine.run(command.bench_id, command.input, run_opts) do
@@ -343,9 +352,9 @@ defmodule Thinktank.CLI do
     resolve_opts =
       [
         cwd: command.cwd,
-        trust_repo_config: command.trust_repo_config,
         output: command.output
       ]
+      |> maybe_put_opt(:trust_repo_config, command.trust_repo_config)
       |> maybe_put_opt(:config, Map.get(command, :config))
 
     case Engine.resolve(command.bench_id, command.input, resolve_opts) do
@@ -394,12 +403,18 @@ defmodule Thinktank.CLI do
 
   defp resolve_bench(bench_id, parsed) do
     with {:ok, config} <-
-           Config.load(cwd: File.cwd!(), trust_repo_config: parsed[:trust_repo_config] || false) do
+           load_config(%{cwd: File.cwd!(), trust_repo_config: parsed[:trust_repo_config]}) do
       case Config.bench(config, bench_id) do
         {:ok, bench} -> {:ok, config, bench}
         {:error, reason} -> {:error, reason}
       end
     end
+  end
+
+  defp load_config(command) do
+    [cwd: command.cwd]
+    |> maybe_put_opt(:trust_repo_config, Map.get(command, :trust_repo_config))
+    |> Config.load()
   end
 
   defp needs_stdin?(%BenchSpec{default_task: default_task}), do: is_nil(default_task)
@@ -434,8 +449,6 @@ defmodule Thinktank.CLI do
   defp resolve_input_text(value, _rest) when is_binary(value), do: value
   defp resolve_input_text(nil, rest), do: Enum.join(rest, " ")
 
-  defp normalize_paths(nil), do: []
-  defp normalize_paths(path) when is_binary(path), do: [Path.expand(path)]
   defp normalize_paths(paths) when is_list(paths), do: Enum.map(paths, &Path.expand/1)
 
   defp parse_agent_list(nil), do: []

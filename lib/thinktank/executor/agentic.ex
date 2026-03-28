@@ -25,7 +25,15 @@ defmodule Thinktank.Executor.Agentic do
 
   def run(agents, %RunContract{} = contract, context, %Config{} = config, opts) do
     runner = Keyword.get(opts, :runner) || default_runner()
-    timeout = Enum.max(Enum.map(agents, & &1.timeout_ms), fn -> @default_timeout end)
+
+    timeout =
+      Enum.max(
+        Enum.map(agents, fn agent ->
+          attempts = max(agent.retries + 1, 1)
+          agent.timeout_ms * attempts + 250 * (attempts - 1)
+        end),
+        fn -> @default_timeout end
+      )
 
     concurrency =
       normalize_concurrency(Keyword.get(opts, :concurrency, length(agents)), length(agents))
@@ -169,21 +177,20 @@ defmodule Thinktank.Executor.Agentic do
   end
 
   defp build_cmd_opts(agent, instance_id, contract, provider, opts) do
-    base_env =
-      maybe_agent_config_env(build_agent_home(contract, instance_id, opts[:agent_config_dir]))
-
     provider_env = provider_env(provider)
 
     [
       stderr_to_stdout: true,
       timeout: agent.timeout_ms,
-      env: base_env ++ provider_env,
+      env:
+        [
+          {"PI_CODING_AGENT_DIR",
+           build_agent_home(contract, instance_id, opts[:agent_config_dir])}
+        ] ++
+          provider_env,
       cd: contract.workspace_root
     ]
   end
-
-  defp maybe_agent_config_env(nil), do: []
-  defp maybe_agent_config_env(dir), do: [{"PI_CODING_AGENT_DIR", dir}]
 
   defp provider_env(%{adapter: :openrouter} = provider) do
     fallback_env = provider.defaults["fallback_env"]
@@ -202,10 +209,7 @@ defmodule Thinktank.Executor.Agentic do
   defp provider_env(_), do: []
 
   defp tool_list(%AgentSpec{tools: tools}) when is_list(tools) and tools != [] do
-    case sanitize_tools(tools) do
-      [] -> @default_tools
-      sanitized -> sanitized
-    end
+    sanitize_tools(tools)
   end
 
   defp tool_list(_), do: @default_tools
@@ -259,6 +263,14 @@ defmodule Thinktank.Executor.Agentic do
   end
 
   defp validate_agent_config_dir!(base_dir) do
+    case File.lstat(base_dir) do
+      {:ok, %File.Stat{type: :symlink}} ->
+        raise ArgumentError, "agent_config must not be a symlink: #{base_dir}"
+
+      _ ->
+        :ok
+    end
+
     base_dir
     |> Path.join("**")
     |> Path.wildcard(match_dot: true)

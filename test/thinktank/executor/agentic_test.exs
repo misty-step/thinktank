@@ -121,6 +121,30 @@ defmodule Thinktank.Executor.AgenticTest do
     assert result.error.message =~ "must not contain symlinks"
   end
 
+  test "rejects a trusted agent config root that is itself a symlink" do
+    tmp = unique_tmp_dir("thinktank-agentic-root-symlink")
+    target_dir = Path.join(tmp, "target-config")
+    base_dir = Path.join(tmp, "agent-config")
+    File.mkdir_p!(target_dir)
+    File.write!(Path.join(target_dir, "settings.json"), "{}")
+    File.ln_s!(target_dir, base_dir)
+
+    agent = %AgentSpec{
+      name: "trace",
+      provider: "openrouter",
+      model: "openai/gpt-5.4",
+      system_prompt: "You are a reviewer.",
+      task_prompt: "{{input_text}}",
+      timeout_ms: 5_000
+    }
+
+    [result] = Agentic.run([agent], contract(tmp), %{}, config(), agent_config_dir: base_dir)
+
+    assert result.status == :error
+    assert result.error.category == :crash
+    assert result.error.message =~ "must not be a symlink"
+  end
+
   test "passes pi arguments without interpolating tools into shell code" do
     tmp = unique_tmp_dir("thinktank-agentic-args")
     test_pid = self()
@@ -147,5 +171,32 @@ defmodule Thinktank.Executor.AgenticTest do
     tools = args |> Enum.drop_while(&(&1 != "--tools")) |> Enum.at(1)
     assert tools == "read"
     refute File.exists?("/tmp/pwned")
+  end
+
+  test "does not widen an explicit tool list when every tool is filtered out" do
+    tmp = unique_tmp_dir("thinktank-agentic-tools")
+    test_pid = self()
+
+    agent = %AgentSpec{
+      name: "trace",
+      provider: "openrouter",
+      model: "openai/gpt-5.4",
+      system_prompt: "You are a reviewer.",
+      task_prompt: "{{input_text}}",
+      tools: ["nope", "$(touch /tmp/pwned)"],
+      timeout_ms: 5_000
+    }
+
+    runner = fn _cmd, args, _opts ->
+      send(test_pid, {:cmd_args, args})
+      {"ok", 0}
+    end
+
+    [result] = Agentic.run([agent], contract(tmp), %{}, config(), runner: runner)
+    assert result.status == :ok
+
+    assert_receive {:cmd_args, args}
+    tools = args |> Enum.drop_while(&(&1 != "--tools")) |> Enum.at(1)
+    assert tools == ""
   end
 end

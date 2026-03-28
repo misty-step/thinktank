@@ -21,20 +21,18 @@ defmodule Thinktank.BenchSpecTest do
     assert bench.concurrency == 2
   end
 
-  test "rejects unknown bench kinds" do
-    assert {:error, "bench kind must be one of: default, research, review"} =
-             BenchSpec.from_pair("demo/custom", %{
-               "kind" => "mystery",
-               "description" => "Custom bench",
-               "agents" => ["trace"]
-             })
-  end
-
-  test "rejects empty agent lists" do
-    assert {:error, "bench agents must be a non-empty list of agent names"} =
-             BenchSpec.from_pair("review/cerberus", %{
-               "description" => "Review bench",
-               "agents" => []
-             })
+  test "rejects invalid bench specs" do
+    for {raw, expected_error} <- [
+          {%{"kind" => "mystery", "description" => "Custom bench", "agents" => ["trace"]},
+           "bench kind must be one of: default, research, review"},
+          {%{"description" => "Review bench", "agents" => []},
+           "bench agents must be a non-empty list of agent names"},
+          {%{"description" => "Review bench", "agents" => ["trace", 123]},
+           "bench agents must be a non-empty list of agent names"},
+          {%{"description" => "Review bench", "agents" => ["trace"], "default_task" => "   "},
+           "bench optional string fields must be strings"}
+        ] do
+      assert {:error, ^expected_error} = BenchSpec.from_pair("review/cerberus", raw)
+    end
   end
 end

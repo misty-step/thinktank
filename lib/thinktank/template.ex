@@ -20,7 +20,7 @@ defmodule Thinktank.Template do
   defp stringify(value) when is_integer(value) or is_float(value), do: to_string(value)
   defp stringify(value) when is_boolean(value), do: to_string(value)
   defp stringify(value) when is_list(value), do: Enum.map_join(value, "\n", &stringify/1)
-  defp stringify(%{} = value), do: Jason.encode!(value, pretty: true)
+  defp stringify(%{} = value), do: safe_json(value)
   defp stringify(nil), do: ""
   defp stringify(value), do: inspect(value)
 
@@ -28,5 +28,12 @@ defmodule Thinktank.Template do
     map
     |> Enum.map(fn {key, value} -> {to_string(key), value} end)
     |> Enum.into(%{})
+  end
+
+  defp safe_json(value) do
+    case Jason.encode(value, pretty: true) do
+      {:ok, json} -> json
+      {:error, _reason} -> inspect(value)
+    end
   end
 end

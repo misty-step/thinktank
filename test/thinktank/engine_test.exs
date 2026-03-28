@@ -21,12 +21,10 @@ defmodule Thinktank.EngineTest do
       path = prompt_path(args)
       prompt = File.read!(path)
 
-      cond do
-        String.contains?(prompt, "Agent outputs:") ->
-          {"Synthesized summary\n\n" <> prompt, 0}
-
-        true ->
-          {"Raw agent report\n\n" <> prompt, 0}
+      if String.contains?(prompt, "Agent outputs:") do
+        {"Synthesized summary\n\n" <> prompt, 0}
+      else
+        {"Raw agent report\n\n" <> prompt, 0}
       end
     end
 

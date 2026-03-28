@@ -183,6 +183,12 @@ defmodule Thinktank.RunStore do
     File.chmod!(path, 0o700)
   end
 
-  defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
+  defp version do
+    case Application.spec(:thinktank, :vsn) do
+      nil -> "dev"
+      vsn -> to_string(vsn)
+    end
+  end
+
   defp now_iso8601, do: DateTime.utc_now() |> DateTime.to_iso8601()
 end

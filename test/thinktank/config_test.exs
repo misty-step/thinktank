@@ -90,7 +90,7 @@ defmodule Thinktank.ConfigTest do
       """
     )
 
-    assert {:error, "bench references unknown agent ghost"} =
+    assert {:error, "bench demo/invalid: bench references unknown agent ghost"} =
              Config.load(cwd: tmp, trust_repo_config: true)
   end
 end

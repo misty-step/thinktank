@@ -34,13 +34,15 @@ defmodule Thinktank.CLITest do
                "this",
                "--paths",
                "./lib",
+               "--paths",
+               "./test",
                "--agents",
                "systems,dx"
              ])
 
     assert command.bench_id == "research/default"
     assert command.input.input_text == "audit this"
-    assert command.input.paths == [Path.expand("./lib")]
+    assert command.input.paths == [Path.expand("./lib"), Path.expand("./test")]
     assert command.input.agents == ["systems", "dx"]
   end
 
@@ -188,6 +190,19 @@ defmodule Thinktank.CLITest do
              CLI.parse_args(["run", "research/default"])
   end
 
+  test "uses --input when no positional prompt is provided" do
+    assert {:ok, command} = CLI.parse_args(["--input", "inspect this branch"])
+    assert command.bench_id == "research/default"
+    assert command.input.input_text == "inspect this branch"
+  end
+
+  test "rejects malformed reserved subcommands" do
+    assert {:error, "run requires a bench id"} = CLI.parse_args(["run"])
+
+    assert {:error, "benches expects list, show <bench>, or validate"} =
+             CLI.parse_args(["benches", "show", "research/default", "extra"])
+  end
+
   test "read_stdin fails fast when stdin is interactive" do
     command = %{bench_id: "research/default", input: %{input_text: nil}}
 
@@ -224,41 +239,21 @@ defmodule Thinktank.CLITest do
     assert decoded["input"]["input_text"] == "test prompt"
   end
 
-  test "execute uses the config snapshot resolved during parse" do
+  test "uses env trust for repo config when the flag is omitted" do
     in_tmp_repo_config(
       """
       benches:
-        demo/review:
-          kind: review
-          description: First config snapshot
+        demo/custom:
+          description: Demo custom bench
           agents:
             - trace
-          default_task: Review the current change and report only real issues with evidence.
+          default_task: Investigate the workspace
       """,
       fn ->
-        config_path = Path.join([File.cwd!(), ".thinktank", "config.yml"])
+        System.put_env("THINKTANK_TRUST_REPO_CONFIG", "1")
+        on_exit(fn -> System.delete_env("THINKTANK_TRUST_REPO_CONFIG") end)
 
-        assert {:ok, command} =
-                 CLI.parse_args([
-                   "run",
-                   "demo/review",
-                   "--trust-repo-config",
-                   "--dry-run",
-                   "--json"
-                 ])
-
-        File.write!(
-          config_path,
-          """
-          benches:
-            demo/review:
-              kind: review
-              description: Second config snapshot
-              agents:
-                - ghost
-              default_task: Broken config
-          """
-        )
+        assert {:ok, command} = CLI.parse_args(["run", "demo/custom", "--dry-run", "--json"])
 
         output =
           capture_io(fn ->
@@ -266,45 +261,56 @@ defmodule Thinktank.CLITest do
           end)
 
         assert {:ok, decoded} = Jason.decode(String.trim(output))
-        assert decoded["bench"] == "demo/review"
-        assert decoded["description"] == "First config snapshot"
+        assert decoded["bench"] == "demo/custom"
       end
     )
   end
 
-  test "research uses the config snapshot resolved during parse" do
-    in_tmp_repo_config(
-      """
-      benches:
-        research/default:
-          kind: research
-          description: First research snapshot
-          agents:
-            - systems
-      """,
-      fn ->
+  test "execute uses the config snapshot resolved during parse" do
+    for {args, initial_yaml, overwrite_yaml, expected_bench, expected_description} <- [
+          {["run", "demo/review", "--trust-repo-config", "--dry-run", "--json"],
+           """
+           benches:
+             demo/review:
+               kind: review
+               description: First config snapshot
+               agents:
+                 - trace
+               default_task: Review the current change and report only real issues with evidence.
+           """,
+           """
+           benches:
+             demo/review:
+               kind: review
+               description: Second config snapshot
+               agents:
+                 - ghost
+               default_task: Broken config
+           """, "demo/review", "First config snapshot"},
+          {["research", "inspect this", "--trust-repo-config", "--dry-run", "--json"],
+           """
+           benches:
+             research/default:
+               kind: research
+               description: First research snapshot
+               agents:
+                 - systems
+           """,
+           """
+           benches:
+             research/default:
+               kind: research
+               description: Second research snapshot
+               agents:
+                 - ghost
+           """, "research/default", "First research snapshot"}
+        ] do
+      in_tmp_repo_config(initial_yaml, fn ->
         config_path = Path.join([File.cwd!(), ".thinktank", "config.yml"])
 
-        assert {:ok, command} =
-                 CLI.parse_args([
-                   "research",
-                   "inspect this",
-                   "--trust-repo-config",
-                   "--dry-run",
-                   "--json"
-                 ])
+        assert {:ok, command} = CLI.parse_args(args)
 
-        File.write!(
-          config_path,
-          """
-          benches:
-            research/default:
-              kind: research
-              description: Second research snapshot
-              agents:
-                - ghost
-          """
-        )
+        File.write!(config_path, overwrite_yaml)
 
         output =
           capture_io(fn ->
@@ -312,10 +318,10 @@ defmodule Thinktank.CLITest do
           end)
 
         assert {:ok, decoded} = Jason.decode(String.trim(output))
-        assert decoded["bench"] == "research/default"
-        assert decoded["description"] == "First research snapshot"
-      end
-    )
+        assert decoded["bench"] == expected_bench
+        assert decoded["description"] == expected_description
+      end)
+    end
   end
 
   test "prints usage text for help" do

@@ -26,13 +26,17 @@ defmodule Thinktank.TemplateTest do
         }
       )
 
-    assert rendered =~ "text=hello"
-    assert rendered =~ "int=7"
-    assert rendered =~ "float=1.5"
-    assert rendered =~ "bool=true"
-    assert rendered =~ "list=a\n2"
-    assert rendered =~ ~s("ok": true)
-    assert rendered =~ "nil="
+    for expected <- [
+          "text=hello",
+          "int=7",
+          "float=1.5",
+          "bool=true",
+          "list=a\n2",
+          ~s("ok": true),
+          "nil="
+        ] do
+      assert rendered =~ expected
+    end
   end
 
   test "replaces missing placeholders with empty strings without touching values" do
@@ -50,5 +54,10 @@ defmodule Thinktank.TemplateTest do
     assert repo_line == "repo="
     assert text_line == "text=literal {{repo}}"
     assert head_line == "head="
+  end
+
+  test "falls back to inspect when map values are not JSON encodable" do
+    rendered = Template.render("map={{map}}", %{"map" => %{pid: self()}})
+    assert rendered =~ "map=%{pid:"
   end
 end
