@@ -37,11 +37,12 @@ defmodule Thinktank.Engine do
           {:ok, resolved_run()} | {:error, term(), String.t() | nil}
   def resolve(bench_id, input, opts \\ []) do
     cwd = Keyword.get(opts, :cwd, File.cwd!())
+    provided_config = Keyword.get(opts, :config)
 
     config_opts =
       [cwd: cwd] |> maybe_put_opt(:trust_repo_config, Keyword.get(opts, :trust_repo_config))
 
-    with {:ok, config} <- Config.load(config_opts),
+    with {:ok, config} <- resolve_config(provided_config, config_opts),
          {:ok, bench} <- Config.bench(config, bench_id),
          {:ok, input} <- normalize_input(bench, input),
          {:ok, agents} <- resolve_agents(bench, config, input),
@@ -98,7 +99,16 @@ defmodule Thinktank.Engine do
       Enum.each(results, &record_result(output_dir, &1))
 
       synthesis =
-        maybe_run_synthesizer(synthesizer, results, contract, config, context, opts, output_dir)
+        maybe_run_synthesizer(
+          synthesizer,
+          results,
+          bench,
+          contract,
+          config,
+          context,
+          opts,
+          output_dir
+        )
 
       status = derive_status(results, synthesis)
       RunStore.complete_run(output_dir, status)
@@ -134,12 +144,22 @@ defmodule Thinktank.Engine do
     Path.join(System.tmp_dir!(), "thinktank-#{bench_slug}-#{timestamp}-#{suffix}")
   end
 
-  defp maybe_run_synthesizer(nil, _results, _contract, _config, _context, _opts, _output_dir),
-    do: nil
+  defp maybe_run_synthesizer(
+         nil,
+         _results,
+         _bench,
+         _contract,
+         _config,
+         _context,
+         _opts,
+         _output_dir
+       ),
+       do: nil
 
   defp maybe_run_synthesizer(
          _synthesizer,
          _results,
+         _bench,
          %{input: %{"no_synthesis" => true}},
          _config,
          _context,
@@ -148,7 +168,16 @@ defmodule Thinktank.Engine do
        ),
        do: nil
 
-  defp maybe_run_synthesizer(synthesizer, results, contract, config, context, opts, output_dir) do
+  defp maybe_run_synthesizer(
+         synthesizer,
+         results,
+         bench,
+         contract,
+         config,
+         context,
+         opts,
+         output_dir
+       ) do
     if Enum.any?(results, &(&1.status == :ok and String.trim(&1.output) != "")) do
       synth_context =
         Map.merge(context, %{
@@ -165,24 +194,24 @@ defmodule Thinktank.Engine do
       record_result(output_dir, result)
 
       if result.status == :ok do
-        write_summary_artifacts(output_dir, contract.bench_id, result.output)
+        write_summary_artifacts(output_dir, bench, result.output)
       end
 
       result
     end
   end
 
-  defp write_summary_artifacts(output_dir, bench_id, content) do
+  defp write_summary_artifacts(output_dir, %BenchSpec{kind: kind}, content) do
     RunStore.write_text_artifact(output_dir, "summary", "summary.md", content)
 
-    cond do
-      String.starts_with?(bench_id, "review/") ->
+    case kind do
+      :review ->
         RunStore.write_text_artifact(output_dir, "review", "review.md", content)
 
-      String.starts_with?(bench_id, "research/") ->
+      :research ->
         RunStore.write_text_artifact(output_dir, "synthesis", "synthesis.md", content)
 
-      true ->
+      _ ->
         :ok
     end
   end
@@ -317,6 +346,9 @@ defmodule Thinktank.Engine do
 
   defp maybe_put_opt(opts, _key, nil), do: opts
   defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
+
+  defp resolve_config(%Config{} = config, _opts), do: {:ok, config}
+  defp resolve_config(nil, opts), do: Config.load(opts)
 
   defp stringify_keys(map) do
     map

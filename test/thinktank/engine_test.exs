@@ -91,4 +91,48 @@ defmodule Thinktank.EngineTest do
     assert Enum.map(result.agents, & &1.name) == ["systems", "dx"]
     refute File.exists?(Path.join(result.output_dir, "synthesis.md"))
   end
+
+  test "custom review benches emit review artifacts based on bench kind" do
+    cwd = unique_tmp_dir("thinktank-engine-custom-review")
+    config_path = Path.join([cwd, ".thinktank", "config.yml"])
+    File.mkdir_p!(Path.dirname(config_path))
+
+    File.write!(
+      config_path,
+      """
+      benches:
+        demo/custom-review:
+          kind: review
+          description: Demo custom review bench
+          agents:
+            - trace
+          synthesizer: review-synth
+          default_task: Review the current change and report only real issues with evidence.
+      """
+    )
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Agent outputs:") do
+        {"Synthesized review\n\n" <> prompt, 0}
+      else
+        {"Raw agent report\n\n" <> prompt, 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "demo/custom-review",
+               %{},
+               cwd: cwd,
+               trust_repo_config: true,
+               runner: runner
+             )
+
+    assert result.envelope.status == "complete"
+    assert File.exists?(Path.join(result.output_dir, "review.md"))
+    assert File.read!(Path.join(result.output_dir, "review.md")) =~ "Synthesized review"
+    refute File.exists?(Path.join(result.output_dir, "synthesis.md"))
+  end
 end

@@ -101,6 +101,7 @@ defmodule Thinktank.Builtin do
       },
       "benches" => %{
         "research/default" => %{
+          "kind" => "research",
           "description" =>
             "Launch a fixed research bench of Pi agents and optionally synthesize their findings.",
           "agents" => ["systems", "verification", "ml", "dx"],
@@ -108,6 +109,7 @@ defmodule Thinktank.Builtin do
           "concurrency" => 4
         },
         "review/cerberus" => %{
+          "kind" => "review",
           "description" =>
             "Launch a fixed review bench of Pi agents against the current repository context.",
           "agents" => ["trace", "guard", "atlas", "proof"],

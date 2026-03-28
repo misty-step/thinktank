@@ -7,15 +7,19 @@ defmodule Thinktank.BenchSpec do
   defstruct [
     :id,
     :description,
+    kind: :default,
     agents: [],
     synthesizer: nil,
     concurrency: nil,
     default_task: nil
   ]
 
+  @type kind :: :default | :research | :review
+
   @type t :: %__MODULE__{
           id: String.t(),
           description: String.t(),
+          kind: kind(),
           agents: [String.t()],
           synthesizer: String.t() | nil,
           concurrency: pos_integer() | nil,
@@ -25,6 +29,7 @@ defmodule Thinktank.BenchSpec do
   @spec from_pair(String.t(), map()) :: {:ok, t()} | {:error, String.t()}
   def from_pair(id, %{} = raw) when is_binary(id) do
     with {:ok, description} <- require_string(raw, "description"),
+         {:ok, kind} <- parse_kind(raw["kind"]),
          {:ok, agents} <- require_agent_names(raw["agents"]),
          {:ok, synthesizer} <- optional_string(raw["synthesizer"]),
          {:ok, concurrency} <- parse_concurrency(raw["concurrency"]),
@@ -33,6 +38,7 @@ defmodule Thinktank.BenchSpec do
        %__MODULE__{
          id: id,
          description: description,
+         kind: kind,
          agents: agents,
          synthesizer: synthesizer,
          concurrency: concurrency,
@@ -66,6 +72,13 @@ defmodule Thinktank.BenchSpec do
 
   defp require_agent_names(_),
     do: {:error, "bench agents must be a non-empty list of agent names"}
+
+  defp parse_kind(nil), do: {:ok, :default}
+  defp parse_kind(""), do: {:ok, :default}
+  defp parse_kind("default"), do: {:ok, :default}
+  defp parse_kind("research"), do: {:ok, :research}
+  defp parse_kind("review"), do: {:ok, :review}
+  defp parse_kind(_), do: {:error, "bench kind must be one of: default, research, review"}
 
   defp optional_string(nil), do: {:ok, nil}
   defp optional_string(value) when is_binary(value) and value != "", do: {:ok, value}

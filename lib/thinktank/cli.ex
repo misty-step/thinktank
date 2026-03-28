@@ -3,7 +3,7 @@ defmodule Thinktank.CLI do
   CLI entry point for ThinkTank benches.
   """
 
-  alias Thinktank.{Config, Engine}
+  alias Thinktank.{BenchSpec, Config, Engine}
 
   @exit_codes %{
     success: 0,
@@ -93,6 +93,7 @@ defmodule Thinktank.CLI do
         %{
           id: bench.id,
           description: bench.description,
+          kind: bench.kind,
           agents: bench.agents,
           synthesizer: bench.synthesizer,
           concurrency: bench.concurrency,
@@ -151,7 +152,7 @@ defmodule Thinktank.CLI do
         {:version, %{}}
 
       rest == [] ->
-        {:needs_stdin, build_research_command(parsed, nil)}
+        build_fixed_bench_command("research/default", parsed, nil)
 
       true ->
         build_command(rest, parsed)
@@ -174,31 +175,34 @@ defmodule Thinktank.CLI do
   end
 
   defp build_command(["run", bench_id | remainder], parsed) do
-    with :ok <- validate_review_pr_flags(bench_id, parsed) do
+    with {:ok, config, bench} <- resolve_bench(bench_id, parsed),
+         :ok <- validate_review_pr_flags(bench, parsed) do
       input_text = resolve_input_text(parsed[:input], remainder)
 
-      if input_text == nil and bench_id != "review/cerberus" do
-        {:needs_stdin, build_run_command(bench_id, parsed, nil)}
+      if input_text == nil and needs_stdin?(bench) do
+        {:needs_stdin, build_run_command(bench, parsed, nil, config)}
       else
-        {:ok, build_run_command(bench_id, parsed, input_text)}
+        {:ok, build_run_command(bench, parsed, input_text, config)}
       end
     end
   end
 
   defp build_command(["review" | remainder], parsed) do
-    with :ok <- validate_review_pr_flags("review/cerberus", parsed) do
-      {:ok, build_review_command(parsed, resolve_input_text(parsed[:input], remainder))}
+    with {:ok, config, bench} <- resolve_bench("review/cerberus", parsed),
+         :ok <- validate_review_pr_flags(bench, parsed) do
+      input_text = resolve_input_text(parsed[:input], remainder)
+
+      if input_text == nil and needs_stdin?(bench) do
+        {:needs_stdin, build_review_command(bench, parsed, nil, config)}
+      else
+        {:ok, build_review_command(bench, parsed, input_text, config)}
+      end
     end
   end
 
   defp build_command(["research" | remainder], parsed) do
     input_text = resolve_input_text(parsed[:input], remainder)
-
-    if input_text == nil do
-      {:needs_stdin, build_research_command(parsed, nil)}
-    else
-      {:ok, build_research_command(parsed, input_text)}
-    end
+    build_fixed_bench_command("research/default", parsed, input_text)
   end
 
   defp build_command([group, "list"], parsed) when group in ["benches", "workflows"] do
@@ -233,28 +237,29 @@ defmodule Thinktank.CLI do
   end
 
   defp build_command(rest, parsed) do
-    {:ok, build_research_command(parsed, Enum.join(rest, " "))}
+    build_fixed_bench_command("research/default", parsed, Enum.join(rest, " "))
   end
 
-  defp build_research_command(parsed, input_text) do
-    build_common_command(parsed, "research/default", input_text)
+  defp build_fixed_bench_command(bench_id, parsed, input_text) do
+    with {:ok, config, bench} <- resolve_bench(bench_id, parsed),
+         :ok <- validate_review_pr_flags(bench, parsed) do
+      if input_text == nil and needs_stdin?(bench) do
+        {:needs_stdin, build_run_command(bench, parsed, nil, config)}
+      else
+        {:ok, build_run_command(bench, parsed, input_text, config)}
+      end
+    end
   end
 
-  defp build_review_command(parsed, input_text) do
-    command =
-      build_common_command(
-        parsed,
-        "review/cerberus",
-        input_text || "Review the current change and report only real issues with evidence."
-      )
-
-    put_in(command.input, Map.merge(command.input, review_input(parsed)))
+  defp build_review_command(bench, parsed, input_text, config) do
+    build_run_command(bench, parsed, input_text, config)
   end
 
-  defp build_run_command(bench_id, parsed, input_text) do
-    command = build_common_command(parsed, bench_id, input_text)
+  defp build_run_command(%BenchSpec{} = bench, parsed, input_text, config) do
+    command = build_common_command(parsed, bench.id, input_text || bench.default_task)
+    command = Map.put(command, :config, config)
 
-    if bench_id == "review/cerberus" do
+    if review_bench?(bench) do
       put_in(command.input, Map.merge(command.input, review_input(parsed)))
     else
       command
@@ -287,25 +292,34 @@ defmodule Thinktank.CLI do
     |> maybe_put_value(:pr, parsed[:pr])
   end
 
-  defp validate_review_pr_flags("review/cerberus", parsed) do
-    if parsed[:pr] && !parsed[:repo] do
-      {:error, "review/cerberus requires --repo when --pr is provided"}
-    else
-      :ok
+  defp validate_review_pr_flags(%BenchSpec{id: bench_id} = bench, parsed) do
+    parsed = if is_map(parsed), do: parsed, else: Map.new(parsed)
+
+    cond do
+      !review_bench?(bench) ->
+        :ok
+
+      parsed[:pr] && !parsed[:repo] ->
+        {:error, "#{bench_id} requires --repo when --pr is provided"}
+
+      true ->
+        :ok
     end
   end
-
-  defp validate_review_pr_flags(_bench_id, _parsed), do: :ok
 
   defp run_bench(command) do
     agent_config_dir = agent_config_dir(command.cwd)
 
-    case Engine.run(command.bench_id, command.input,
-           cwd: command.cwd,
-           trust_repo_config: command.trust_repo_config,
-           output: command.output,
-           agent_config_dir: agent_config_dir
-         ) do
+    run_opts =
+      [
+        cwd: command.cwd,
+        trust_repo_config: command.trust_repo_config,
+        output: command.output,
+        agent_config_dir: agent_config_dir
+      ]
+      |> maybe_put_opt(:config, Map.get(command, :config))
+
+    case Engine.run(command.bench_id, command.input, run_opts) do
       {:ok, result} ->
         emit(command, result.envelope)
 
@@ -326,11 +340,15 @@ defmodule Thinktank.CLI do
   end
 
   defp dry_run(command) do
-    case Engine.resolve(command.bench_id, command.input,
-           cwd: command.cwd,
-           trust_repo_config: command.trust_repo_config,
-           output: command.output
-         ) do
+    resolve_opts =
+      [
+        cwd: command.cwd,
+        trust_repo_config: command.trust_repo_config,
+        output: command.output
+      ]
+      |> maybe_put_opt(:config, Map.get(command, :config))
+
+    case Engine.resolve(command.bench_id, command.input, resolve_opts) do
       {:ok, resolved} ->
         emit(command, dry_run_output(command, resolved))
         @exit_codes.success
@@ -374,6 +392,21 @@ defmodule Thinktank.CLI do
     end)
   end
 
+  defp resolve_bench(bench_id, parsed) do
+    with {:ok, config} <-
+           Config.load(cwd: File.cwd!(), trust_repo_config: parsed[:trust_repo_config] || false) do
+      case Config.bench(config, bench_id) do
+        {:ok, bench} -> {:ok, config, bench}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  defp needs_stdin?(%BenchSpec{default_task: default_task}), do: is_nil(default_task)
+
+  defp review_bench?(%BenchSpec{kind: :review}), do: true
+  defp review_bench?(_), do: false
+
   defp maybe_read_stdin(command) do
     input =
       IO.read(:stdio, :all)
@@ -410,6 +443,8 @@ defmodule Thinktank.CLI do
 
   defp maybe_put_value(map, _key, nil), do: map
   defp maybe_put_value(map, key, value), do: Map.put(map, key, value)
+  defp maybe_put_opt(opts, _key, nil), do: opts
+  defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp agent_config_dir(cwd) do
     if trust_repo_agent_config?() do

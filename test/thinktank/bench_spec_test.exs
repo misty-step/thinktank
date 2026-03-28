@@ -6,6 +6,7 @@ defmodule Thinktank.BenchSpecTest do
   test "parses bench specs" do
     assert {:ok, bench} =
              BenchSpec.from_pair("review/cerberus", %{
+               "kind" => "review",
                "description" => "Review bench",
                "agents" => ["trace", "guard"],
                "synthesizer" => "review-synth",
@@ -14,9 +15,19 @@ defmodule Thinktank.BenchSpecTest do
              })
 
     assert bench.id == "review/cerberus"
+    assert bench.kind == :review
     assert bench.agents == ["trace", "guard"]
     assert bench.synthesizer == "review-synth"
     assert bench.concurrency == 2
+  end
+
+  test "rejects unknown bench kinds" do
+    assert {:error, "bench kind must be one of: default, research, review"} =
+             BenchSpec.from_pair("demo/custom", %{
+               "kind" => "mystery",
+               "description" => "Custom bench",
+               "agents" => ["trace"]
+             })
   end
 
   test "rejects empty agent lists" do

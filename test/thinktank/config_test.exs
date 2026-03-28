@@ -17,6 +17,8 @@ defmodule Thinktank.ConfigTest do
     assert Map.has_key?(config.benches, "research/default")
     assert Map.has_key?(config.benches, "review/cerberus")
     assert Map.has_key?(config.agents, "trace")
+    assert config.benches["research/default"].kind == :research
+    assert config.benches["review/cerberus"].kind == :review
   end
 
   test "repo config overrides user config and adds benches when trusted" do
@@ -49,6 +51,7 @@ defmodule Thinktank.ConfigTest do
           system_prompt: Repo override
       benches:
         demo/custom:
+          kind: review
           description: Demo custom bench
           agents:
             - trace
@@ -58,6 +61,7 @@ defmodule Thinktank.ConfigTest do
     assert {:ok, config} = Config.load(cwd: tmp, user_home: user_home, trust_repo_config: true)
     assert config.agents["trace"].model == "repo/model"
     assert Map.has_key?(config.benches, "demo/custom")
+    assert config.benches["demo/custom"].kind == :review
   end
 
   test "untrusted repo config is skipped before parsing" do

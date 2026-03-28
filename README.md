@@ -110,10 +110,35 @@ agents:
 
 benches:
   review/cerberus:
+    kind: review
     description: Fixed review bench
     agents: [trace, guard, atlas, proof]
     synthesizer: review-synth
     concurrency: 4
+    default_task: Review the current change and report only real issues with evidence.
+
+  research/default:
+    kind: research
+    description: Fixed research bench
+    agents: [systems, verification, ml, dx]
+    synthesizer: research-synth
+```
+
+Bench kinds:
+
+- omit `kind` or use `default` for generic benches
+- use `kind: review` for benches that should accept `--base`, `--head`, `--repo`, and `--pr`
+- use `default_task` when a bench should run without stdin or `--input`
+
+Example custom review bench:
+
+```yaml
+benches:
+  review/security:
+    kind: review
+    description: Security-focused review bench
+    agents: [guard]
+    default_task: Review the current change for real security issues.
 ```
 
 ## Artifacts

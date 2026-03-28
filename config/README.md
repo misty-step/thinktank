@@ -1,12 +1,13 @@
 # thinktank Configuration
 
-ThinkTank loads typed YAML configuration from:
+ThinkTank loads typed bench configuration from:
 
 1. built-in defaults
 2. `~/.config/thinktank/config.yml`
-3. `.thinktank/config.yml` in the current repository when `--trust-repo-config` or `THINKTANK_TRUST_REPO_CONFIG=1` is set
+3. `.thinktank/config.yml` in the current repository when `--trust-repo-config`
+   or `THINKTANK_TRUST_REPO_CONFIG=1` is set
 
-CLI flags override run-time inputs such as workflow input text, paths, mode, and review refs.
+CLI flags override run-time input such as task text, paths, and review refs.
 
 ## Top-Level Shape
 
@@ -19,48 +20,52 @@ providers:
       fallback_env: OPENROUTER_API_KEY
 
 agents:
-  architecture-reviewer:
+  trace:
     provider: openrouter
-    model: openai/gpt-5.4
-    system_prompt: You are an architecture reviewer.
-    prompt: "Review this change: {{input_text}}"
-    tool_profile: review
-    thinking_level: high
-    retries: 1
-    timeout_ms: 900000
+    model: x-ai/grok-4.1-fast
+    system_prompt: |
+      You are trace, a correctness reviewer.
+    task_prompt: |
+      {{input_text}}
+    tools: [bash, read, grep, find, ls]
+    thinking_level: medium
+    retries: 0
+    timeout_ms: 600000
 
-workflows:
-  code-review:
-    description: Review the current branch against the base branch.
-    default_mode: deep
-    input_schema:
-      required:
-        - input_text
-    stages:
-      - name: prepare
-        type: prepare
-        kind: review_diff
-      - name: route
-        type: route
-        kind: static_agents
-        agents:
-          - architecture-reviewer
-      - name: fanout
-        type: fanout
-        kind: agents
-      - name: emit
-        type: emit
-        kind: artifacts
+benches:
+  review/cerberus:
+    kind: review
+    description: Fixed review bench
+    agents: [trace, guard, atlas, proof]
+    synthesizer: review-synth
+    concurrency: 4
+    default_task: Review the current change and report only real issues with evidence.
+
+  research/default:
+    kind: research
+    description: Fixed research bench
+    agents: [systems, verification, ml, dx]
+    synthesizer: research-synth
 ```
 
 ## Typed Specs
 
 - `ProviderSpec`: provider id, adapter kind, credential env var, defaults
-- `AgentSpec`: name, provider, model, system prompt, prompt template, tool profile, thinking level, retries, timeout
-- `WorkflowSpec`: id, description, input schema, default mode, ordered stage list
-- `StageSpec`: `prepare`, `route`, `fanout`, `aggregate`, or `emit`, plus `kind`, `when`, retry, and concurrency
+- `AgentSpec`: name, provider, model, system prompt, task prompt, tools,
+  thinking level, retries, timeout
+- `BenchSpec`: id, kind, description, agent list, optional synthesizer,
+  concurrency, and optional `default_task`
 
-## Built-In Workflows
+## Bench Kinds
+
+- `default`: generic bench behavior
+- `research`: research-oriented built-in bench kind
+- `review`: bench accepts `--base`, `--head`, `--repo`, and `--pr`
+
+If a bench has a `default_task`, `thinktank run <bench>` can run without
+stdin or `--input`.
+
+## Built-In Benches
 
 - `research/default`
 - `review/cerberus`
@@ -68,5 +73,3 @@ workflows:
 ## Current Provider Support
 
 - `openrouter`
-
-Provider specs are first-class in config, but the initial implementation only ships the OpenRouter adapter.
