@@ -1,68 +1,50 @@
 defmodule Thinktank.CLI do
   @moduledoc """
-  CLI entry point for the thinktank escript.
-
-  Parses arguments, validates input, and dispatches to the
-  appropriate mode (quick or deep). Agent-friendly: structured
-  JSON output, meaningful exit codes, no interactive prompts.
+  CLI entry point for ThinkTank benches.
   """
 
-  alias Thinktank.{Dispatch.Deep, Dispatch.Quick, Models, Output, Router, Synthesis}
+  alias Thinktank.{BenchSpec, Config, Engine}
 
   @exit_codes %{
     success: 0,
     generic_error: 1,
-    auth_error: 2,
-    rate_limit: 3,
-    invalid_request: 4,
-    server_error: 5,
-    network_error: 6,
-    input_error: 7,
-    content_filtered: 8,
-    insufficient_credits: 9,
-    cancelled: 10
+    input_error: 7
   }
 
   @option_spec [
     strict: [
       help: :boolean,
       version: :boolean,
+      input: :string,
       paths: :keep,
-      quick: :boolean,
-      deep: :boolean,
+      agents: :string,
       json: :boolean,
       output: :string,
-      models: :string,
-      roles: :string,
       dry_run: :boolean,
       no_synthesis: :boolean,
-      perspectives: :integer,
-      tier: :string
+      trust_repo_config: :boolean,
+      base: :string,
+      head: :string,
+      repo: :string,
+      pr: :integer
     ],
     aliases: [
       h: :help,
       v: :version,
-      q: :quick,
-      d: :deep,
-      o: :output,
-      n: :perspectives,
-      t: :tier
+      o: :output
     ]
   ]
 
   @spec exit_codes() :: %{atom() => non_neg_integer()}
   def exit_codes, do: @exit_codes
 
-  @doc """
-  Escript entry point. Parses args, executes, and halts.
-  """
   @spec main([String.t()]) :: no_return()
   def main(args) do
     exit_code =
       args
       |> parse_args()
       |> then(fn
-        {:needs_stdin, parsed} -> try_stdin(parsed)
+        {:needs_stdin, parsed} -> read_stdin(parsed)
         other -> other
       end)
       |> execute()
@@ -70,12 +52,7 @@ defmodule Thinktank.CLI do
     System.halt(exit_code)
   end
 
-  @doc """
-  Execute a parsed command. Returns an exit code without halting.
-
-  Testable core — `main/1` is the only function that calls `System.halt/1`.
-  """
-  @spec execute({:ok, map()} | {:error, String.t()} | {:help, keyword()} | {:version, keyword()}) ::
+  @spec execute({:ok, map()} | {:error, String.t()} | {:help, map()} | {:version, map()}) ::
           non_neg_integer()
   def execute({:help, _}) do
     IO.puts(usage_text())
@@ -89,21 +66,76 @@ defmodule Thinktank.CLI do
 
   def execute({:error, message}) do
     IO.puts(:stderr, "Error: #{message}")
-    IO.puts(:stderr, "Run 'thinktank --help' for usage.")
     @exit_codes.input_error
   end
 
-  def execute({:ok, opts}) do
-    run(opts)
+  def execute({:ok, %{action: :benches_list} = command}) do
+    case load_config(command) do
+      {:ok, config} ->
+        Config.list_benches(config)
+        |> Enum.each(fn bench ->
+          IO.puts("#{bench.id}\t#{bench.description}")
+        end)
+
+        @exit_codes.success
+
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        @exit_codes.input_error
+    end
+  end
+
+  def execute({:ok, %{action: :benches_show, bench_id: bench_id} = command}) do
+    with {:ok, config} <- load_config(command),
+         {:ok, bench} <- Config.bench(config, bench_id) do
+      rendered =
+        %{
+          id: bench.id,
+          description: bench.description,
+          kind: bench.kind,
+          agents: bench.agents,
+          synthesizer: bench.synthesizer,
+          concurrency: bench.concurrency,
+          default_task: bench.default_task
+        }
+        |> Jason.encode!(pretty: true)
+
+      IO.puts(rendered)
+      @exit_codes.success
+    else
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        @exit_codes.input_error
+    end
+  end
+
+  def execute({:ok, %{action: :benches_validate} = command}) do
+    case load_config(command) do
+      {:ok, config} ->
+        IO.puts("Validated #{length(Config.list_benches(config))} benches")
+        @exit_codes.success
+
+      {:error, reason} ->
+        IO.puts(:stderr, "Error: #{reason}")
+        @exit_codes.input_error
+    end
+  end
+
+  def execute({:ok, %{action: :run} = command}) do
+    if command.dry_run do
+      dry_run(command)
+    else
+      run_bench(command)
+    end
   end
 
   @doc false
   @spec parse_args([String.t()]) ::
           {:ok, map()}
           | {:error, String.t()}
-          | {:help, keyword()}
-          | {:version, keyword()}
-          | {:needs_stdin, keyword()}
+          | {:help, map()}
+          | {:version, map()}
+          | {:needs_stdin, map()}
   def parse_args(args) do
     {parsed, rest, invalid} = OptionParser.parse(args, @option_spec)
 
@@ -113,260 +145,402 @@ defmodule Thinktank.CLI do
         {:error, "unknown flag: #{flag}"}
 
       parsed[:help] ->
-        {:help, parsed}
+        {:help, %{}}
 
       parsed[:version] ->
-        {:version, parsed}
+        {:version, %{}}
 
       rest == [] ->
-        {:needs_stdin, parsed}
+        build_fixed_bench_command(
+          "research/default",
+          parsed,
+          resolve_input_text(parsed[:input], [])
+        )
 
       true ->
-        case parse_tier(parsed[:tier]) do
-          {:ok, tier} -> {:ok, build_opts(Enum.join(rest, " "), parsed, tier)}
-          {:error, _} = err -> err
-        end
+        build_command(rest, parsed)
     end
   end
 
-  @doc """
-  Returns the JSON string for dry-run output.
-  """
-  @spec dry_run_output(map()) :: String.t()
-  def dry_run_output(opts) do
-    Jason.encode!(%{
-      mode: "dry_run",
-      instruction: opts.instruction,
-      paths: opts.paths,
-      perspectives: opts.perspectives,
-      dispatch_mode: to_string(opts.mode),
-      tier: to_string(opts.tier),
-      models: opts.models,
-      roles: opts.roles,
-      no_synthesis: opts.no_synthesis
-    })
-  end
+  @doc false
+  @spec dry_run_output(map(), map()) :: String.t()
+  def dry_run_output(command, resolved) do
+    payload = %{
+      action: command.action,
+      bench: resolved.bench.id,
+      description: resolved.bench.description,
+      agents: Enum.map(resolved.agents, & &1.name),
+      synthesizer: resolved.synthesizer && resolved.synthesizer.name,
+      input: command.input,
+      output: resolved.output_dir,
+      json: command.json
+    }
 
-  defp try_stdin(parsed) do
-    with true <- stdin_piped?(),
-         data when is_binary(data) <- IO.read(:stdio, :eof),
-         trimmed = String.trim(data),
-         false <- trimmed == "",
-         {:ok, tier} <- parse_tier(parsed[:tier]) do
-      {:ok, build_opts(trimmed, parsed, tier)}
+    if command.json do
+      Jason.encode!(payload)
     else
-      {:error, _} = err -> err
-      _ -> {:error, "instruction argument required"}
+      """
+      Bench: #{payload.bench}
+      Description: #{payload.description}
+      Agents: #{Enum.join(payload.agents, ", ")}
+      Synthesizer: #{payload.synthesizer || "none"}
+      Input: #{payload.input.input_text}
+      Output: #{payload.output}
+      """
+      |> String.trim()
     end
   end
 
-  defp build_opts(instruction, parsed, tier) do
+  defp build_command(["run", bench_id | remainder], parsed) do
+    with {:ok, config, bench} <- resolve_bench(bench_id, parsed),
+         :ok <- validate_review_pr_flags(bench, parsed) do
+      input_text = resolve_input_text(parsed[:input], remainder)
+
+      if input_text == nil and needs_stdin?(bench) do
+        {:needs_stdin, build_run_command(bench, parsed, nil, config)}
+      else
+        {:ok, build_run_command(bench, parsed, input_text, config)}
+      end
+    end
+  end
+
+  defp build_command(["review" | remainder], parsed) do
+    with {:ok, config, bench} <- resolve_bench("review/cerberus", parsed),
+         :ok <- validate_review_pr_flags(bench, parsed) do
+      input_text = resolve_input_text(parsed[:input], remainder)
+
+      if input_text == nil and needs_stdin?(bench) do
+        {:needs_stdin, build_review_command(bench, parsed, nil, config)}
+      else
+        {:ok, build_review_command(bench, parsed, input_text, config)}
+      end
+    end
+  end
+
+  defp build_command(["research" | remainder], parsed) do
+    input_text = resolve_input_text(parsed[:input], remainder)
+    build_fixed_bench_command("research/default", parsed, input_text)
+  end
+
+  defp build_command(["run"], _parsed), do: {:error, "run requires a bench id"}
+
+  defp build_command([group, "list"], parsed) when group in ["benches", "workflows"] do
+    {:ok,
+     %{
+       action: :benches_list,
+       cwd: File.cwd!(),
+       json: parsed[:json] || false,
+       trust_repo_config: parsed[:trust_repo_config]
+     }}
+  end
+
+  defp build_command([group, "show", bench_id], parsed) when group in ["benches", "workflows"] do
+    {:ok,
+     %{
+       action: :benches_show,
+       bench_id: bench_id,
+       cwd: File.cwd!(),
+       json: parsed[:json] || false,
+       trust_repo_config: parsed[:trust_repo_config]
+     }}
+  end
+
+  defp build_command([group, "validate"], parsed) when group in ["benches", "workflows"] do
+    {:ok,
+     %{
+       action: :benches_validate,
+       cwd: File.cwd!(),
+       json: parsed[:json] || false,
+       trust_repo_config: parsed[:trust_repo_config]
+     }}
+  end
+
+  defp build_command([group | _rest], _parsed) when group in ["benches", "workflows"] do
+    {:error, "#{group} expects list, show <bench>, or validate"}
+  end
+
+  defp build_command(rest, parsed) do
+    build_fixed_bench_command("research/default", parsed, Enum.join(rest, " "))
+  end
+
+  defp build_fixed_bench_command(bench_id, parsed, input_text) do
+    with {:ok, config, bench} <- resolve_bench(bench_id, parsed),
+         :ok <- validate_review_pr_flags(bench, parsed) do
+      if input_text == nil and needs_stdin?(bench) do
+        {:needs_stdin, build_run_command(bench, parsed, nil, config)}
+      else
+        {:ok, build_run_command(bench, parsed, input_text, config)}
+      end
+    end
+  end
+
+  defp build_review_command(bench, parsed, input_text, config) do
+    build_run_command(bench, parsed, input_text, config)
+  end
+
+  defp build_run_command(%BenchSpec{} = bench, parsed, input_text, config) do
+    command = build_common_command(parsed, bench.id, input_text || bench.default_task)
+    command = Map.put(command, :config, config)
+
+    if review_bench?(bench) do
+      put_in(command.input, Map.merge(command.input, review_input(parsed)))
+    else
+      command
+    end
+  end
+
+  defp build_common_command(parsed, bench_id, input_text) do
     %{
-      instruction: instruction,
-      paths: parsed |> Keyword.get_values(:paths) |> Enum.map(&Path.expand/1),
-      mode: if(parsed[:quick], do: :quick, else: :deep),
+      action: :run,
+      bench_id: bench_id,
+      cwd: File.cwd!(),
       json: parsed[:json] || false,
-      output: if(parsed[:output], do: Path.expand(parsed[:output])),
-      models: parse_csv(parsed[:models]),
-      roles: parse_csv(parsed[:roles]),
+      output: parsed[:output] && Path.expand(parsed[:output]),
       dry_run: parsed[:dry_run] || false,
-      no_synthesis: parsed[:no_synthesis] || false,
-      perspectives: parsed[:perspectives] || 4,
-      tier: tier
+      trust_repo_config: parsed[:trust_repo_config],
+      input: %{
+        input_text: input_text,
+        paths: normalize_paths(Keyword.get_values(parsed, :paths)),
+        agents: parse_agent_list(parsed[:agents]),
+        no_synthesis: parsed[:no_synthesis] || false
+      }
     }
   end
 
-  defp run(%{dry_run: true} = opts) do
-    if opts.json do
-      IO.puts(dry_run_output(opts))
-    else
-      IO.puts("Dry run: would dispatch #{opts.perspectives} perspectives in #{opts.mode} mode")
-      IO.puts("Instruction: #{opts.instruction}")
+  defp review_input(parsed) do
+    %{}
+    |> maybe_put_value(:base, parsed[:base])
+    |> maybe_put_value(:head, parsed[:head])
+    |> maybe_put_value(:repo, parsed[:repo])
+    |> maybe_put_value(:pr, parsed[:pr])
+  end
 
-      if opts.paths != [] do
-        IO.puts("Paths: #{Enum.join(opts.paths, ", ")}")
-      end
+  defp validate_review_pr_flags(%BenchSpec{id: bench_id} = bench, parsed) do
+    parsed = if is_map(parsed), do: parsed, else: Map.new(parsed)
+
+    cond do
+      !review_bench?(bench) ->
+        :ok
+
+      parsed[:pr] && !parsed[:repo] ->
+        {:error, "#{bench_id} requires --repo when --pr is provided"}
+
+      true ->
+        :ok
     end
-
-    @exit_codes.success
   end
 
-  defp run(%{mode: :quick} = opts) do
-    dispatch_and_finalize(opts, fn perspectives, instruction, paths ->
-      Quick.dispatch(perspectives, instruction, paths: paths)
-    end)
-  end
+  defp run_bench(command) do
+    agent_config_dir = agent_config_dir(command.cwd)
 
-  defp run(%{mode: :deep} = opts) do
-    dispatch_and_finalize(opts, fn perspectives, instruction, paths ->
-      deep_opts = [paths: paths, agent_config_dir: agent_config_dir()]
-      Deep.dispatch(perspectives, instruction, deep_opts)
-    end)
-  end
+    run_opts =
+      [
+        cwd: command.cwd,
+        output: command.output,
+        agent_config_dir: agent_config_dir
+      ]
+      |> maybe_put_opt(:trust_repo_config, command.trust_repo_config)
+      |> maybe_put_opt(:config, Map.get(command, :config))
 
-  defp dispatch_and_finalize(opts, dispatch_fn) do
-    case resolve_perspectives(opts) do
-      {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
-        @exit_codes.input_error
+    case Engine.run(command.bench_id, command.input, run_opts) do
+      {:ok, result} ->
+        emit(command, result.envelope)
 
-      {:ok, perspectives, router_usage} ->
-        output_dir = opts.output || generate_output_dir()
-        Output.init_run(output_dir, perspectives, router_usage)
-
-        results = dispatch_fn.(perspectives, opts.instruction, opts.paths)
-        successes = for {:ok, role, text, usage} <- results, do: {role, text, usage}
-
-        for {role, text, usage} <- successes do
-          Output.write_perspective(output_dir, role, text, usage)
+        case result.envelope.status do
+          "complete" -> @exit_codes.success
+          _ -> @exit_codes.generic_error
         end
 
-        synthesis_successes = for {role, text, _usage} <- successes, do: {role, text}
-        maybe_synthesize(opts, synthesis_successes, output_dir)
-        Output.complete_run(output_dir)
-        emit_result(opts, output_dir)
-        exit_code_for_results(successes)
+      {:error, reason, output_dir} ->
+        IO.puts(:stderr, "Error: #{format_reason(reason)}")
+
+        if is_binary(output_dir) do
+          IO.puts(:stderr, "Artifacts: #{output_dir}")
+        end
+
+        @exit_codes.generic_error
     end
   end
 
-  defp maybe_synthesize(opts, successes, output_dir) do
-    if opts.no_synthesis or successes == [],
-      do: :noop,
-      else: do_synthesize(opts, successes, output_dir)
-  end
+  defp dry_run(command) do
+    resolve_opts =
+      [
+        cwd: command.cwd,
+        output: command.output
+      ]
+      |> maybe_put_opt(:trust_repo_config, command.trust_repo_config)
+      |> maybe_put_opt(:config, Map.get(command, :config))
 
-  defp do_synthesize(opts, successes, output_dir) do
-    case Synthesis.synthesize(successes, opts.instruction, tier: opts.tier) do
-      {:ok, text, usage} -> Output.write_synthesis(output_dir, text, usage)
-      {:error, _} -> IO.puts(:stderr, "Warning: synthesis failed after retries")
+    case Engine.resolve(command.bench_id, command.input, resolve_opts) do
+      {:ok, resolved} ->
+        emit(command, dry_run_output(command, resolved))
+        @exit_codes.success
+
+      {:error, reason, _output_dir} ->
+        IO.puts(:stderr, "Error: #{format_reason(reason)}")
+        @exit_codes.input_error
     end
   end
 
-  defp emit_result(opts, output_dir) do
-    if opts.json do
-      IO.puts(Jason.encode!(Output.result_envelope(output_dir)))
+  defp emit(%{json: true}, payload) when is_binary(payload), do: IO.puts(payload)
+  defp emit(%{json: true}, payload), do: IO.puts(Jason.encode!(payload))
+
+  defp emit(_command, payload) when is_binary(payload) do
+    IO.puts(payload)
+  end
+
+  defp emit(_command, payload) do
+    IO.puts("""
+    Bench: #{payload.bench}
+    Status: #{payload.status}
+
+    Agents:
+    #{render_agent_lines(payload.agents)}
+
+    Artifacts:
+    #{render_artifact_lines(payload.artifacts)}
+    """)
+  end
+
+  defp render_agent_lines(agents) do
+    Enum.map_join(agents, "\n", fn agent ->
+      status = get_in(agent, ["metadata", "status"]) || "unknown"
+      "- #{agent["name"]}: #{status}"
+    end)
+  end
+
+  defp render_artifact_lines(artifacts) do
+    Enum.map_join(artifacts, "\n", fn artifact ->
+      "- #{artifact["name"]}: #{artifact["file"]}"
+    end)
+  end
+
+  defp resolve_bench(bench_id, parsed) do
+    with {:ok, config} <-
+           load_config(%{cwd: File.cwd!(), trust_repo_config: parsed[:trust_repo_config]}) do
+      case Config.bench(config, bench_id) do
+        {:ok, bench} -> {:ok, config, bench}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  defp load_config(command) do
+    [cwd: command.cwd]
+    |> maybe_put_opt(:trust_repo_config, Map.get(command, :trust_repo_config))
+    |> Config.load()
+  end
+
+  defp needs_stdin?(%BenchSpec{default_task: default_task}), do: is_nil(default_task)
+
+  defp review_bench?(%BenchSpec{kind: :review}), do: true
+  defp review_bench?(_), do: false
+
+  @doc false
+  @spec read_stdin(map(), keyword()) :: {:ok, map()} | {:error, String.t()}
+  def read_stdin(command, opts \\ []) do
+    if stdin_piped?(opts) do
+      input =
+        opts
+        |> Keyword.get(:reader, &IO.read/2)
+        |> then(& &1.(:stdio, :all))
+        |> case do
+          data when is_binary(data) -> String.trim(data)
+          _ -> ""
+        end
+
+      if input == "" do
+        {:error, "input text is required"}
+      else
+        {:ok, put_in(command.input.input_text, input)}
+      end
     else
-      IO.puts("Output: #{output_dir}")
+      {:error, "input text is required"}
     end
   end
 
-  defp exit_code_for_results([]) do
-    IO.puts(:stderr, "Error: all perspective dispatches failed")
-    @exit_codes.generic_error
+  defp resolve_input_text(nil, []), do: nil
+  defp resolve_input_text(value, _rest) when is_binary(value), do: value
+  defp resolve_input_text(nil, rest), do: Enum.join(rest, " ")
+
+  defp normalize_paths(paths) when is_list(paths), do: Enum.map(paths, &Path.expand/1)
+
+  defp parse_agent_list(nil), do: []
+
+  defp parse_agent_list(value) when is_binary(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
   end
 
-  defp exit_code_for_results(_successes), do: @exit_codes.success
+  defp parse_agent_list(_), do: []
 
-  defp resolve_perspectives(opts) do
-    models = if opts.models != [], do: opts.models, else: Models.models_for_tier(opts.tier)
+  defp maybe_put_value(map, _key, nil), do: map
+  defp maybe_put_value(map, key, value), do: Map.put(map, key, value)
+  defp maybe_put_opt(opts, _key, nil), do: opts
+  defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
-    if opts.roles != [] do
-      {:ok, Router.manual_perspectives(opts.roles, models), nil}
-    else
-      Router.generate_perspectives(opts.instruction, opts.paths,
-        available_models: models,
-        perspectives: opts.perspectives,
-        tier: opts.tier
-      )
+  defp agent_config_dir(cwd) do
+    if trust_repo_agent_config?() do
+      dir = Path.join(cwd, "agent_config")
+      if File.dir?(dir), do: dir
     end
   end
 
-  @doc """
-  Generate a unique timestamped output directory path.
-  """
-  @spec generate_output_dir() :: String.t()
-  def generate_output_dir do
-    timestamp = DateTime.utc_now() |> Calendar.strftime("%Y%m%d-%H%M%S")
-    suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
-    Path.join(System.tmp_dir!(), "thinktank-#{timestamp}-#{suffix}")
-  end
-
-  @doc """
-  Returns the usage help text.
-  """
-  @spec usage_text() :: String.t()
-  def usage_text do
-    """
-    thinktank — multi-perspective AI research tool
-
-    USAGE
-      thinktank <instruction> [options]
-      echo "instruction" | thinktank [options]
-
-    ARGUMENTS
-      <instruction>    Research question or task (required, or pipe via stdin)
-
-    OPTIONS
-      --paths PATH     Files/dirs for agent context (repeatable)
-      --quick, -q      Quick mode: parallel API calls, no tools
-      --deep, -d       Deep mode: Pi agent subprocesses (default)
-      --tier, -t TIER  Model tier: cheap, standard, premium (default: standard)
-      --json           Output structured JSON to stdout
-      --output, -o     Output directory (default: auto-generated)
-      --models LIST    Comma-separated model list (overrides tier)
-      --roles LIST     Comma-separated roles (bypasses router)
-      --perspectives N Number of perspectives (default: 4)
-      --dry-run        Show plan without executing
-      --no-synthesis   Skip synthesis step
-      --help, -h       Show this help
-      --version, -v    Show version
-
-    EXIT CODES
-      0   Success
-      1   Generic error
-      2   Authentication error
-      3   Rate limit exceeded
-      4   Invalid request
-      5   Server error
-      6   Network error
-      7   Input error
-      8   Content filtered
-      9   Insufficient credits
-      10  Cancelled
-
-    EXAMPLES
-      thinktank "review this auth flow" --paths ./src/auth
-      thinktank "suggest project names" --quick --tier cheap
-      thinktank "audit for security issues" --tier premium --perspectives 5
-      echo "compare approaches" | thinktank --quick
-    """
-  end
-
-  defp parse_tier(nil), do: {:ok, :standard}
-  defp parse_tier("cheap"), do: {:ok, :cheap}
-  defp parse_tier("standard"), do: {:ok, :standard}
-  defp parse_tier("premium"), do: {:ok, :premium}
-
-  defp parse_tier(other),
-    do: {:error, "invalid tier: #{other} (must be cheap, standard, or premium)"}
-
-  defp parse_csv(nil), do: []
-  defp parse_csv(str), do: str |> String.split(",") |> Enum.map(&String.trim/1)
-
-  defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
-
-  @doc """
-  Resolve agent config directory for deep mode Pi agents.
-
-  Checks `THINKTANK_AGENT_CONFIG` env var first, then `CWD/agent_config`.
-  Returns `nil` when no config directory is found.
-  """
-  @spec agent_config_dir() :: String.t() | nil
-  def agent_config_dir do
-    case System.get_env("THINKTANK_AGENT_CONFIG") do
-      nil ->
-        dir = Path.join(File.cwd!(), "agent_config")
-        if File.dir?(dir), do: dir
-
-      dir ->
-        dir
+  defp stdin_piped?(opts) do
+    case Keyword.get(opts, :stdin_piped?, &stdin_piped?/0) do
+      fun when is_function(fun, 0) -> fun.()
+      value -> value
     end
   end
 
   defp stdin_piped? do
-    # :io.columns/1 returns {:error, :enotsup} when stdin is not a terminal
     match?({:error, _}, :io.columns(:standard_io))
   rescue
     _ -> false
+  end
+
+  defp trust_repo_agent_config? do
+    System.get_env("THINKTANK_TRUST_REPO_AGENT_CONFIG") in ["1", "true", "TRUE", "yes", "YES"]
+  end
+
+  defp format_reason(:missing_input_text), do: "input text is required"
+  defp format_reason(:no_successful_agents), do: "no agents completed successfully"
+  defp format_reason(reason) when is_binary(reason), do: reason
+  defp format_reason(reason), do: inspect(reason)
+
+  defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
+
+  defp usage_text do
+    """
+    thinktank #{version()}
+
+    Usage:
+      thinktank run <bench> --input "..." [options]
+      thinktank research "..." [options]
+      thinktank review [options]
+      thinktank benches list|show|validate
+
+    Options:
+      --input TEXT          Task text
+      --paths PATH          Point the bench at paths in the workspace (repeatable)
+      --agents LIST         Comma-separated agent override for the selected bench
+      --json                Output JSON
+      --output, -o DIR      Output directory
+      --dry-run             Resolve the bench without launching agents
+      --no-synthesis        Skip the synthesizer agent
+      --trust-repo-config   Trust .thinktank/config.yml in the current repository
+      --base REF            Review base ref
+      --head REF            Review head ref
+      --repo REPO           Review repo owner/name
+      --pr N                Review pull request number
+
+    Examples:
+      thinktank research "analyze this codebase" --paths ./lib
+      thinktank review --base origin/main --head HEAD
+      thinktank run review/cerberus --input "Review this branch" --agents trace,guard
+      thinktank benches show research/default
+    """
   end
 end

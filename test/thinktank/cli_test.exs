@@ -1,352 +1,349 @@
 defmodule Thinktank.CLITest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import ExUnit.CaptureIO
 
   alias Thinktank.CLI
 
-  describe "parse_args/1" do
-    test "parses instruction as positional argument" do
-      assert {:ok, %{instruction: "review this code"}} = CLI.parse_args(["review this code"])
-    end
+  defp unique_tmp_dir(prefix) do
+    dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    dir
+  end
 
-    test "joins multiple positional args into instruction" do
-      assert {:ok, %{instruction: "review this code"}} =
-               CLI.parse_args(["review", "this", "code"])
-    end
+  defp in_tmp_repo_config(yaml, fun) do
+    tmp = unique_tmp_dir("thinktank-cli")
+    config_path = Path.join([tmp, ".thinktank", "config.yml"])
+    File.mkdir_p!(Path.dirname(config_path))
+    File.write!(config_path, yaml)
+    File.cd!(tmp, fun)
+  end
 
-    test "returns :needs_stdin when no instruction provided" do
-      assert {:needs_stdin, _parsed} = CLI.parse_args([])
-    end
+  test "parses legacy positional prompt as research bench" do
+    assert {:ok, command} = CLI.parse_args(["compare approaches"])
+    assert command.action == :run
+    assert command.bench_id == "research/default"
+    assert command.input.input_text == "compare approaches"
+  end
 
-    test "parses --help flag" do
-      assert {:help, _} = CLI.parse_args(["--help"])
-    end
+  test "parses explicit research subcommand with paths and agents" do
+    assert {:ok, command} =
+             CLI.parse_args([
+               "research",
+               "audit",
+               "this",
+               "--paths",
+               "./lib",
+               "--paths",
+               "./test",
+               "--agents",
+               "systems,dx"
+             ])
 
-    test "parses -h alias" do
-      assert {:help, _} = CLI.parse_args(["-h"])
-    end
+    assert command.bench_id == "research/default"
+    assert command.input.input_text == "audit this"
+    assert command.input.paths == [Path.expand("./lib"), Path.expand("./test")]
+    assert command.input.agents == ["systems", "dx"]
+  end
 
-    test "parses --version flag" do
-      assert {:version, _} = CLI.parse_args(["--version"])
-    end
+  test "parses review subcommand flags" do
+    assert {:ok, command} =
+             CLI.parse_args([
+               "review",
+               "--base",
+               "origin/main",
+               "--head",
+               "HEAD",
+               "--repo",
+               "misty-step/thinktank",
+               "--pr",
+               "42"
+             ])
 
-    test "defaults to deep mode" do
-      {:ok, opts} = CLI.parse_args(["test"])
-      assert opts.mode == :deep
-    end
+    assert command.bench_id == "review/cerberus"
+    assert command.input.base == "origin/main"
+    assert command.input.head == "HEAD"
+    assert command.input.repo == "misty-step/thinktank"
+    assert command.input.pr == 42
+  end
 
-    test "parses --quick flag" do
-      {:ok, opts} = CLI.parse_args(["test", "--quick"])
-      assert opts.mode == :quick
-    end
+  test "requires --repo when --pr is provided for review" do
+    assert {:error, "review/cerberus requires --repo when --pr is provided"} =
+             CLI.parse_args(["review", "--pr", "42"])
+  end
 
-    test "parses --paths flag" do
-      {:ok, opts} = CLI.parse_args(["test", "--paths", "./src"])
-      assert opts.paths == [Path.expand("./src")]
-    end
+  test "custom review benches inherit review flag parsing from bench kind" do
+    in_tmp_repo_config(
+      """
+      benches:
+        demo/review:
+          kind: review
+          description: Demo review bench
+          agents:
+            - trace
+          default_task: Review the change
+      """,
+      fn ->
+        assert {:ok, command} =
+                 CLI.parse_args([
+                   "run",
+                   "demo/review",
+                   "--trust-repo-config",
+                   "--base",
+                   "origin/master",
+                   "--head",
+                   "HEAD",
+                   "--repo",
+                   "misty-step/thinktank",
+                   "--pr",
+                   "42"
+                 ])
 
-    test "parses multiple --paths flags" do
-      {:ok, opts} = CLI.parse_args(["test", "--paths", "./src", "--paths", "./lib"])
-      assert opts.paths == [Path.expand("./src"), Path.expand("./lib")]
-    end
+        assert command.bench_id == "demo/review"
+        assert command.input.input_text == "Review the change"
+        assert command.input.base == "origin/master"
+        assert command.input.head == "HEAD"
+        assert command.input.repo == "misty-step/thinktank"
+        assert command.input.pr == 42
+      end
+    )
+  end
 
-    test "parses --json flag" do
-      {:ok, opts} = CLI.parse_args(["test", "--json"])
-      assert opts.json == true
-    end
+  test "custom benches with a default task do not require stdin" do
+    in_tmp_repo_config(
+      """
+      benches:
+        demo/custom:
+          description: Demo bench
+          agents:
+            - trace
+          default_task: Investigate the workspace
+      """,
+      fn ->
+        assert {:ok, command} =
+                 CLI.parse_args(["run", "demo/custom", "--trust-repo-config"])
 
-    test "parses --output flag and expands path" do
-      {:ok, opts} = CLI.parse_args(["test", "--output", "./results"])
-      assert opts.output == Path.expand("./results")
-    end
+        assert command.bench_id == "demo/custom"
+        assert command.input.input_text == "Investigate the workspace"
+      end
+    )
+  end
 
-    test "parses --models as comma-separated list" do
-      {:ok, opts} = CLI.parse_args(["test", "--models", "claude-opus-4-6,gpt-5.4"])
-      assert opts.models == ["claude-opus-4-6", "gpt-5.4"]
-    end
+  test "research bench can use a configured default task without stdin" do
+    in_tmp_repo_config(
+      """
+      benches:
+        research/default:
+          kind: research
+          description: Custom research bench
+          agents:
+            - systems
+          default_task: Investigate the workspace
+      """,
+      fn ->
+        assert {:ok, command} =
+                 CLI.parse_args(["research", "--trust-repo-config"])
 
-    test "parses --roles as comma-separated list" do
-      {:ok, opts} = CLI.parse_args(["test", "--roles", "security auditor, perf engineer"])
-      assert opts.roles == ["security auditor", "perf engineer"]
-    end
+        assert command.bench_id == "research/default"
+        assert command.input.input_text == "Investigate the workspace"
+      end
+    )
+  end
 
-    test "parses --perspectives count" do
-      {:ok, opts} = CLI.parse_args(["test", "--perspectives", "5"])
-      assert opts.perspectives == 5
-    end
+  test "custom review benches require --repo when --pr is provided" do
+    in_tmp_repo_config(
+      """
+      benches:
+        demo/review:
+          kind: review
+          description: Demo review bench
+          agents:
+            - trace
+          default_task: Review the change
+      """,
+      fn ->
+        assert {:error, "demo/review requires --repo when --pr is provided"} =
+                 CLI.parse_args([
+                   "run",
+                   "demo/review",
+                   "--trust-repo-config",
+                   "--pr",
+                   "42"
+                 ])
+      end
+    )
+  end
 
-    test "defaults perspectives to 4" do
-      {:ok, opts} = CLI.parse_args(["test"])
-      assert opts.perspectives == 4
-    end
+  test "parses bench management commands and legacy workflows alias" do
+    assert {:ok, %{action: :benches_list}} = CLI.parse_args(["benches", "list"])
+    assert {:ok, %{action: :benches_validate}} = CLI.parse_args(["workflows", "validate"])
 
-    test "defaults tier to standard" do
-      {:ok, opts} = CLI.parse_args(["test"])
-      assert opts.tier == :standard
-    end
+    assert {:ok, %{action: :benches_show, bench_id: "review/cerberus"}} =
+             CLI.parse_args(["workflows", "show", "review/cerberus"])
+  end
 
-    test "parses --tier cheap" do
-      {:ok, opts} = CLI.parse_args(["test", "--tier", "cheap"])
-      assert opts.tier == :cheap
-    end
+  test "returns :needs_stdin when no research input is provided" do
+    assert {:needs_stdin, %{bench_id: "research/default"}} = CLI.parse_args([])
+    assert {:needs_stdin, %{bench_id: "research/default"}} = CLI.parse_args(["research"])
 
-    test "parses --tier premium" do
-      {:ok, opts} = CLI.parse_args(["test", "--tier", "premium"])
-      assert opts.tier == :premium
-    end
+    assert {:needs_stdin, %{bench_id: "research/default"}} =
+             CLI.parse_args(["run", "research/default"])
+  end
 
-    test "parses -t alias for tier" do
-      {:ok, opts} = CLI.parse_args(["test", "-t", "cheap"])
-      assert opts.tier == :cheap
-    end
+  test "uses --input when no positional prompt is provided" do
+    assert {:ok, command} = CLI.parse_args(["--input", "inspect this branch"])
+    assert command.bench_id == "research/default"
+    assert command.input.input_text == "inspect this branch"
+  end
 
-    test "returns error for invalid tier" do
-      assert {:error, "invalid tier: bogus" <> _} = CLI.parse_args(["test", "--tier", "bogus"])
-    end
+  test "rejects malformed reserved subcommands" do
+    assert {:error, "run requires a bench id"} = CLI.parse_args(["run"])
 
-    test "parses --dry-run flag" do
-      {:ok, opts} = CLI.parse_args(["test", "--dry-run"])
-      assert opts.dry_run == true
-    end
+    assert {:error, "benches expects list, show <bench>, or validate"} =
+             CLI.parse_args(["benches", "show", "research/default", "extra"])
+  end
 
-    test "parses --no-synthesis flag" do
-      {:ok, opts} = CLI.parse_args(["test", "--no-synthesis"])
-      assert opts.no_synthesis == true
-    end
+  test "read_stdin fails fast when stdin is interactive" do
+    command = %{bench_id: "research/default", input: %{input_text: nil}}
 
-    test "returns error for unknown flags" do
-      assert {:error, "unknown flag: --bogus"} = CLI.parse_args(["test", "--bogus"])
+    assert {:error, "input text is required"} =
+             CLI.read_stdin(command,
+               stdin_piped?: false,
+               reader: fn _, _ -> flunk("stdin reader should not run without piped input") end
+             )
+  end
+
+  test "read_stdin trims piped input" do
+    command = %{bench_id: "research/default", input: %{input_text: nil}}
+
+    assert {:ok, updated} =
+             CLI.read_stdin(command,
+               stdin_piped?: true,
+               reader: fn :stdio, :all -> "  inspect this branch  \n" end
+             )
+
+    assert updated.input.input_text == "inspect this branch"
+  end
+
+  test "dry run prints bench-oriented JSON contract" do
+    {:ok, command} =
+      CLI.parse_args(["research", "test prompt", "--dry-run", "--json", "--paths", "./lib"])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == 0
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert decoded["bench"] == "research/default"
+    assert decoded["input"]["input_text"] == "test prompt"
+  end
+
+  test "dry run prints a human summary unless --json is requested" do
+    {:ok, command} = CLI.parse_args(["research", "test prompt", "--dry-run"])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == 0
+      end)
+
+    assert output =~ "Bench: research/default"
+    assert output =~ "Description:"
+    assert output =~ "Input: test prompt"
+  end
+
+  test "uses env trust for repo config when the flag is omitted" do
+    in_tmp_repo_config(
+      """
+      benches:
+        demo/custom:
+          description: Demo custom bench
+          agents:
+            - trace
+          default_task: Investigate the workspace
+      """,
+      fn ->
+        System.put_env("THINKTANK_TRUST_REPO_CONFIG", "1")
+        on_exit(fn -> System.delete_env("THINKTANK_TRUST_REPO_CONFIG") end)
+
+        assert {:ok, command} = CLI.parse_args(["run", "demo/custom", "--dry-run", "--json"])
+
+        output =
+          capture_io(fn ->
+            assert CLI.execute({:ok, command}) == 0
+          end)
+
+        assert {:ok, decoded} = Jason.decode(String.trim(output))
+        assert decoded["bench"] == "demo/custom"
+      end
+    )
+  end
+
+  test "execute uses the config snapshot resolved during parse" do
+    for {args, initial_yaml, overwrite_yaml, expected_bench, expected_description} <- [
+          {["run", "demo/review", "--trust-repo-config", "--dry-run", "--json"],
+           """
+           benches:
+             demo/review:
+               kind: review
+               description: First config snapshot
+               agents:
+                 - trace
+               default_task: Review the current change and report only real issues with evidence.
+           """,
+           """
+           benches:
+             demo/review:
+               kind: review
+               description: Second config snapshot
+               agents:
+                 - ghost
+               default_task: Broken config
+           """, "demo/review", "First config snapshot"},
+          {["research", "inspect this", "--trust-repo-config", "--dry-run", "--json"],
+           """
+           benches:
+             research/default:
+               kind: research
+               description: First research snapshot
+               agents:
+                 - systems
+           """,
+           """
+           benches:
+             research/default:
+               kind: research
+               description: Second research snapshot
+               agents:
+                 - ghost
+           """, "research/default", "First research snapshot"}
+        ] do
+      in_tmp_repo_config(initial_yaml, fn ->
+        config_path = Path.join([File.cwd!(), ".thinktank", "config.yml"])
+
+        assert {:ok, command} = CLI.parse_args(args)
+
+        File.write!(config_path, overwrite_yaml)
+
+        output =
+          capture_io(fn ->
+            assert CLI.execute({:ok, command}) == 0
+          end)
+
+        assert {:ok, decoded} = Jason.decode(String.trim(output))
+        assert decoded["bench"] == expected_bench
+        assert decoded["description"] == expected_description
+      end)
     end
   end
 
-  describe "exit_codes/0" do
-    test "defines all 11 exit codes" do
-      codes = CLI.exit_codes()
-      assert codes.success == 0
-      assert codes.generic_error == 1
-      assert codes.auth_error == 2
-      assert codes.rate_limit == 3
-      assert codes.invalid_request == 4
-      assert codes.server_error == 5
-      assert codes.network_error == 6
-      assert codes.input_error == 7
-      assert codes.content_filtered == 8
-      assert codes.insufficient_credits == 9
-      assert codes.cancelled == 10
-    end
-  end
+  test "prints usage text for help" do
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:help, %{}}) == 0
+      end)
 
-  describe "parse_args/1 — edge cases" do
-    test "empty models string parses to single empty string" do
-      {:ok, opts} = CLI.parse_args(["test", "--models", ""])
-      assert opts.models == [""]
-    end
-
-    test "--deep flag explicitly sets deep mode" do
-      {:ok, opts} = CLI.parse_args(["test", "--deep"])
-      assert opts.mode == :deep
-    end
-  end
-
-  describe "dry_run_output/1" do
-    test "produces valid JSON with all expected fields" do
-      {:ok, opts} = CLI.parse_args(["test instruction", "--dry-run", "--json"])
-      json = CLI.dry_run_output(opts)
-      assert {:ok, decoded} = Jason.decode(json)
-
-      assert decoded["mode"] == "dry_run"
-      assert decoded["instruction"] == "test instruction"
-      assert is_list(decoded["paths"])
-      assert is_integer(decoded["perspectives"])
-      assert is_binary(decoded["dispatch_mode"])
-      assert is_list(decoded["models"])
-      assert is_list(decoded["roles"])
-      assert is_boolean(decoded["no_synthesis"])
-      assert decoded["tier"] == "standard"
-    end
-
-    test "paths are included when provided" do
-      {:ok, opts} = CLI.parse_args(["test", "--dry-run", "--paths", "./src"])
-      json = CLI.dry_run_output(opts)
-      decoded = Jason.decode!(json)
-
-      assert decoded["paths"] == [Path.expand("./src")]
-    end
-
-    test "models and roles are included when provided" do
-      {:ok, opts} =
-        CLI.parse_args([
-          "test",
-          "--dry-run",
-          "--models",
-          "model-a,model-b",
-          "--roles",
-          "auditor,reviewer"
-        ])
-
-      json = CLI.dry_run_output(opts)
-      decoded = Jason.decode!(json)
-
-      assert decoded["models"] == ["model-a", "model-b"]
-      assert decoded["roles"] == ["auditor", "reviewer"]
-    end
-  end
-
-  describe "execute/1 — help" do
-    test "prints usage text and returns success exit code" do
-      output =
-        capture_io(fn ->
-          assert CLI.execute({:help, []}) == 0
-        end)
-
-      assert output =~ "thinktank"
-      assert output =~ "USAGE"
-      assert output =~ "--help"
-    end
-  end
-
-  describe "execute/1 — version" do
-    test "prints version string and returns success exit code" do
-      output =
-        capture_io(fn ->
-          assert CLI.execute({:version, []}) == 0
-        end)
-
-      assert output =~ "thinktank "
-    end
-  end
-
-  describe "execute/1 — error" do
-    test "prints error to stderr and returns input_error exit code" do
-      stderr =
-        capture_io(:stderr, fn ->
-          assert CLI.execute({:error, "bad input"}) == 7
-        end)
-
-      assert stderr =~ "Error: bad input"
-      assert stderr =~ "Run 'thinktank --help' for usage."
-    end
-  end
-
-  describe "execute/1 — dry run" do
-    test "text mode prints plan summary and returns success" do
-      {:ok, opts} = CLI.parse_args(["test question", "--dry-run"])
-
-      output =
-        capture_io(fn ->
-          assert CLI.execute({:ok, opts}) == 0
-        end)
-
-      assert output =~ "Dry run: would dispatch 4 perspectives in deep mode"
-      assert output =~ "Instruction: test question"
-    end
-
-    test "text mode includes paths when provided" do
-      {:ok, opts} = CLI.parse_args(["test", "--dry-run", "--paths", "./src"])
-
-      output =
-        capture_io(fn ->
-          assert CLI.execute({:ok, opts}) == 0
-        end)
-
-      assert output =~ "Paths:"
-      assert output =~ "src"
-    end
-
-    test "json mode outputs valid JSON and returns success" do
-      {:ok, opts} = CLI.parse_args(["test question", "--dry-run", "--json"])
-
-      output =
-        capture_io(fn ->
-          assert CLI.execute({:ok, opts}) == 0
-        end)
-
-      assert {:ok, decoded} = Jason.decode(String.trim(output))
-      assert decoded["mode"] == "dry_run"
-      assert decoded["instruction"] == "test question"
-    end
-
-    test "quick mode flag is reflected in dry run" do
-      {:ok, opts} = CLI.parse_args(["test", "--dry-run", "--quick"])
-
-      output =
-        capture_io(fn ->
-          assert CLI.execute({:ok, opts}) == 0
-        end)
-
-      assert output =~ "quick mode"
-    end
-  end
-
-  describe "usage_text/0" do
-    test "includes all sections" do
-      text = CLI.usage_text()
-      assert text =~ "USAGE"
-      assert text =~ "ARGUMENTS"
-      assert text =~ "OPTIONS"
-      assert text =~ "EXIT CODES"
-      assert text =~ "EXAMPLES"
-    end
-
-    test "documents all flags" do
-      text = CLI.usage_text()
-      assert text =~ "--paths"
-      assert text =~ "--quick"
-      assert text =~ "--deep"
-      assert text =~ "--tier"
-      assert text =~ "--json"
-      assert text =~ "--output"
-      assert text =~ "--models"
-      assert text =~ "--roles"
-      assert text =~ "--perspectives"
-      assert text =~ "--dry-run"
-      assert text =~ "--no-synthesis"
-      assert text =~ "--help"
-      assert text =~ "--version"
-    end
-  end
-
-  describe "generate_output_dir/0" do
-    test "returns path under system tmp dir" do
-      dir = CLI.generate_output_dir()
-      assert String.starts_with?(dir, System.tmp_dir!())
-    end
-
-    test "includes thinktank prefix with timestamp and random suffix" do
-      dir = CLI.generate_output_dir()
-      assert Path.basename(dir) =~ ~r/^thinktank-\d{8}-\d{6}-[0-9a-f]{8}$/
-    end
-
-    test "generates unique paths" do
-      dirs = for _ <- 1..5, do: CLI.generate_output_dir()
-      assert length(Enum.uniq(dirs)) == 5
-    end
-  end
-
-  describe "agent_config_dir/0" do
-    test "returns env var path when THINKTANK_AGENT_CONFIG is set" do
-      System.put_env("THINKTANK_AGENT_CONFIG", "/custom/config")
-      assert CLI.agent_config_dir() == "/custom/config"
-    after
-      System.delete_env("THINKTANK_AGENT_CONFIG")
-    end
-
-    test "returns CWD/agent_config when directory exists and no env var" do
-      System.delete_env("THINKTANK_AGENT_CONFIG")
-      dir = CLI.agent_config_dir()
-      assert dir == Path.join(File.cwd!(), "agent_config")
-    end
-
-    test "returns nil when no env var and no agent_config dir exists" do
-      System.delete_env("THINKTANK_AGENT_CONFIG")
-      # Run in a tmp dir that has no agent_config subdirectory
-      tmp = System.tmp_dir!()
-      cwd = File.cwd!()
-      File.cd!(tmp)
-      result = CLI.agent_config_dir()
-      File.cd!(cwd)
-      assert result == nil
-    end
+    assert output =~ "thinktank benches"
+    assert output =~ "thinktank review"
   end
 end

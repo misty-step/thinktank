@@ -1,53 +1,75 @@
-# thinktank Configuration Files
+# thinktank Configuration
 
-This directory contains documentation for thinktank configuration.
+ThinkTank loads typed bench configuration from:
 
-## Model Configuration
+1. built-in defaults
+2. `~/.config/thinktank/config.yml`
+3. `.thinktank/config.yml` in the current repository when `--trust-repo-config`
+   or `THINKTANK_TRUST_REPO_CONFIG=1` is set
 
-As of the latest version, thinktank uses hardcoded model definitions in the `internal/models` package. Models are no longer configured via external YAML files, simplifying deployment and ensuring consistency.
+CLI flags override run-time input such as task text, paths, and review refs.
 
-## Supported Models
+## Top-Level Shape
 
-The following models are built into thinktank:
+```yaml
+providers:
+  openrouter:
+    adapter: openrouter
+    credential_env: THINKTANK_OPENROUTER_API_KEY
+    defaults:
+      fallback_env: OPENROUTER_API_KEY
 
-### OpenAI Models
-- `gpt-5.2` - Latest GPT-4 model with 1M token context window
-- `o3` - Optimized OpenAI model with reasoning capabilities
+agents:
+  trace:
+    provider: openrouter
+    model: x-ai/grok-4.1-fast
+    system_prompt: |
+      You are trace, a correctness reviewer.
+    task_prompt: |
+      {{input_text}}
+    tools: [bash, read, grep, find, ls]
+    thinking_level: medium
+    retries: 0
+    timeout_ms: 600000
 
-### Gemini Models
-- `gemini-3-flash` - Google's advanced model with 1M token context
-- `gemini-3-flash` - Faster Gemini variant with 1M token context
+benches:
+  review/cerberus:
+    kind: review
+    description: Fixed review bench
+    agents: [trace, guard, atlas, proof]
+    synthesizer: review-synth
+    concurrency: 4
+    default_task: Review the current change and report only real issues with evidence.
 
-### OpenRouter Models
-- `openrouter/deepseek/deepseek-chat-v3-0324` - DeepSeek chat model
-- `openrouter/deepseek/deepseek-r1` - DeepSeek reasoning model
-- `openrouter/x-ai/grok-3-beta` - xAI's Grok model
-
-## Setup
-
-No configuration files need to be installed. Simply set the required API keys as environment variables:
-
-```bash
-export OPENROUTER_API_KEY="your-openrouter-api-key"  # All models now use OpenRouter
+  research/default:
+    kind: research
+    description: Fixed research bench
+    agents: [systems, verification, ml, dx]
+    synthesizer: research-synth
 ```
 
-## Adding New Models
+## Typed Specs
 
-To add new models, modify the `modelDefinitions` map in `internal/models/models.go` and submit a pull request.
+- `ProviderSpec`: provider id, adapter kind, credential env var, defaults
+- `AgentSpec`: name, provider, model, system prompt, task prompt, tools,
+  thinking level, retries, timeout
+- `BenchSpec`: id, kind, description, agent list, optional synthesizer,
+  concurrency, and optional `default_task`
 
-## Usage
+## Bench Kinds
 
-Use thinktank by specifying a model with the `--model` flag:
+- `default`: generic bench behavior
+- `research`: research-oriented built-in bench kind
+- `review`: bench accepts `--base`, `--head`, `--repo`, and `--pr`
 
-```bash
-# Using OpenAI models
-thinktank --model gpt-5.2 --instructions task.md src/
+If a bench has a `default_task`, `thinktank run <bench>` can run without
+stdin or `--input`.
 
-# Using Gemini models
-thinktank --model gemini-3-flash --instructions task.md src/
+## Built-In Benches
 
-# Using OpenRouter models
-thinktank --model openrouter/deepseek/deepseek-r1 --instructions task.md src/
-```
+- `research/default`
+- `review/cerberus`
 
-All model parameters (context windows, token limits, default settings) are configured automatically. No additional configuration is required.
+## Current Provider Support
+
+- `openrouter`

@@ -1,99 +1,176 @@
 # thinktank
 
-Multi-perspective AI research tool. Routes questions through an LLM-powered perspective router, dispatches agents in parallel (quick mode) or via Pi subprocesses (deep mode), and synthesizes results into structured artifacts.
+Thin Pi bench launcher for research and code review.
 
-Built with Elixir/OTP. This is v5 — an Elixir rewrite of the [Go v4 codebase](https://github.com/misty-step/thinktank/tree/v4-archive).
+ThinkTank defines named Pi agents, groups them into benches, launches them in
+parallel against the current workspace, and writes raw artifacts. It does not
+precompute semantic context, route through a workflow DSL, or parse agent prose
+with regexes.
+
+Built with Elixir/OTP.
+
+## Philosophy
+
+- Workspace is context. Run ThinkTank in the repo you want agents to inspect.
+- Optional flags like `--paths`, `--base`, `--head`, `--repo`, and `--pr` only
+  orient the agents. They are not substitutes for agent exploration.
+- ThinkTank owns launch, sandboxing, concurrency, timeouts, and artifacts.
+- Pi agents own repo exploration, git inspection, and reasoning.
+- If you feel tempted to add semantic phases, handoffs, or prose parsers, you
+  are probably doing work in the wrong layer.
 
 ## Quick Start
 
 ```bash
-# Install Elixir (1.17+) and Erlang/OTP (26+)
-# macOS: brew install elixir
-
-# Clone and build
-git clone https://github.com/misty-step/thinktank.git
-cd thinktank
 mix deps.get
 mix escript.build
 
-# Set API key
-export OPENROUTER_API_KEY="your-key"  # https://openrouter.ai/keys
+export OPENROUTER_API_KEY="your-key"
 
-# Run
-./thinktank "analyze this codebase" --paths ./src --quick
+./thinktank research "analyze this codebase" --paths ./lib
+./thinktank review --base origin/main --head HEAD
 ```
 
 ## Usage
 
 ```bash
-thinktank <instruction> [options]
-echo "instruction" | thinktank [options]
+thinktank run <bench> --input "..." [options]
+thinktank research "..." [options]
+thinktank review [options]
+thinktank benches list|show|validate
 ```
+
+`workflows list|show|validate` is still accepted as a compatibility alias for
+`benches`.
 
 ### Options
 
 | Flag | Description |
 |------|-------------|
-| `--paths PATH` | Files/dirs for agent context (repeatable) |
-| `--quick, -q` | Quick mode: parallel API calls, no tools |
-| `--deep, -d` | Deep mode: Pi agent subprocesses (default) |
-| `--json` | Output structured JSON to stdout |
-| `--output, -o` | Output directory (default: auto-generated) |
-| `--models LIST` | Comma-separated model list (overrides router) |
-| `--roles LIST` | Comma-separated roles (bypasses router) |
-| `--perspectives N` | Number of perspectives (default: 4) |
-| `--dry-run` | Show plan without executing |
-| `--no-synthesis` | Skip synthesis step |
+| `--input TEXT` | Task text |
+| `--paths PATH` | Point the bench at paths in the workspace (repeatable) |
+| `--agents LIST` | Comma-separated agent override for the selected bench |
+| `--json` | Output JSON |
+| `--output, -o` | Output directory |
+| `--dry-run` | Resolve the bench without launching agents |
+| `--no-synthesis` | Skip the synthesizer agent |
+| `--trust-repo-config` | Trust `.thinktank/config.yml` in the current repository |
+| `--base REF` | Review base ref |
+| `--head REF` | Review head ref |
+| `--repo REPO` | Review repo owner/name |
+| `--pr N` | Review pull request number |
 
 ### Examples
 
 ```bash
-# Quick parallel analysis
-thinktank "review this auth flow" --paths ./src/auth --quick
+# Fixed research bench
+thinktank research "what is wrong with this architecture?" --paths ./lib
 
-# Deep mode with Pi agents
-thinktank "audit for security issues" --paths ./src --perspectives 5
+# Fixed review bench
+thinktank review --base origin/main --head HEAD
 
-# Pipe instruction via stdin
-echo "compare approaches" | thinktank --models anthropic/claude-sonnet-4.6,openai/gpt-5.4 --quick
+# Explicit bench invocation with a subset of agents
+thinktank run review/cerberus --input "Review this branch" --agents trace,guard
 
-# Dry run to preview
-thinktank "suggest improvements" --paths ./lib --dry-run
+# Show bench configuration
+thinktank benches show research/default
 ```
 
-### Exit Codes
+## Configuration
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Generic error |
-| 2 | Authentication error |
-| 3 | Rate limit exceeded |
-| 4 | Invalid request |
-| 5 | Server error |
-| 6 | Network error |
-| 7 | Input error |
-| 8 | Content filtered |
-| 9 | Insufficient credits |
-| 10 | Cancelled |
+ThinkTank loads configuration with this precedence:
+
+1. built-in defaults
+2. `~/.config/thinktank/config.yml`
+3. `.thinktank/config.yml` in the current repository when `--trust-repo-config`
+   or `THINKTANK_TRUST_REPO_CONFIG=1` is set
+
+Built-in benches:
+
+- `research/default`
+- `review/cerberus`
+
+Config shape:
+
+```yaml
+providers:
+  openrouter:
+    adapter: openrouter
+    credential_env: THINKTANK_OPENROUTER_API_KEY
+
+agents:
+  trace:
+    provider: openrouter
+    model: x-ai/grok-4.1-fast
+    system_prompt: |
+      You are trace, a correctness reviewer.
+    task_prompt: |
+      {{input_text}}
+    tools: [bash, read, grep, find, ls]
+
+benches:
+  review/cerberus:
+    kind: review
+    description: Fixed review bench
+    agents: [trace, guard, atlas, proof]
+    synthesizer: review-synth
+    concurrency: 4
+    default_task: Review the current change and report only real issues with evidence.
+
+  research/default:
+    kind: research
+    description: Fixed research bench
+    agents: [systems, verification, ml, dx]
+    synthesizer: research-synth
+```
+
+Bench kinds:
+
+- omit `kind` or use `default` for generic benches
+- use `kind: review` for benches that should accept `--base`, `--head`, `--repo`, and `--pr`
+- use `default_task` when a bench should run without stdin or `--input`
+
+Example custom review bench:
+
+```yaml
+benches:
+  review/security:
+    kind: review
+    description: Security-focused review bench
+    agents: [guard]
+    default_task: Review the current change for real security issues.
+```
+
+## Artifacts
+
+Each run writes:
+
+- `contract.json` — resolved bench contract
+- `task.md` — task text and pointed paths
+- `agents/*.md` — raw agent outputs
+- `prompts/*.md` — rendered prompts passed to Pi
+- `summary.md` — synthesizer output when enabled
+- `synthesis.md` for research benches
+- `review.md` for review benches
+- `manifest.json` — run metadata and artifact index
+
+ThinkTank records raw outputs and run metadata. It does not attempt to recover
+structure from agent prose after the fact.
+
+## Review Notes
+
+- `review/cerberus` does not materialize a diff bundle. Reviewers are expected
+  to inspect the repo and git state themselves.
+- `--base`, `--head`, `--repo`, and `--pr` are orientation hints for the
+  reviewers and synthesizer.
+- Repository-local `agent_config/` is only loaded when
+  `THINKTANK_TRUST_REPO_AGENT_CONFIG=1` is set.
 
 ## Development
 
 ```bash
-mix test                          # Run tests
-mix format                        # Format code
-mix compile --warnings-as-errors  # Strict compilation
-mix escript.build                 # Build CLI binary
+mix test
+mix format
+mix compile --warnings-as-errors
+mix escript.build
 ```
-
-### Pre-commit Hooks
-
-```bash
-pre-commit install
-```
-
-Hooks: gitleaks, trailing-whitespace, mix-format, validate-elixir-models.
-
-## License
-
-[MIT](LICENSE)

@@ -2,85 +2,52 @@
 
 ## Purpose
 
-Agent-first research tool for multi-perspective AI analysis. Routes questions through an LLM-powered perspective router, dispatches agents in quick (parallel API) or deep (Pi subprocess) mode, produces kill-safe structured artifacts.
+ThinkTank is a thin Pi bench launcher.
+
+It defines Pi agents, groups them into benches, launches them against the
+current workspace, and records raw artifacts. It should not grow a semantic
+workflow DSL, a prose-parsing layer, or a second non-agentic execution path.
 
 ## Architecture Map
 
-```
-lib/thinktank/cli.ex            → Escript entry, arg parsing, dispatch
-lib/thinktank/router.ex         → LLM-powered perspective generation
-lib/thinktank/perspective.ex    → Perspective struct (role + model + prompt)
-lib/thinktank/dispatch/quick.ex → Parallel OpenRouter API calls
-lib/thinktank/dispatch/deep.ex  → Pi subprocess orchestration via MuonTrap
-lib/thinktank/openrouter.ex     → OpenRouter HTTP client (Req)
-lib/thinktank/synthesis.ex      → Structured fan-in with retry
-lib/thinktank/output.ex         → Kill-safe artifact writer + manifest
-lib/thinktank/application.ex    → OTP supervision tree
-```
-
-**Start here:** `lib/thinktank/cli.ex` — the `main/1` function shows the full execution flow.
-
-## Run & Test
-
-```bash
-# Build escript
-mix escript.build
-
-# Run
-./thinktank "research question" --paths ./src --quick --dry-run
-
-# Test
-mix test
-
-# Format: auto-fix locally, check in CI
-mix format                    # Apply formatting
-mix format --check-formatted  # Verify (CI gate)
-
-# Compile with warnings-as-errors
-mix compile --warnings-as-errors
-
-# Dialyzer (when available)
-mix dialyzer
+```text
+lib/thinktank/cli.ex                → CLI, aliases, dry-run, bench commands
+lib/thinktank/engine.ex             → bench resolution and launch orchestration
+lib/thinktank/builtin.ex            → built-in agents and benches
+lib/thinktank/config.ex             → built-in + user + repo config loading
+lib/thinktank/bench_spec.ex         → typed bench config
+lib/thinktank/agent_spec.ex         → typed agent config
+lib/thinktank/executor/agentic.ex   → Pi subprocess launcher
+lib/thinktank/run_store.ex          → raw artifacts and manifest
+lib/thinktank/run_contract.ex       → persisted run contract
 ```
 
-**Required env:** `OPENROUTER_API_KEY` or `THINKTANK_OPENROUTER_API_KEY`
+Start with `lib/thinktank/cli.ex` and `lib/thinktank/engine.ex`.
 
-## Quality & Pitfalls
+## Non-Goals
 
-### Definition of Done
+- No semantic stage graphs
+- No quick/deep split
+- No regex recovery of agent structure
+- No precomputed diff bundles as the primary review context
+
+## Quality Bar
+
 - `mix test` passes
-- `mix format --check-formatted` clean
+- `mix format` clean
 - `mix compile --warnings-as-errors` clean
-- Conventional commit message
+- Prefer deletion over new harness layers
 
-### Critical Invariants
-- **No error suppression**: Handle every `{:error, _}` explicitly
-- **TDD**: Write tests first, then implement
-- **Run `mix format` before push**
-- **Kill-safe output**: Atomic manifest writes (tmp + rename) in `Output`
-- **Defensive deserialization**: Type guards and nil filtering for LLM structured output
+## Design Rules
 
-### Elixir Style
-- Pattern match over conditionals; `with` chains for multi-step error handling
-- Table-driven tests via `for` comprehensions
-
-### Model IDs — Mechanical Enforcement
-- **Default models live in** `lib/thinktank/cli.ex` `@default_models`
-- **Pre-commit hook**: `scripts/validate-elixir-models.sh` validates against live OpenRouter API
-- **If models are stale**: WebSearch OpenRouter models page, update `lib/thinktank/cli.ex`
-
-### Pre-commit Hooks
-```bash
-pre-commit install  # One-time setup
-```
-Hooks: gitleaks, trailing-whitespace, mix-format, validate-elixir-models.
+- ThinkTank owns launch, isolation, timeout, concurrency, and artifacts.
+- Pi agents own reasoning, repo exploration, and git inspection.
+- Context should usually be implicit from `cwd` plus light orientation flags.
+- If a fix requires more prompt prose to stop the same class of mistake,
+  redesign the harness boundary instead.
 
 ## References
 
-- [README.md](README.md) — Usage, CLI flags, model list
-- [.groom/BACKLOG.md](.groom/BACKLOG.md) — Prioritized backlog
-- [.groom/plan-*.md](.groom/) — Sprint plans
-
-## History
-
-Go v4 codebase archived on the [`v4-archive`](https://github.com/misty-step/thinktank/tree/v4-archive) branch.
+- [README.md](README.md)
+- [lib/thinktank/builtin.ex](lib/thinktank/builtin.ex)
+- [lib/thinktank/engine.ex](lib/thinktank/engine.ex)
