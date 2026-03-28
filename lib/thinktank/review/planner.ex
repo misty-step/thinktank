@@ -3,6 +3,7 @@ defmodule Thinktank.Review.Planner do
 
   alias Thinktank.{AgentSpec, Config, RunContract}
   alias Thinktank.Executor.Agentic
+  alias Thinktank.Review.Context
 
   @type plan :: map()
   @type outcome :: %{plan: plan(), planner_result: Agentic.result() | nil}
@@ -28,7 +29,7 @@ defmodule Thinktank.Review.Planner do
   def create(planner, agents, contract, review_context, config, opts) do
     context = %{
       "paths_hint" => render_paths_hint(contract.input),
-      "review_context" => Thinktank.Review.Context.render(review_context),
+      "review_context" => Context.render(review_context),
       "review_roster" => render_roster(agents)
     }
 
@@ -71,26 +72,13 @@ defmodule Thinktank.Review.Planner do
     selected =
       plan
       |> Map.get("selected_agents", [])
-      |> Enum.reduce([], fn agent_plan, acc ->
-        case {trimmed_string(agent_plan["name"]), trimmed_string(agent_plan["brief"])} do
-          {nil, _brief} ->
-            acc
+      |> Enum.map(&planned_agent(&1, indexed_agents))
+      |> Enum.reject(&is_nil/1)
 
-          {name, brief} ->
-            case Map.get(indexed_agents, name) do
-              nil -> acc
-              agent -> [attach_brief(agent, brief || default_brief(agent)) | acc]
-            end
-        end
-      end)
-      |> Enum.reverse()
-
-    case selected do
-      [] ->
-        Enum.map(agents, &attach_brief(&1, default_brief(&1)))
-
-      planned ->
-        planned
+    if selected == [] do
+      Enum.map(agents, &attach_brief(&1, default_brief(&1)))
+    else
+      selected
     end
   end
 
@@ -188,7 +176,7 @@ defmodule Thinktank.Review.Planner do
           nil
       end
 
-    [trimmed, fenced && List.first(fenced), brace_candidate]
+    [fenced && List.first(fenced), brace_candidate, trimmed]
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
   end
@@ -258,6 +246,19 @@ defmodule Thinktank.Review.Planner do
 
   defp attach_brief(agent, brief) do
     %{agent | metadata: Map.put(agent.metadata, "review_brief", brief)}
+  end
+
+  defp planned_agent(agent_plan, indexed_agents) do
+    case {trimmed_string(agent_plan["name"]), trimmed_string(agent_plan["brief"])} do
+      {nil, _brief} ->
+        nil
+
+      {name, brief} ->
+        case Map.get(indexed_agents, name) do
+          nil -> nil
+          agent -> attach_brief(agent, brief || default_brief(agent))
+        end
+    end
   end
 
   defp default_brief(%AgentSpec{} = agent) do

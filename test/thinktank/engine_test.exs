@@ -206,19 +206,17 @@ defmodule Thinktank.EngineTest do
     runner = fn _cmd, args, _opts ->
       prompt = File.read!(prompt_path(args))
 
-      cond do
-        String.contains?(prompt, "Return JSON only with this shape:") ->
-          {Jason.encode!(%{
-             "summary" => "Keep the bench focused on correctness and architecture.",
-             "selected_agents" => [
-               %{"name" => "trace", "brief" => "Check behavioral regressions."},
-               %{"name" => "atlas", "brief" => "Check boundary and coupling changes."}
-             ],
-             "synthesis_brief" => "Prefer grounded defects."
-           }), 0}
-
-        true ->
-          {"ok", 0}
+      if String.contains?(prompt, "Return JSON only with this shape:") do
+        {Jason.encode!(%{
+           "summary" => "Keep the bench focused on correctness and architecture.",
+           "selected_agents" => [
+             %{"name" => "trace", "brief" => "Check behavioral regressions."},
+             %{"name" => "atlas", "brief" => "Check boundary and coupling changes."}
+           ],
+           "synthesis_brief" => "Prefer grounded defects."
+         }), 0}
+      else
+        {"ok", 0}
       end
     end
 

@@ -174,20 +174,7 @@ defmodule Thinktank.Review.Context do
   defp parse_numstat(output) do
     output
     |> String.split("\n", trim: true)
-    |> Enum.reduce(%{"added" => 0, "deleted" => 0, "binary_files" => 0}, fn line, acc ->
-      case String.split(line, "\t", parts: 3) do
-        [added, deleted, _path] ->
-          acc
-          |> Map.update!("added", &(&1 + parse_numstat_number(added)))
-          |> Map.update!("deleted", &(&1 + parse_numstat_number(deleted)))
-          |> Map.update!("binary_files", fn count ->
-            if added == "-" or deleted == "-", do: count + 1, else: count
-          end)
-
-        _ ->
-          acc
-      end
-    end)
+    |> Enum.reduce(%{"added" => 0, "deleted" => 0, "binary_files" => 0}, &accumulate_numstat/2)
   end
 
   defp parse_numstat_number("-"), do: 0
@@ -198,6 +185,27 @@ defmodule Thinktank.Review.Context do
       _ -> 0
     end
   end
+
+  defp accumulate_numstat(line, acc) do
+    case String.split(line, "\t", parts: 3) do
+      [added, deleted, _path] ->
+        update_numstat(acc, added, deleted)
+
+      _ ->
+        acc
+    end
+  end
+
+  defp update_numstat(acc, added, deleted) do
+    acc
+    |> Map.update!("added", &(&1 + parse_numstat_number(added)))
+    |> Map.update!("deleted", &(&1 + parse_numstat_number(deleted)))
+    |> Map.update!("binary_files", &(&1 + binary_file_increment(added, deleted)))
+  end
+
+  defp binary_file_increment("-", _deleted), do: 1
+  defp binary_file_increment(_added, "-"), do: 1
+  defp binary_file_increment(_added, _deleted), do: 0
 
   defp change_signals(files) do
     %{

@@ -1,7 +1,7 @@
 defmodule Thinktank.Review.Eval do
   @moduledoc false
 
-  alias Thinktank.{Engine, RunContract}
+  alias Thinktank.{Config, Engine, RunContract}
 
   @type result :: %{
           target: String.t(),
@@ -118,7 +118,7 @@ defmodule Thinktank.Review.Eval do
   defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp agent_config_dir(workspace_root) do
-    if trust_repo_agent_config?() do
+    if Config.trust_repo_agent_config?() do
       dir = Path.join(workspace_root, "agent_config")
       if File.dir?(dir), do: dir
     end
@@ -126,8 +126,4 @@ defmodule Thinktank.Review.Eval do
 
   defp format_reason(reason) when is_binary(reason), do: reason
   defp format_reason(reason), do: inspect(reason)
-
-  defp trust_repo_agent_config? do
-    System.get_env("THINKTANK_TRUST_REPO_AGENT_CONFIG") in ["1", "true", "TRUE", "yes", "YES"]
-  end
 end

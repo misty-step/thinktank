@@ -541,7 +541,7 @@ defmodule Thinktank.CLI do
   defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp agent_config_dir(cwd) do
-    if trust_repo_agent_config?() do
+    if Config.trust_repo_agent_config?() do
       dir = Path.join(cwd, "agent_config")
       if File.dir?(dir), do: dir
     end
@@ -558,10 +558,6 @@ defmodule Thinktank.CLI do
     match?({:error, _}, :io.columns(:standard_io))
   rescue
     _ -> false
-  end
-
-  defp trust_repo_agent_config? do
-    System.get_env("THINKTANK_TRUST_REPO_AGENT_CONFIG") in ["1", "true", "TRUE", "yes", "YES"]
   end
 
   defp format_reason(:missing_input_text), do: "input text is required"

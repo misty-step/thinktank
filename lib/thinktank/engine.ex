@@ -322,15 +322,13 @@ defmodule Thinktank.Engine do
        ) do
     selected_agents = Map.get(contract.input, "agents", [])
 
-    cond do
-      selected_agents != [] ->
-        Planner.manual(agents)
-
-      true ->
-        Planner.create(planner, agents, contract, review_context, config,
-          agent_config_dir: opts[:agent_config_dir],
-          runner: opts[:runner]
-        )
+    if selected_agents != [] do
+      Planner.manual(agents)
+    else
+      Planner.create(planner, agents, contract, review_context, config,
+        agent_config_dir: opts[:agent_config_dir],
+        runner: opts[:runner]
+      )
     end
   end
 

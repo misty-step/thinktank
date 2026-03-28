@@ -60,6 +60,11 @@ defmodule Thinktank.Config do
     Path.join([home, ".config", "thinktank"])
   end
 
+  @spec trust_repo_agent_config?() :: boolean()
+  def trust_repo_agent_config? do
+    System.get_env("THINKTANK_TRUST_REPO_AGENT_CONFIG") in ["1", "true", "TRUE", "yes", "YES"]
+  end
+
   defp build(raw, sources) do
     with {:ok, providers} <- build_providers(Map.get(raw, "providers", %{})),
          {:ok, agents} <- build_agents(Map.get(raw, "agents", %{})),
