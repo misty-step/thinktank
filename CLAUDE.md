@@ -10,7 +10,7 @@ workflow DSL, a prose-parsing layer, or a second non-agentic execution path.
 
 ## Architecture Map
 
-```
+```text
 lib/thinktank/cli.ex                → CLI, aliases, dry-run, bench commands
 lib/thinktank/engine.ex             → bench resolution and launch orchestration
 lib/thinktank/builtin.ex            → built-in agents and benches
