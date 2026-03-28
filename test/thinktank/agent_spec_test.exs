@@ -40,4 +40,25 @@ defmodule Thinktank.AgentSpecTest do
                "system_prompt" => "You are trace."
              })
   end
+
+  test "falls back to defaults for blank optional strings and rejects blank required strings" do
+    assert {:ok, spec} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are trace.",
+               "task_prompt" => "   ",
+               "thinking_level" => " "
+             })
+
+    assert spec.task_prompt == "{{input_text}}"
+    assert spec.thinking_level == "medium"
+
+    assert {:error, "agent system_prompt is required"} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "   "
+             })
+  end
 end

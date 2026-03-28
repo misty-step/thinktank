@@ -59,12 +59,18 @@ defmodule Thinktank.AgentSpec do
 
   defp require_string(raw, key) do
     case raw[key] do
-      value when is_binary(value) and value != "" -> {:ok, value}
-      _ -> {:error, "agent #{key} is required"}
+      value when is_binary(value) ->
+        if String.trim(value) == "", do: {:error, "agent #{key} is required"}, else: {:ok, value}
+
+      _ ->
+        {:error, "agent #{key} is required"}
     end
   end
 
-  defp string_or_default(value, _default) when is_binary(value) and value != "", do: value
+  defp string_or_default(value, default) when is_binary(value) do
+    if String.trim(value) == "", do: default, else: value
+  end
+
   defp string_or_default(_, default), do: default
 
   defp validate_model(model) do

@@ -165,7 +165,7 @@ defmodule Thinktank.CLI do
   @doc false
   @spec dry_run_output(map(), map()) :: String.t()
   def dry_run_output(command, resolved) do
-    Jason.encode!(%{
+    payload = %{
       action: command.action,
       bench: resolved.bench.id,
       description: resolved.bench.description,
@@ -174,7 +174,21 @@ defmodule Thinktank.CLI do
       input: command.input,
       output: resolved.output_dir,
       json: command.json
-    })
+    }
+
+    if command.json do
+      Jason.encode!(payload)
+    else
+      """
+      Bench: #{payload.bench}
+      Description: #{payload.description}
+      Agents: #{Enum.join(payload.agents, ", ")}
+      Synthesizer: #{payload.synthesizer || "none"}
+      Input: #{payload.input.input_text}
+      Output: #{payload.output}
+      """
+      |> String.trim()
+    end
   end
 
   defp build_command(["run", bench_id | remainder], parsed) do

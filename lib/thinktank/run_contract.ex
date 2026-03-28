@@ -11,7 +11,7 @@ defmodule Thinktank.RunContract do
           workspace_root: String.t(),
           input: map(),
           artifact_dir: String.t(),
-          adapter_context: map()
+          adapter_context: map() | nil
         }
 
   @spec to_map(t()) :: map()

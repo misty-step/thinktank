@@ -25,6 +25,7 @@ defmodule Thinktank.Executor.Agentic do
 
   def run(agents, %RunContract{} = contract, context, %Config{} = config, opts) do
     runner = Keyword.get(opts, :runner) || default_runner()
+    indexed_agents = Enum.with_index(agents, 1)
 
     timeout =
       Enum.max(
@@ -38,8 +39,7 @@ defmodule Thinktank.Executor.Agentic do
     concurrency =
       normalize_concurrency(Keyword.get(opts, :concurrency, length(agents)), length(agents))
 
-    agents
-    |> Enum.with_index(1)
+    indexed_agents
     |> Task.async_stream(
       fn {agent, index} ->
         run_agent(agent, index, contract, context, config, runner, opts)
@@ -49,17 +49,25 @@ defmodule Thinktank.Executor.Agentic do
       ordered: true,
       on_timeout: :kill_task
     )
-    |> Enum.zip(agents)
+    |> Enum.zip(indexed_agents)
     |> Enum.map(fn
-      {{:ok, result}, _agent} ->
+      {{:ok, result}, _indexed_agent} ->
         result
 
-      {{:exit, reason}, agent} when reason in [:timeout, {:timeout, nil}] ->
-        %{agent: agent, status: :error, output: "", usage: nil, error: %{category: :timeout}}
-
-      {{:exit, reason}, agent} ->
+      {{:exit, reason}, {agent, index}} when reason in [:timeout, {:timeout, nil}] ->
         %{
           agent: agent,
+          instance_id: agent_instance_id(agent, index),
+          status: :error,
+          output: "",
+          usage: nil,
+          error: %{category: :timeout}
+        }
+
+      {{:exit, reason}, {agent, index}} ->
+        %{
+          agent: agent,
+          instance_id: agent_instance_id(agent, index),
           status: :error,
           output: "",
           usage: nil,
@@ -196,8 +204,8 @@ defmodule Thinktank.Executor.Agentic do
     fallback_env = provider.defaults["fallback_env"]
 
     key =
-      System.get_env(provider.credential_env) ||
-        if(is_binary(fallback_env) and fallback_env != "", do: System.get_env(fallback_env))
+      non_empty_env(provider.credential_env) ||
+        if(is_binary(fallback_env) and fallback_env != "", do: non_empty_env(fallback_env))
 
     if is_binary(key) and key != "" do
       [{"OPENROUTER_API_KEY", key}]
@@ -207,6 +215,15 @@ defmodule Thinktank.Executor.Agentic do
   end
 
   defp provider_env(_), do: []
+
+  defp non_empty_env(name) when is_binary(name) and name != "" do
+    case System.get_env(name) do
+      value when is_binary(value) and value != "" -> value
+      _ -> nil
+    end
+  end
+
+  defp non_empty_env(_), do: nil
 
   defp tool_list(%AgentSpec{tools: tools}) when is_list(tools) and tools != [] do
     sanitize_tools(tools)

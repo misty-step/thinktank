@@ -155,4 +155,30 @@ defmodule Thinktank.EngineTest do
     assert File.read!(Path.join(result.output_dir, "review.md")) =~ "Synthesized review"
     refute File.exists?(Path.join(result.output_dir, "synthesis.md"))
   end
+
+  test "does not replace malformed input_text with a bench default task" do
+    cwd = unique_tmp_dir("thinktank-engine-invalid-input")
+    config_path = Path.join([cwd, ".thinktank", "config.yml"])
+    File.mkdir_p!(Path.dirname(config_path))
+
+    File.write!(
+      config_path,
+      """
+      benches:
+        demo/custom:
+          description: Demo bench
+          agents:
+            - trace
+          default_task: Investigate the workspace
+      """
+    )
+
+    assert {:error, :missing_input_text, nil} =
+             Engine.resolve(
+               "demo/custom",
+               %{input_text: 123},
+               cwd: cwd,
+               trust_repo_config: true
+             )
+  end
 end

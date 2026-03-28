@@ -346,8 +346,11 @@ defmodule Thinktank.Engine do
       existing when is_binary(existing) ->
         if String.trim(existing) == "", do: Map.put(map, key, value), else: map
 
-      _ ->
+      nil ->
         Map.put(map, key, value)
+
+      _ ->
+        map
     end
   end
 

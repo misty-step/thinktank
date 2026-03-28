@@ -239,6 +239,19 @@ defmodule Thinktank.CLITest do
     assert decoded["input"]["input_text"] == "test prompt"
   end
 
+  test "dry run prints a human summary unless --json is requested" do
+    {:ok, command} = CLI.parse_args(["research", "test prompt", "--dry-run"])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == 0
+      end)
+
+    assert output =~ "Bench: research/default"
+    assert output =~ "Description:"
+    assert output =~ "Input: test prompt"
+  end
+
   test "uses env trust for repo config when the flag is omitted" do
     in_tmp_repo_config(
       """

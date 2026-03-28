@@ -10,8 +10,10 @@ defmodule Thinktank.ConfigTest do
   end
 
   test "loads built-in benches and providers" do
+    missing_path = Path.join(unique_tmp_dir("thinktank-config-missing"), "config.yml")
+
     assert {:ok, config} =
-             Config.load(cwd: File.cwd!(), user_config_path: "/tmp/does-not-exist.yml")
+             Config.load(cwd: File.cwd!(), user_config_path: missing_path)
 
     assert Map.has_key?(config.providers, "openrouter")
     assert Map.has_key?(config.benches, "research/default")
