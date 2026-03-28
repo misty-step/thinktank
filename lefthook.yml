@@ -4,7 +4,8 @@ post-merge:
       run: |
         echo "thinktank: rebuilding escript after pull..."
         if mix deps.get --quiet && mix escript.build 2>&1; then
-          echo "thinktank updated: $(./thinktank --version)"
+          cp ./thinktank ~/.local/bin/thinktank
+          echo "thinktank updated: $(thinktank --version)"
         else
           echo "thinktank escript build failed"
           exit 1
