@@ -15,7 +15,7 @@ defmodule Thinktank.Review.EvalTest do
     output_root = Path.join(unique_tmp_dir("thinktank-review-eval-output"), "runs")
 
     contract = %RunContract{
-      bench_id: "review/cerberus",
+      bench_id: "review/default",
       workspace_root: workspace,
       input: %{"input_text" => "Review the current change"},
       artifact_dir: Path.join(fixture_root, "source-run"),
@@ -59,7 +59,7 @@ defmodule Thinktank.Review.EvalTest do
     assert {:ok, result} =
              Eval.run(fixture_root,
                output: output_root,
-               bench_id: "review/cerberus",
+               bench_id: "review/default",
                runner: runner
              )
 

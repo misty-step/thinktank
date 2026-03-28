@@ -29,7 +29,7 @@ defmodule Thinktank.Executor.AgenticTest do
 
   defp contract(tmp) do
     %RunContract{
-      bench_id: "review/cerberus",
+      bench_id: "review/default",
       workspace_root: tmp,
       input: %{"input_text" => "Review this"},
       artifact_dir: Path.join(tmp, "out"),

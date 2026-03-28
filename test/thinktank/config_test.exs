@@ -17,13 +17,12 @@ defmodule Thinktank.ConfigTest do
 
     assert Map.has_key?(config.providers, "openrouter")
     assert Map.has_key?(config.benches, "research/default")
-    assert Map.has_key?(config.benches, "review/cerberus")
-    assert Map.has_key?(config.benches, "review/constellation")
+    assert Map.has_key?(config.benches, "review/default")
     assert Map.has_key?(config.agents, "marshal")
     assert Map.has_key?(config.agents, "trace")
     assert config.benches["research/default"].kind == :research
-    assert config.benches["review/cerberus"].kind == :review
-    assert config.benches["review/cerberus"].planner == "marshal"
+    assert config.benches["review/default"].kind == :review
+    assert config.benches["review/default"].planner == "marshal"
   end
 
   test "repo config overrides user config and adds benches when trusted" do

@@ -60,7 +60,7 @@ defmodule Thinktank.CLITest do
                "42"
              ])
 
-    assert command.bench_id == "review/cerberus"
+    assert command.bench_id == "review/default"
     assert command.input.base == "origin/main"
     assert command.input.head == "HEAD"
     assert command.input.repo == "misty-step/thinktank"
@@ -74,18 +74,18 @@ defmodule Thinktank.CLITest do
                "eval",
                "./tmp/review-run",
                "--bench",
-               "review/constellation",
+               "review/default",
                "--json"
              ])
 
     assert command.action == :review_eval
     assert command.target == Path.expand("./tmp/review-run")
-    assert command.bench_id == "review/constellation"
+    assert command.bench_id == "review/default"
     assert command.json == true
   end
 
   test "requires --repo when --pr is provided for review" do
-    assert {:error, "review/cerberus requires --repo when --pr is provided"} =
+    assert {:error, "review/default requires --repo when --pr is provided"} =
              CLI.parse_args(["review", "--pr", "42"])
   end
 
@@ -195,8 +195,8 @@ defmodule Thinktank.CLITest do
     assert {:ok, %{action: :benches_list}} = CLI.parse_args(["benches", "list"])
     assert {:ok, %{action: :benches_validate}} = CLI.parse_args(["workflows", "validate"])
 
-    assert {:ok, %{action: :benches_show, bench_id: "review/cerberus"}} =
-             CLI.parse_args(["workflows", "show", "review/cerberus"])
+    assert {:ok, %{action: :benches_show, bench_id: "review/default"}} =
+             CLI.parse_args(["workflows", "show", "review/default"])
   end
 
   test "returns :needs_stdin when no research input is provided" do
@@ -278,7 +278,7 @@ defmodule Thinktank.CLITest do
       end)
 
     assert {:ok, decoded} = Jason.decode(String.trim(output))
-    assert decoded["bench"] == "review/cerberus"
+    assert decoded["bench"] == "review/default"
     assert decoded["planner"] == "marshal"
   end
 

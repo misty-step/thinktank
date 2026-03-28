@@ -66,14 +66,14 @@ defmodule Thinktank.RunStoreTest do
     output_dir = Path.join(unique_tmp_dir("thinktank-run-store-planned"), "run")
 
     contract = %RunContract{
-      bench_id: "review/cerberus",
+      bench_id: "review/default",
       workspace_root: File.cwd!(),
       input: %{input_text: "review"},
       artifact_dir: output_dir,
       adapter_context: %{}
     }
 
-    bench = %BenchSpec{id: "review/cerberus", description: "Review", agents: ["trace", "guard"]}
+    bench = %BenchSpec{id: "review/default", description: "Review", agents: ["trace", "guard"]}
 
     RunStore.init_run(output_dir, contract, bench)
     RunStore.set_planned_agents(output_dir, ["trace"])
