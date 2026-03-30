@@ -401,4 +401,43 @@ defmodule Thinktank.CLITest do
     assert decoded["error"]["code"] == "missing_input_text"
     assert decoded["error"]["message"] == "input text is required"
   end
+
+  test "benches list --json emits a JSON array with id, description, kind, agent_count" do
+    {:ok, command} = CLI.parse_args(["benches", "list", "--json"])
+    assert command.action == :benches_list
+    assert command.json == true
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == 0
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert is_list(decoded)
+    assert length(decoded) >= 2
+
+    Enum.each(decoded, fn entry ->
+      assert is_binary(entry["id"])
+      assert is_binary(entry["description"])
+      assert is_binary(entry["kind"])
+      assert is_integer(entry["agent_count"])
+    end)
+
+    research = Enum.find(decoded, &(&1["id"] == "research/default"))
+    assert research["kind"] == "research"
+    assert research["agent_count"] == 4
+  end
+
+  test "benches list without --json emits tab-separated text" do
+    {:ok, command} = CLI.parse_args(["benches", "list"])
+    assert command.json == false
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == 0
+      end)
+
+    assert output =~ "research/default\t"
+    assert output =~ "review/default\t"
+  end
 end

@@ -74,10 +74,25 @@ defmodule Thinktank.CLI do
   def execute({:ok, %{action: :benches_list} = command}) do
     case load_config(command) do
       {:ok, config} ->
-        Config.list_benches(config)
-        |> Enum.each(fn bench ->
-          IO.puts("#{bench.id}\t#{bench.description}")
-        end)
+        benches = Config.list_benches(config)
+
+        if command.json do
+          benches
+          |> Enum.map(fn bench ->
+            %{
+              id: bench.id,
+              description: bench.description,
+              kind: Atom.to_string(bench.kind),
+              agent_count: length(bench.agents)
+            }
+          end)
+          |> Jason.encode!()
+          |> IO.puts()
+        else
+          Enum.each(benches, fn bench ->
+            IO.puts("#{bench.id}\t#{bench.description}")
+          end)
+        end
 
         @exit_codes.success
 
