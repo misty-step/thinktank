@@ -86,9 +86,8 @@ defmodule Thinktank.CLI do
 
   def execute({:ok, %{action: :benches_show, bench_id: bench_id} = command}) do
     with {:ok, config} <- load_config(command),
-         {:ok, bench} <- Config.bench(config, bench_id) do
-      agents_payload = resolve_agents_payload(bench, config, command.full)
-
+         {:ok, bench} <- Config.bench(config, bench_id),
+         {:ok, agents_payload} <- resolve_agents_payload(bench, config, command.full) do
       rendered =
         %{
           id: bench.id,
@@ -106,7 +105,7 @@ defmodule Thinktank.CLI do
       @exit_codes.success
     else
       {:error, reason} ->
-        emit_error(command, Error.from_reason(reason), nil)
+        emit_error(command, normalize_error(reason), nil)
         @exit_codes.input_error
     end
   end
@@ -146,7 +145,7 @@ defmodule Thinktank.CLI do
         end
 
       {:error, reason} ->
-        emit_error(command, reason, nil)
+        emit_error(command, normalize_error(reason), nil)
         @exit_codes.input_error
     end
   end
@@ -392,7 +391,7 @@ defmodule Thinktank.CLI do
         end
 
       {:error, reason, output_dir} ->
-        emit_error(command, reason, output_dir)
+        emit_error(command, normalize_error(reason), output_dir)
         @exit_codes.generic_error
     end
   end
@@ -412,7 +411,7 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason, _output_dir} ->
-        emit_error(command, reason, nil)
+        emit_error(command, normalize_error(reason), nil)
         @exit_codes.input_error
     end
   end
@@ -437,16 +436,16 @@ defmodule Thinktank.CLI do
     end)
   end
 
-  defp resolve_agents_payload(bench, _config, false), do: bench.agents
+  defp resolve_agents_payload(bench, _config, false), do: {:ok, bench.agents}
 
   defp resolve_agents_payload(bench, config, true) do
-    Enum.map(bench.agents, fn name ->
+    Enum.reduce_while(bench.agents, {:ok, []}, fn name, {:ok, acc} ->
       case Map.get(config.agents, name) do
         nil ->
-          %{name: name, error: "unknown agent"}
+          {:halt, {:error, "unknown agent: #{name}"}}
 
         %AgentSpec{} = agent ->
-          %{
+          spec = %{
             name: agent.name,
             model: agent.model,
             provider: agent.provider,
@@ -455,9 +454,18 @@ defmodule Thinktank.CLI do
             thinking_level: agent.thinking_level,
             timeout_ms: agent.timeout_ms
           }
+
+          {:cont, {:ok, [spec | acc]}}
       end
     end)
+    |> case do
+      {:ok, specs} -> {:ok, Enum.reverse(specs)}
+      error -> error
+    end
   end
+
+  defp normalize_error(%Error{} = error), do: error
+  defp normalize_error(reason), do: Error.from_reason(reason)
 
   defp emit_error(%{json: true}, %Error{} = error, output_dir) do
     payload = %{error: error, output_dir: output_dir}
