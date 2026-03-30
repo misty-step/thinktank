@@ -3,7 +3,7 @@ defmodule Thinktank.CLI do
   CLI entry point for ThinkTank benches.
   """
 
-  alias Thinktank.{BenchSpec, Config, Engine, Error}
+  alias Thinktank.{AgentSpec, BenchSpec, Config, Engine, Error}
   alias Thinktank.Review.Eval
 
   @exit_codes %{
@@ -21,6 +21,7 @@ defmodule Thinktank.CLI do
       agents: :string,
       bench: :string,
       json: :boolean,
+      full: :boolean,
       output: :string,
       dry_run: :boolean,
       no_synthesis: :boolean,
@@ -105,12 +106,35 @@ defmodule Thinktank.CLI do
   def execute({:ok, %{action: :benches_show, bench_id: bench_id} = command}) do
     with {:ok, config} <- load_config(command),
          {:ok, bench} <- Config.bench(config, bench_id) do
+      agents_payload =
+        if command.full do
+          Enum.map(bench.agents, fn name ->
+            case Map.get(config.agents, name) do
+              nil ->
+                %{name: name, error: "unknown agent"}
+
+              %AgentSpec{} = agent ->
+                %{
+                  name: agent.name,
+                  model: agent.model,
+                  provider: agent.provider,
+                  tools: agent.tools,
+                  system_prompt: agent.system_prompt,
+                  thinking_level: agent.thinking_level,
+                  timeout_ms: agent.timeout_ms
+                }
+            end
+          end)
+        else
+          bench.agents
+        end
+
       rendered =
         %{
           id: bench.id,
           description: bench.description,
           kind: bench.kind,
-          agents: bench.agents,
+          agents: agents_payload,
           planner: bench.planner,
           synthesizer: bench.synthesizer,
           concurrency: bench.concurrency,
@@ -296,6 +320,7 @@ defmodule Thinktank.CLI do
        bench_id: bench_id,
        cwd: File.cwd!(),
        json: parsed[:json] || false,
+       full: parsed[:full] || false,
        trust_repo_config: parsed[:trust_repo_config]
      }}
   end
@@ -609,6 +634,7 @@ defmodule Thinktank.CLI do
       --paths PATH          Point the bench at paths in the workspace (repeatable)
       --agents LIST         Comma-separated agent override for the selected bench
       --json                Output JSON
+      --full                Include full agent specs in benches show
       --output, -o DIR      Output directory
       --dry-run             Resolve the bench without launching agents
       --no-synthesis        Skip the synthesizer agent

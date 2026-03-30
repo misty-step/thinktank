@@ -440,4 +440,47 @@ defmodule Thinktank.CLITest do
     assert output =~ "research/default\t"
     assert output =~ "review/default\t"
   end
+
+  test "benches show --full --json resolves agent names to full specs" do
+    {:ok, command} =
+      CLI.parse_args(["benches", "show", "review/default", "--full", "--json"])
+
+    assert command.action == :benches_show
+    assert command.json == true
+    assert command.full == true
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == 0
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert is_list(decoded["agents"])
+
+    Enum.each(decoded["agents"], fn agent ->
+      assert is_binary(agent["name"])
+      assert is_binary(agent["model"])
+      assert is_binary(agent["system_prompt"])
+      assert is_binary(agent["thinking_level"])
+      assert is_integer(agent["timeout_ms"])
+      assert is_nil(agent["tools"]) or is_list(agent["tools"])
+    end)
+
+    trace = Enum.find(decoded["agents"], &(&1["name"] == "trace"))
+    assert trace != nil
+    assert trace["model"] =~ "grok"
+  end
+
+  test "benches show without --full keeps agent names only" do
+    {:ok, command} = CLI.parse_args(["benches", "show", "research/default"])
+    assert command.full == false
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == 0
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert decoded["agents"] == ["systems", "verification", "ml", "dx"]
+  end
 end
