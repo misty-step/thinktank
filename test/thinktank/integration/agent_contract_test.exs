@@ -24,8 +24,7 @@ defmodule Thinktank.Integration.AgentContractTest do
         end)
 
       {:ok, benches} = Jason.decode(String.trim(list_output))
-      assert is_list(benches)
-      assert length(benches) >= 1
+      assert [_ | _] = benches
 
       # Every bench entry has the required schema
       Enum.each(benches, fn bench ->

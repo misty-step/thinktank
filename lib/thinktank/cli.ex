@@ -75,26 +75,7 @@ defmodule Thinktank.CLI do
   def execute({:ok, %{action: :benches_list} = command}) do
     case load_config(command) do
       {:ok, config} ->
-        benches = Config.list_benches(config)
-
-        if command.json do
-          benches
-          |> Enum.map(fn bench ->
-            %{
-              id: bench.id,
-              description: bench.description,
-              kind: Atom.to_string(bench.kind),
-              agent_count: length(bench.agents)
-            }
-          end)
-          |> Jason.encode!()
-          |> IO.puts()
-        else
-          Enum.each(benches, fn bench ->
-            IO.puts("#{bench.id}\t#{bench.description}")
-          end)
-        end
-
+        Config.list_benches(config) |> emit_benches_list(command)
         @exit_codes.success
 
       {:error, reason} ->
@@ -106,28 +87,7 @@ defmodule Thinktank.CLI do
   def execute({:ok, %{action: :benches_show, bench_id: bench_id} = command}) do
     with {:ok, config} <- load_config(command),
          {:ok, bench} <- Config.bench(config, bench_id) do
-      agents_payload =
-        if command.full do
-          Enum.map(bench.agents, fn name ->
-            case Map.get(config.agents, name) do
-              nil ->
-                %{name: name, error: "unknown agent"}
-
-              %AgentSpec{} = agent ->
-                %{
-                  name: agent.name,
-                  model: agent.model,
-                  provider: agent.provider,
-                  tools: agent.tools,
-                  system_prompt: agent.system_prompt,
-                  thinking_level: agent.thinking_level,
-                  timeout_ms: agent.timeout_ms
-                }
-            end
-          end)
-        else
-          bench.agents
-        end
+      agents_payload = resolve_agents_payload(bench, config, command.full)
 
       rendered =
         %{
@@ -458,6 +418,48 @@ defmodule Thinktank.CLI do
         emit_error(command, error, nil)
         @exit_codes.input_error
     end
+  end
+
+  defp emit_benches_list(benches, %{json: true}) do
+    benches
+    |> Enum.map(fn bench ->
+      %{
+        id: bench.id,
+        description: bench.description,
+        kind: Atom.to_string(bench.kind),
+        agent_count: length(bench.agents)
+      }
+    end)
+    |> Jason.encode!()
+    |> IO.puts()
+  end
+
+  defp emit_benches_list(benches, _command) do
+    Enum.each(benches, fn bench ->
+      IO.puts("#{bench.id}\t#{bench.description}")
+    end)
+  end
+
+  defp resolve_agents_payload(bench, _config, false), do: bench.agents
+
+  defp resolve_agents_payload(bench, config, true) do
+    Enum.map(bench.agents, fn name ->
+      case Map.get(config.agents, name) do
+        nil ->
+          %{name: name, error: "unknown agent"}
+
+        %AgentSpec{} = agent ->
+          %{
+            name: agent.name,
+            model: agent.model,
+            provider: agent.provider,
+            tools: agent.tools,
+            system_prompt: agent.system_prompt,
+            thinking_level: agent.thinking_level,
+            timeout_ms: agent.timeout_ms
+          }
+      end
+    end)
   end
 
   defp emit_error(%{json: true}, %Error{} = error, output_dir) do
