@@ -444,7 +444,7 @@ defmodule Thinktank.CLITest do
     end)
 
     # Verify at least one agent resolved with a non-empty model
-    first_agent = List.first(decoded["agents"])
+    assert [first_agent | _] = decoded["agents"]
     assert is_binary(first_agent["model"])
     assert String.length(first_agent["model"]) > 0
   end

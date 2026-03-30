@@ -146,8 +146,7 @@ defmodule Thinktank.CLI do
         end
 
       {:error, reason} ->
-        error = if is_struct(reason, Error), do: reason, else: Error.from_reason(reason)
-        emit_error(command, error, nil)
+        emit_error(command, reason, nil)
         @exit_codes.input_error
     end
   end
@@ -393,8 +392,7 @@ defmodule Thinktank.CLI do
         end
 
       {:error, reason, output_dir} ->
-        error = if is_struct(reason, Error), do: reason, else: Error.from_reason(reason)
-        emit_error(command, error, output_dir)
+        emit_error(command, reason, output_dir)
         @exit_codes.generic_error
     end
   end
@@ -414,8 +412,7 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason, _output_dir} ->
-        error = if is_struct(reason, Error), do: reason, else: Error.from_reason(reason)
-        emit_error(command, error, nil)
+        emit_error(command, reason, nil)
         @exit_codes.input_error
     end
   end
