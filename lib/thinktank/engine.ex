@@ -38,7 +38,7 @@ defmodule Thinktank.Engine do
         }
 
   @spec resolve(String.t(), map(), keyword()) ::
-          {:ok, resolved_run()} | {:error, term(), String.t() | nil}
+          {:ok, resolved_run()} | {:error, Error.t(), String.t() | nil}
   def resolve(bench_id, input, opts \\ []) do
     cwd = Keyword.get(opts, :cwd, File.cwd!())
     provided_config = Keyword.get(opts, :config)
@@ -79,7 +79,7 @@ defmodule Thinktank.Engine do
   end
 
   @spec run(String.t(), map(), keyword()) ::
-          {:ok, run_result()} | {:error, term(), String.t() | nil}
+          {:ok, run_result()} | {:error, Error.t(), String.t() | nil}
   def run(bench_id, input, opts \\ []) do
     case resolve(bench_id, input, opts) do
       {:ok,

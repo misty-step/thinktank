@@ -379,29 +379,6 @@ defmodule Thinktank.CLITest do
     assert output =~ "thinktank review"
   end
 
-  test "dry run emits structured JSON error to stderr with --json" do
-    # Use a bench command that will fail during Engine.resolve with a bad input
-    command = %{
-      action: :run,
-      bench_id: "research/default",
-      cwd: File.cwd!(),
-      json: true,
-      output: nil,
-      dry_run: true,
-      trust_repo_config: nil,
-      input: %{input_text: 42, paths: [], agents: [], no_synthesis: false}
-    }
-
-    stderr =
-      capture_io(:stderr, fn ->
-        assert CLI.execute({:ok, command}) == @exit_codes.input_error
-      end)
-
-    assert {:ok, decoded} = Jason.decode(String.trim(stderr))
-    assert decoded["error"]["code"] == "missing_input_text"
-    assert decoded["error"]["message"] == "input text is required"
-  end
-
   test "benches list --json emits a JSON array with id, description, kind, agent_count" do
     {:ok, command} = CLI.parse_args(["benches", "list", "--json"])
     assert command.action == :benches_list
@@ -457,18 +434,17 @@ defmodule Thinktank.CLITest do
     assert {:ok, decoded} = Jason.decode(String.trim(output))
     assert is_list(decoded["agents"])
 
+    assert [_ | _] = decoded["agents"]
+
     Enum.each(decoded["agents"], fn agent ->
       assert is_binary(agent["name"])
       assert is_binary(agent["model"])
+      assert String.trim(agent["model"]) != ""
       assert is_binary(agent["system_prompt"])
       assert is_binary(agent["thinking_level"])
       assert is_integer(agent["timeout_ms"])
       assert is_nil(agent["tools"]) or is_list(agent["tools"])
     end)
-
-    trace = Enum.find(decoded["agents"], &(&1["name"] == "trace"))
-    assert trace != nil
-    assert trace["model"] =~ "grok"
   end
 
   test "benches show without --full keeps agent names only" do

@@ -124,6 +124,5 @@ defmodule Thinktank.Review.Eval do
     end
   end
 
-  defp format_reason(reason) when is_binary(reason), do: reason
-  defp format_reason(reason), do: inspect(reason)
+  defp format_reason(%Thinktank.Error{message: message}), do: message
 end

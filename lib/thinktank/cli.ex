@@ -75,60 +75,19 @@ defmodule Thinktank.CLI do
   def execute({:ok, %{action: :benches_list} = command}) do
     case load_config(command) do
       {:ok, config} ->
-        benches = Config.list_benches(config)
-
-        if command.json do
-          benches
-          |> Enum.map(fn bench ->
-            %{
-              id: bench.id,
-              description: bench.description,
-              kind: Atom.to_string(bench.kind),
-              agent_count: length(bench.agents)
-            }
-          end)
-          |> Jason.encode!()
-          |> IO.puts()
-        else
-          Enum.each(benches, fn bench ->
-            IO.puts("#{bench.id}\t#{bench.description}")
-          end)
-        end
-
+        Config.list_benches(config) |> emit_benches_list(command)
         @exit_codes.success
 
       {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
+        emit_error(command, normalize_error(reason), nil)
         @exit_codes.input_error
     end
   end
 
   def execute({:ok, %{action: :benches_show, bench_id: bench_id} = command}) do
     with {:ok, config} <- load_config(command),
-         {:ok, bench} <- Config.bench(config, bench_id) do
-      agents_payload =
-        if command.full do
-          Enum.map(bench.agents, fn name ->
-            case Map.get(config.agents, name) do
-              nil ->
-                %{name: name, error: "unknown agent"}
-
-              %AgentSpec{} = agent ->
-                %{
-                  name: agent.name,
-                  model: agent.model,
-                  provider: agent.provider,
-                  tools: agent.tools,
-                  system_prompt: agent.system_prompt,
-                  thinking_level: agent.thinking_level,
-                  timeout_ms: agent.timeout_ms
-                }
-            end
-          end)
-        else
-          bench.agents
-        end
-
+         {:ok, bench} <- Config.bench(config, bench_id),
+         {:ok, agents_payload} <- resolve_agents_payload(bench, config, command.full) do
       rendered =
         %{
           id: bench.id,
@@ -146,7 +105,7 @@ defmodule Thinktank.CLI do
       @exit_codes.success
     else
       {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
+        emit_error(command, normalize_error(reason), nil)
         @exit_codes.input_error
     end
   end
@@ -158,7 +117,7 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
+        emit_error(command, normalize_error(reason), nil)
         @exit_codes.input_error
     end
   end
@@ -186,7 +145,7 @@ defmodule Thinktank.CLI do
         end
 
       {:error, reason} ->
-        IO.puts(:stderr, "Error: #{format_reason(reason)}")
+        emit_error(command, normalize_error(reason), nil)
         @exit_codes.input_error
     end
   end
@@ -432,8 +391,7 @@ defmodule Thinktank.CLI do
         end
 
       {:error, reason, output_dir} ->
-        error = if is_struct(reason, Error), do: reason, else: Error.from_reason(reason)
-        emit_error(command, error, output_dir)
+        emit_error(command, normalize_error(reason), output_dir)
         @exit_codes.generic_error
     end
   end
@@ -453,11 +411,61 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason, _output_dir} ->
-        error = if is_struct(reason, Error), do: reason, else: Error.from_reason(reason)
-        emit_error(command, error, nil)
+        emit_error(command, normalize_error(reason), nil)
         @exit_codes.input_error
     end
   end
+
+  defp emit_benches_list(benches, %{json: true}) do
+    benches
+    |> Enum.map(fn bench ->
+      %{
+        id: bench.id,
+        description: bench.description,
+        kind: Atom.to_string(bench.kind),
+        agent_count: length(bench.agents)
+      }
+    end)
+    |> Jason.encode!()
+    |> IO.puts()
+  end
+
+  defp emit_benches_list(benches, _command) do
+    Enum.each(benches, fn bench ->
+      IO.puts("#{bench.id}\t#{bench.description}")
+    end)
+  end
+
+  defp resolve_agents_payload(bench, _config, false), do: {:ok, bench.agents}
+
+  defp resolve_agents_payload(bench, config, true) do
+    Enum.reduce_while(bench.agents, {:ok, []}, fn name, {:ok, acc} ->
+      case Map.get(config.agents, name) do
+        nil ->
+          {:halt, {:error, "unknown agent: #{name}"}}
+
+        %AgentSpec{} = agent ->
+          spec = %{
+            name: agent.name,
+            model: agent.model,
+            provider: agent.provider,
+            tools: agent.tools,
+            system_prompt: agent.system_prompt,
+            thinking_level: agent.thinking_level,
+            timeout_ms: agent.timeout_ms
+          }
+
+          {:cont, {:ok, [spec | acc]}}
+      end
+    end)
+    |> case do
+      {:ok, specs} -> {:ok, Enum.reverse(specs)}
+      error -> error
+    end
+  end
+
+  defp normalize_error(%Error{} = error), do: error
+  defp normalize_error(reason), do: Error.from_reason(reason)
 
   defp emit_error(%{json: true}, %Error{} = error, output_dir) do
     payload = %{error: error, output_dir: output_dir}
@@ -609,12 +617,6 @@ defmodule Thinktank.CLI do
   rescue
     _ -> false
   end
-
-  defp format_reason(%Error{message: message}), do: message
-  defp format_reason(:missing_input_text), do: "input text is required"
-  defp format_reason(:no_successful_agents), do: "no agents completed successfully"
-  defp format_reason(reason) when is_binary(reason), do: reason
-  defp format_reason(reason), do: inspect(reason)
 
   defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
 
