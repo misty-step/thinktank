@@ -302,7 +302,8 @@ defmodule Thinktank.Engine do
     context = %{
       "paths_hint" => render_paths_hint(contract.input),
       "review_context" => Context.render(review_context),
-      "review_plan" => Planner.render(planning.plan)
+      "review_plan" => Planner.render(planning.plan),
+      "synthesis_brief" => planning.plan["synthesis_brief"] || ""
     }
 
     {planned_agents, context}

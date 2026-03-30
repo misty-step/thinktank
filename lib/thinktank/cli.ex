@@ -245,7 +245,7 @@ defmodule Thinktank.CLI do
   defp build_command(["review", "eval"], _parsed), do: {:error, "review eval requires a path"}
 
   defp build_command(["review" | remainder], parsed) do
-    with {:ok, config, bench} <- resolve_bench("review/cerberus", parsed),
+    with {:ok, config, bench} <- resolve_bench("review/default", parsed),
          :ok <- validate_review_pr_flags(bench, parsed) do
       input_text = resolve_input_text(parsed[:input], remainder)
 
@@ -595,8 +595,8 @@ defmodule Thinktank.CLI do
     Examples:
       thinktank research "analyze this codebase" --paths ./lib
       thinktank review --base origin/main --head HEAD
-      thinktank review eval ./tmp/review-run --bench review/constellation
-      thinktank run review/cerberus --input "Review this branch" --agents trace,guard
+      thinktank review eval ./tmp/review-run --bench review/default
+      thinktank run review/default --input "Review this branch" --agents trace,guard
       thinktank benches show research/default
     """
   end

@@ -95,7 +95,8 @@ defmodule Thinktank.Executor.Agentic do
 
     prompt = "#{agent.system_prompt}\n\n#{rendered_prompt}"
     prompt_file = write_prompt_file(contract, instance_id, prompt)
-    {cmd, args} = build_command(agent, prompt_file, tool_list(agent))
+    provider = config.providers[agent.provider]
+    {cmd, args} = build_command(agent, prompt_file, tool_list(agent), provider)
 
     cmd_opts =
       build_cmd_opts(agent, instance_id, contract, config.providers[agent.provider], opts)
@@ -165,7 +166,7 @@ defmodule Thinktank.Executor.Agentic do
   defp retryable?(%{category: :crash}), do: true
   defp retryable?(_), do: false
 
-  defp build_command(agent, prompt_file, tools) do
+  defp build_command(agent, prompt_file, tools, provider) do
     {"sh",
      [
        "-c",
@@ -174,6 +175,8 @@ defmodule Thinktank.Executor.Agentic do
        "pi",
        "--no-session",
        "--no-skills",
+       "--provider",
+       to_string(provider.adapter),
        "--model",
        agent.model,
        "--thinking",

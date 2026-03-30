@@ -34,7 +34,7 @@ defmodule Thinktank.Review.Eval do
   end
 
   defp run_case(index, contract_path, contract, output_dir, opts) do
-    bench_id = Keyword.get(opts, :bench_id, contract.bench_id)
+    bench_id = Keyword.get(opts, :bench_id) || "review/default"
     case_id = "case-#{String.pad_leading(Integer.to_string(index), 3, "0")}"
     case_output = Path.join(output_dir, case_id)
 

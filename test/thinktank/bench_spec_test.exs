@@ -5,7 +5,7 @@ defmodule Thinktank.BenchSpecTest do
 
   test "parses bench specs" do
     assert {:ok, bench} =
-             BenchSpec.from_pair("review/cerberus", %{
+             BenchSpec.from_pair("review/default", %{
                "kind" => "review",
                "description" => "Review bench",
                "agents" => ["trace", "guard"],
@@ -15,7 +15,7 @@ defmodule Thinktank.BenchSpecTest do
                "default_task" => "Review this"
              })
 
-    assert bench.id == "review/cerberus"
+    assert bench.id == "review/default"
     assert bench.kind == :review
     assert bench.agents == ["trace", "guard"]
     assert bench.planner == "marshal"
@@ -34,7 +34,7 @@ defmodule Thinktank.BenchSpecTest do
           {%{"description" => "Review bench", "agents" => ["trace"], "default_task" => "   "},
            "bench optional string fields must be strings"}
         ] do
-      assert {:error, ^expected_error} = BenchSpec.from_pair("review/cerberus", raw)
+      assert {:error, ^expected_error} = BenchSpec.from_pair("review/default", raw)
     end
   end
 end

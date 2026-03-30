@@ -59,7 +59,7 @@ defmodule Thinktank.EngineTest do
 
     assert {:ok, result} =
              Engine.run(
-               "review/cerberus",
+               "review/default",
                %{
                  input_text: "Review this branch",
                  base: "origin/main",
@@ -97,7 +97,7 @@ defmodule Thinktank.EngineTest do
 
     assert {:ok, result} =
              Engine.run(
-               "review/cerberus",
+               "review/default",
                %{input_text: "Review this branch"},
                cwd: cwd,
                runner: runner
@@ -222,7 +222,7 @@ defmodule Thinktank.EngineTest do
 
     assert {:ok, result} =
              Engine.run(
-               "review/cerberus",
+               "review/default",
                %{input_text: "Review this branch", no_synthesis: true},
                cwd: cwd,
                runner: runner
@@ -264,7 +264,7 @@ defmodule Thinktank.EngineTest do
 
     assert {:ok, result} =
              Engine.run(
-               "review/cerberus",
+               "review/default",
                %{input_text: "Review this branch", agents: ["guard"], no_synthesis: true},
                cwd: cwd,
                runner: runner
