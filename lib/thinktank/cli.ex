@@ -79,7 +79,7 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason} ->
-        emit_error(command, Error.from_reason(reason), nil)
+        emit_error(command, normalize_error(reason), nil)
         @exit_codes.input_error
     end
   end
@@ -117,7 +117,7 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason} ->
-        emit_error(command, Error.from_reason(reason), nil)
+        emit_error(command, normalize_error(reason), nil)
         @exit_codes.input_error
     end
   end
