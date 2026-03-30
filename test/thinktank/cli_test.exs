@@ -434,19 +434,17 @@ defmodule Thinktank.CLITest do
     assert {:ok, decoded} = Jason.decode(String.trim(output))
     assert is_list(decoded["agents"])
 
+    assert [_ | _] = decoded["agents"]
+
     Enum.each(decoded["agents"], fn agent ->
       assert is_binary(agent["name"])
       assert is_binary(agent["model"])
+      assert String.trim(agent["model"]) != ""
       assert is_binary(agent["system_prompt"])
       assert is_binary(agent["thinking_level"])
       assert is_integer(agent["timeout_ms"])
       assert is_nil(agent["tools"]) or is_list(agent["tools"])
     end)
-
-    # Verify at least one agent resolved with a non-empty model
-    assert [first_agent | _] = decoded["agents"]
-    assert is_binary(first_agent["model"])
-    assert String.length(first_agent["model"]) > 0
   end
 
   test "benches show without --full keeps agent names only" do

@@ -13,7 +13,7 @@ Agents can discover available benches/agents, parse run results, and distinguish
 - Changing internal architecture (just expose what exists)
 
 ## Oracle
-- [ ] `thinktank benches show <name> --full --json` returns complete agent specs: model, tools, system prompt, thinking level, timeout
+- [ ] `thinktank benches show <name> --full --json` returns complete agent specs: model, tools, system_prompt, thinking_level, timeout_ms
 - [ ] Result envelope (`--json` output) includes inline synthesis summary text and per-artifact `content_type` field
 - [ ] All error paths from executor → engine → CLI use a consistent `{:error, %{code: atom, message: binary, details: map}}` shape
 - [ ] `thinktank benches list --json` includes agent count and kind for each bench

@@ -118,7 +118,7 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
+        emit_error(command, Error.from_reason(reason), nil)
         @exit_codes.input_error
     end
   end
