@@ -98,7 +98,7 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
+        emit_error(command, Error.from_reason(reason), nil)
         @exit_codes.input_error
     end
   end
@@ -146,7 +146,7 @@ defmodule Thinktank.CLI do
       @exit_codes.success
     else
       {:error, reason} ->
-        IO.puts(:stderr, "Error: #{reason}")
+        emit_error(command, Error.from_reason(reason), nil)
         @exit_codes.input_error
     end
   end
@@ -186,7 +186,8 @@ defmodule Thinktank.CLI do
         end
 
       {:error, reason} ->
-        IO.puts(:stderr, "Error: #{format_reason(reason)}")
+        error = if is_struct(reason, Error), do: reason, else: Error.from_reason(reason)
+        emit_error(command, error, nil)
         @exit_codes.input_error
     end
   end
@@ -609,12 +610,6 @@ defmodule Thinktank.CLI do
   rescue
     _ -> false
   end
-
-  defp format_reason(%Error{message: message}), do: message
-  defp format_reason(:missing_input_text), do: "input text is required"
-  defp format_reason(:no_successful_agents), do: "no agents completed successfully"
-  defp format_reason(reason) when is_binary(reason), do: reason
-  defp format_reason(reason), do: inspect(reason)
 
   defp version, do: Application.spec(:thinktank, :vsn) |> to_string()
 
