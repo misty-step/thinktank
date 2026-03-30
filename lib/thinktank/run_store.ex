@@ -94,13 +94,38 @@ defmodule Thinktank.RunStore do
   def result_envelope(output_dir) do
     manifest = read_manifest(output_dir)
 
+    artifacts =
+      Enum.map(manifest["artifacts"], fn artifact ->
+        Map.put(artifact, "content_type", content_type(artifact["type"], artifact["file"]))
+      end)
+
     %{
       output_dir: output_dir,
       bench: manifest["bench"],
       status: manifest["status"],
       agents: manifest["agents"],
-      artifacts: manifest["artifacts"]
+      artifacts: artifacts,
+      synthesis: read_synthesis(output_dir, artifacts)
     }
+  end
+
+  defp content_type("json", _file), do: "application/json"
+
+  defp content_type("text", file) when is_binary(file) do
+    if String.ends_with?(file, ".md"), do: "text/markdown", else: "text/plain"
+  end
+
+  defp content_type(_type, _file), do: "application/octet-stream"
+
+  defp read_synthesis(output_dir, artifacts) do
+    case Enum.find(artifacts, &(&1["name"] == "synthesis")) do
+      nil ->
+        nil
+
+      %{"file" => file} ->
+        path = Path.join(output_dir, file)
+        if File.exists?(path), do: File.read!(path), else: nil
+    end
   end
 
   defp resolve_artifact_path(output_dir, filename) do
