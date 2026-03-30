@@ -3,7 +3,7 @@ defmodule Thinktank.CLI do
   CLI entry point for ThinkTank benches.
   """
 
-  alias Thinktank.{BenchSpec, Config, Engine}
+  alias Thinktank.{BenchSpec, Config, Engine, Error}
   alias Thinktank.Review.Eval
 
   @exit_codes %{
@@ -392,12 +392,8 @@ defmodule Thinktank.CLI do
         end
 
       {:error, reason, output_dir} ->
-        IO.puts(:stderr, "Error: #{format_reason(reason)}")
-
-        if is_binary(output_dir) do
-          IO.puts(:stderr, "Artifacts: #{output_dir}")
-        end
-
+        error = if is_struct(reason, Error), do: reason, else: Error.from_reason(reason)
+        emit_error(command, error, output_dir)
         @exit_codes.generic_error
     end
   end
@@ -417,8 +413,22 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason, _output_dir} ->
-        IO.puts(:stderr, "Error: #{format_reason(reason)}")
+        error = if is_struct(reason, Error), do: reason, else: Error.from_reason(reason)
+        emit_error(command, error, nil)
         @exit_codes.input_error
+    end
+  end
+
+  defp emit_error(%{json: true}, %Error{} = error, output_dir) do
+    payload = %{error: error, output_dir: output_dir}
+    IO.puts(:stderr, Jason.encode!(payload))
+  end
+
+  defp emit_error(_command, %Error{} = error, output_dir) do
+    IO.puts(:stderr, "Error: #{error.message}")
+
+    if is_binary(output_dir) do
+      IO.puts(:stderr, "Artifacts: #{output_dir}")
     end
   end
 
@@ -560,6 +570,7 @@ defmodule Thinktank.CLI do
     _ -> false
   end
 
+  defp format_reason(%Error{message: message}), do: message
   defp format_reason(:missing_input_text), do: "input text is required"
   defp format_reason(:no_successful_agents), do: "no agents completed successfully"
   defp format_reason(reason) when is_binary(reason), do: reason

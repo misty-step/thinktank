@@ -7,6 +7,7 @@ defmodule Thinktank.Engine do
     AgentSpec,
     BenchSpec,
     Config,
+    Error,
     RunContract,
     RunStore
   }
@@ -72,8 +73,8 @@ defmodule Thinktank.Engine do
          synthesizer: synthesizer
        }}
     else
-      {:error, reason} -> {:error, reason, nil}
-      reason -> {:error, reason, nil}
+      {:error, reason} -> {:error, Error.from_reason(reason), nil}
+      reason -> {:error, Error.from_reason(reason), nil}
     end
   end
 
@@ -136,7 +137,7 @@ defmodule Thinktank.Engine do
         }
 
         case status do
-          "failed" -> {:error, :no_successful_agents, output_dir}
+          "failed" -> {:error, Error.from_reason(:no_successful_agents), output_dir}
           _ -> {:ok, run_result}
         end
 

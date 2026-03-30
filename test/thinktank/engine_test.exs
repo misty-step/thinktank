@@ -1,7 +1,7 @@
 defmodule Thinktank.EngineTest do
   use ExUnit.Case, async: false
 
-  alias Thinktank.Engine
+  alias Thinktank.{Engine, Error}
 
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
@@ -294,7 +294,7 @@ defmodule Thinktank.EngineTest do
       """
     )
 
-    assert {:error, :missing_input_text, nil} =
+    assert {:error, %Error{code: :missing_input_text}, nil} =
              Engine.resolve(
                "demo/custom",
                %{input_text: 123},

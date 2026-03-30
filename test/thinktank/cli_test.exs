@@ -5,6 +5,8 @@ defmodule Thinktank.CLITest do
 
   alias Thinktank.CLI
 
+  @exit_codes CLI.exit_codes()
+
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
@@ -375,5 +377,28 @@ defmodule Thinktank.CLITest do
 
     assert output =~ "thinktank benches"
     assert output =~ "thinktank review"
+  end
+
+  test "dry run emits structured JSON error to stderr with --json" do
+    # Use a bench command that will fail during Engine.resolve with a bad input
+    command = %{
+      action: :run,
+      bench_id: "research/default",
+      cwd: File.cwd!(),
+      json: true,
+      output: nil,
+      dry_run: true,
+      trust_repo_config: nil,
+      input: %{input_text: 42, paths: [], agents: [], no_synthesis: false}
+    }
+
+    stderr =
+      capture_io(:stderr, fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.input_error
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(stderr))
+    assert decoded["error"]["code"] == "missing_input_text"
+    assert decoded["error"]["message"] == "input text is required"
   end
 end
