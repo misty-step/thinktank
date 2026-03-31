@@ -5,12 +5,13 @@ defmodule Thinktank.Review.ContextTest do
 
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
+    File.rm_rf!(dir)
     File.mkdir_p!(dir)
     dir
   end
 
   defp git!(cwd, args) do
-    case System.cmd("git", args, cd: cwd, stderr_to_stdout: true) do
+    case System.cmd("git", args, cd: cwd, stderr_to_stdout: true, env: [{"LEFTHOOK", "0"}]) do
       {_output, 0} -> :ok
       {output, status} -> flunk("git #{Enum.join(args, " ")} failed (#{status}): #{output}")
     end

@@ -6,6 +6,7 @@ defmodule Thinktank.RunStoreTest do
 
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
+    File.rm_rf!(dir)
     File.mkdir_p!(dir)
     dir
   end

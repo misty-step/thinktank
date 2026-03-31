@@ -5,6 +5,7 @@ defmodule Thinktank.EngineTest do
 
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
+    File.rm_rf!(dir)
     File.mkdir_p!(dir)
     dir
   end
@@ -15,7 +16,7 @@ defmodule Thinktank.EngineTest do
   end
 
   defp git!(cwd, args) do
-    case System.cmd("git", args, cd: cwd, stderr_to_stdout: true) do
+    case System.cmd("git", args, cd: cwd, stderr_to_stdout: true, env: [{"LEFTHOOK", "0"}]) do
       {output, 0} -> output
       {output, status} -> flunk("git #{Enum.join(args, " ")} failed (#{status}): #{output}")
     end
