@@ -17,12 +17,10 @@ defmodule Thinktank.Review.ContextTest do
     end
   end
 
-  test "returns an unavailable context outside a git repository" do
+  test "returns error when git is unavailable" do
     cwd = unique_tmp_dir("thinktank-review-context-non-git")
-    context = Context.capture(cwd, %{})
 
-    assert get_in(context, ["git", "available"]) == false
-    assert get_in(context, ["change", "file_count"]) == 0
+    assert {:error, :no_git_repository} = Context.capture(cwd, %{})
   end
 
   test "captures changed files and signals inside a git repository" do
@@ -41,7 +39,7 @@ defmodule Thinktank.Review.ContextTest do
       "defmodule Demo do\n  def run, do: :updated\nend\n"
     )
 
-    context = Context.capture(cwd, %{})
+    assert {:ok, context} = Context.capture(cwd, %{})
 
     assert get_in(context, ["git", "available"]) == true
     assert get_in(context, ["change", "file_count"]) >= 1

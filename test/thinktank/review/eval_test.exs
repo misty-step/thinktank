@@ -10,8 +10,25 @@ defmodule Thinktank.Review.EvalTest do
     dir
   end
 
+  defp git!(cwd, args) do
+    case System.cmd("git", args, cd: cwd, stderr_to_stdout: true, env: [{"LEFTHOOK", "0"}]) do
+      {_output, 0} -> :ok
+      {output, status} -> flunk("git #{Enum.join(args, " ")} failed (#{status}): #{output}")
+    end
+  end
+
+  defp init_git_repo_with_commit!(cwd) do
+    git!(cwd, ["init"])
+    git!(cwd, ["config", "user.email", "thinktank@example.com"])
+    git!(cwd, ["config", "user.name", "ThinkTank Test"])
+    File.write!(Path.join(cwd, ".gitkeep"), "")
+    git!(cwd, ["add", "."])
+    git!(cwd, ["commit", "-m", "initial"])
+  end
+
   test "replays one or more frozen contract files" do
     workspace = unique_tmp_dir("thinktank-review-eval-workspace")
+    init_git_repo_with_commit!(workspace)
     fixture_root = unique_tmp_dir("thinktank-review-eval-fixtures")
     output_root = Path.join(unique_tmp_dir("thinktank-review-eval-output"), "runs")
 
@@ -72,6 +89,7 @@ defmodule Thinktank.Review.EvalTest do
 
   test "replays a historical contract with a removed bench_id through review/default" do
     workspace = unique_tmp_dir("thinktank-review-eval-historical")
+    init_git_repo_with_commit!(workspace)
     fixture_root = unique_tmp_dir("thinktank-review-eval-historical-fixtures")
     output_root = Path.join(unique_tmp_dir("thinktank-review-eval-historical-output"), "runs")
 
