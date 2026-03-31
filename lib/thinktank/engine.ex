@@ -52,7 +52,7 @@ defmodule Thinktank.Engine do
          {:ok, agents} <- resolve_agents(bench, config, input),
          {:ok, planner} <- resolve_planner(bench, config),
          {:ok, synthesizer} <- resolve_synthesizer(bench, config) do
-      output_dir = Keyword.get(opts, :output, generate_output_dir(bench_id))
+      output_dir = Keyword.get(opts, :output) || generate_output_dir(bench_id)
 
       contract = %RunContract{
         bench_id: bench_id,
