@@ -3,8 +3,7 @@ defmodule Thinktank.Builtin do
 
   alias Thinktank.Prompts.{Research, Review, Synthesis}
 
-  @review_tools ["bash", "read", "grep", "find", "ls"]
-  @research_tools ["bash", "read", "grep", "find", "ls"]
+  @agent_tools ["bash", "read", "grep", "find", "ls"]
   @summary_tools ["read", "ls"]
 
   def raw_config do
@@ -60,7 +59,7 @@ defmodule Thinktank.Builtin do
           "anthropic/claude-sonnet-4.6",
           Research.systems(),
           Research.task(),
-          @research_tools
+          @agent_tools
         ),
       "verification" =>
         agent(
@@ -68,16 +67,16 @@ defmodule Thinktank.Builtin do
           "mistralai/mistral-large-2512",
           Research.verification(),
           Research.task(),
-          @research_tools
+          @agent_tools
         ),
-      "ml" => agent("ml", "x-ai/grok-4.1-fast", Research.ml(), Research.task(), @research_tools),
+      "ml" => agent("ml", "x-ai/grok-4.1-fast", Research.ml(), Research.task(), @agent_tools),
       "dx" =>
         agent(
           "dx",
           "google/gemini-3-flash-preview",
           Research.dx(),
           Research.task(),
-          @research_tools,
+          @agent_tools,
           thinking_level: "low"
         )
     }
@@ -100,7 +99,7 @@ defmodule Thinktank.Builtin do
     agents =
       Map.new(reviewers, fn {name, model, system, role} ->
         {name,
-         agent(name, model, system, Review.task(), @review_tools,
+         agent(name, model, system, Review.task(), @agent_tools,
            thinking_level: "high",
            retries: 2,
            metadata: %{"review_role" => role}
@@ -110,7 +109,7 @@ defmodule Thinktank.Builtin do
     Map.put(
       agents,
       "marshal",
-      agent("marshal", "openai/gpt-5.4", Review.marshal(), Review.plan_task(), @review_tools,
+      agent("marshal", "openai/gpt-5.4", Review.marshal(), Review.plan_task(), @agent_tools,
         thinking_level: "high",
         retries: 2,
         metadata: %{"review_role" => "planner"}
