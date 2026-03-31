@@ -55,6 +55,7 @@ defmodule Thinktank.Prompts.Review do
     "warnings": ["optional planner caveat"]
   }
 
+  Use exact agent names from the roster (e.g., "trace", "guard", "atlas"), not role descriptions.
   Pick only reviewers that materially add signal for this change. Avoid selecting everyone unless the
   change is genuinely broad. Do not report findings here. This step is only planning and tasking.
   """

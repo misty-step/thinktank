@@ -340,11 +340,18 @@ defmodule Thinktank.Executor.Agentic do
 
     task =
       Task.async(fn ->
-        System.cmd(cmd, args, cmd_opts)
+        try do
+          {:ok, System.cmd(cmd, args, cmd_opts)}
+        rescue
+          error -> {:error, Exception.message(error)}
+        catch
+          :exit, reason -> {:error, inspect(reason)}
+        end
       end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
-      {:ok, {output, exit_code}} -> {output, exit_code}
+      {:ok, {:ok, {output, exit_code}}} -> {output, exit_code}
+      {:ok, {:error, message}} -> {message, 1}
       nil -> {"", :timeout}
     end
   end
