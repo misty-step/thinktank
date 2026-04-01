@@ -48,12 +48,6 @@ defmodule Thinktank.Config do
     benches |> Map.values() |> Enum.sort_by(& &1.id)
   end
 
-  @spec workflow(t(), String.t()) :: {:ok, BenchSpec.t()} | {:error, String.t()}
-  def workflow(config, id), do: bench(config, id)
-
-  @spec list_workflows(t()) :: [BenchSpec.t()]
-  def list_workflows(config), do: list_benches(config)
-
   @spec user_config_dir(keyword()) :: String.t()
   def user_config_dir(opts \\ []) do
     home = Keyword.get(opts, :user_home, System.user_home!())
