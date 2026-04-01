@@ -52,7 +52,7 @@ defmodule Thinktank.Engine do
          {:ok, agents} <- resolve_agents(bench, config, input),
          {:ok, planner} <- resolve_planner(bench, config),
          {:ok, synthesizer} <- resolve_synthesizer(bench, config) do
-      output_dir = Keyword.get(opts, :output, generate_output_dir(bench_id))
+      output_dir = Keyword.get(opts, :output) || generate_output_dir(bench_id)
 
       contract = %RunContract{
         bench_id: bench_id,
@@ -95,50 +95,22 @@ defmodule Thinktank.Engine do
         RunStore.init_run(output_dir, contract, bench)
         write_task_artifact(output_dir, contract.input)
 
-        {planned_agents, context} =
-          prepare_execution(bench, agents, planner, contract, config, opts, output_dir)
+        case prepare_execution(bench, agents, planner, contract, config, opts, output_dir) do
+          {:ok, planned_agents, context} ->
+            execute_bench(
+              planned_agents,
+              context,
+              bench,
+              contract,
+              config,
+              synthesizer,
+              planner,
+              opts
+            )
 
-        RunStore.set_planned_agents(output_dir, Enum.map(planned_agents, & &1.name))
-
-        results =
-          Agentic.run(planned_agents, contract, context, config,
-            concurrency: bench.concurrency || length(planned_agents),
-            agent_config_dir: opts[:agent_config_dir],
-            runner: opts[:runner]
-          )
-
-        Enum.each(results, &record_result(output_dir, &1))
-
-        synthesis =
-          maybe_run_synthesizer(
-            synthesizer,
-            results,
-            bench,
-            contract,
-            config,
-            context,
-            opts,
-            output_dir
-          )
-
-        status = derive_status(results, synthesis)
-        RunStore.complete_run(output_dir, status)
-
-        run_result = %{
-          contract: contract,
-          bench: bench,
-          output_dir: output_dir,
-          envelope: RunStore.result_envelope(output_dir),
-          agents: planned_agents,
-          planner: planner,
-          synthesizer: synthesizer,
-          results: results,
-          synthesis: synthesis
-        }
-
-        case status do
-          "failed" -> {:error, Error.from_reason(:no_successful_agents), output_dir}
-          _ -> {:ok, run_result}
+          {:error, reason} ->
+            RunStore.complete_run(output_dir, "failed")
+            {:error, Error.from_reason(reason), output_dir}
         end
 
       {:error, reason, output_dir} ->
@@ -155,6 +127,53 @@ defmodule Thinktank.Engine do
       bench_id |> String.replace("/", "-") |> String.replace(~r/[^a-zA-Z0-9-]/, "")
 
     Path.join(System.tmp_dir!(), "thinktank-#{bench_slug}-#{timestamp}-#{suffix}")
+  end
+
+  defp execute_bench(planned_agents, context, bench, contract, config, synthesizer, planner, opts) do
+    output_dir = contract.artifact_dir
+
+    RunStore.set_planned_agents(output_dir, Enum.map(planned_agents, & &1.name))
+
+    results =
+      Agentic.run(planned_agents, contract, context, config,
+        concurrency: bench.concurrency || length(planned_agents),
+        agent_config_dir: opts[:agent_config_dir],
+        runner: opts[:runner]
+      )
+
+    Enum.each(results, &record_result(output_dir, &1))
+
+    synthesis =
+      maybe_run_synthesizer(
+        synthesizer,
+        results,
+        bench,
+        contract,
+        config,
+        context,
+        opts,
+        output_dir
+      )
+
+    status = derive_status(results, synthesis)
+    RunStore.complete_run(output_dir, status)
+
+    run_result = %{
+      contract: contract,
+      bench: bench,
+      output_dir: output_dir,
+      envelope: RunStore.result_envelope(output_dir),
+      agents: planned_agents,
+      planner: planner,
+      synthesizer: synthesizer,
+      results: results,
+      synthesis: synthesis
+    }
+
+    case status do
+      "failed" -> {:error, Error.from_reason(:no_successful_agents), output_dir}
+      _ -> {:ok, run_result}
+    end
   end
 
   defp maybe_run_synthesizer(
@@ -295,23 +314,28 @@ defmodule Thinktank.Engine do
          opts,
          output_dir
        ) do
-    review_context = Context.capture(contract.workspace_root, contract.input)
-    planning = plan_review(agents, planner, contract, review_context, config, opts)
-    planned_agents = Planner.apply_plan(planning.plan, agents)
-    write_review_artifacts(output_dir, review_context, planning)
+    case Context.capture(contract.workspace_root, contract.input) do
+      {:ok, review_context} ->
+        planning = plan_review(agents, planner, contract, review_context, config, opts)
+        planned_agents = Planner.apply_plan(planning.plan, agents)
+        write_review_artifacts(output_dir, review_context, planning)
 
-    context = %{
-      "paths_hint" => render_paths_hint(contract.input),
-      "review_context" => Context.render(review_context),
-      "review_plan" => Planner.render(planning.plan),
-      "synthesis_brief" => planning.plan["synthesis_brief"] || ""
-    }
+        context = %{
+          "paths_hint" => render_paths_hint(contract.input),
+          "review_context" => Context.render(review_context),
+          "review_plan" => Planner.render(planning.plan),
+          "synthesis_brief" => planning.plan["synthesis_brief"] || ""
+        }
 
-    {planned_agents, context}
+        {:ok, planned_agents, context}
+
+      {:error, _reason} = error ->
+        error
+    end
   end
 
   defp prepare_execution(_bench, agents, _planner, contract, _config, _opts, _output_dir) do
-    {agents, %{"paths_hint" => render_paths_hint(contract.input)}}
+    {:ok, agents, %{"paths_hint" => render_paths_hint(contract.input)}}
   end
 
   defp plan_review(

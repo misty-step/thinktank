@@ -14,7 +14,8 @@ defmodule Thinktank.Error do
 
   @known_reasons %{
     missing_input_text: "input text is required",
-    no_successful_agents: "no agents completed successfully"
+    no_successful_agents: "no agents completed successfully",
+    no_git_repository: "workspace is not a git repository — review requires git"
   }
 
   @spec from_reason(term()) :: t()

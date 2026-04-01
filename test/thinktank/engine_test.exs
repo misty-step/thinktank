@@ -5,6 +5,7 @@ defmodule Thinktank.EngineTest do
 
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
+    File.rm_rf!(dir)
     File.mkdir_p!(dir)
     dir
   end
@@ -15,7 +16,7 @@ defmodule Thinktank.EngineTest do
   end
 
   defp git!(cwd, args) do
-    case System.cmd("git", args, cd: cwd, stderr_to_stdout: true) do
+    case System.cmd("git", args, cd: cwd, stderr_to_stdout: true, env: [{"LEFTHOOK", "0"}]) do
       {output, 0} -> output
       {output, status} -> flunk("git #{Enum.join(args, " ")} failed (#{status}): #{output}")
     end
@@ -27,8 +28,16 @@ defmodule Thinktank.EngineTest do
     git!(cwd, ["config", "user.name", "ThinkTank Test"])
   end
 
+  defp init_git_repo_with_commit!(cwd) do
+    init_git_repo!(cwd)
+    File.write!(Path.join(cwd, ".gitkeep"), "")
+    git!(cwd, ["add", "."])
+    git!(cwd, ["commit", "-m", "initial"])
+  end
+
   test "runs a bench, records raw agent outputs, and writes a synthesized summary" do
     cwd = unique_tmp_dir("thinktank-engine")
+    init_git_repo_with_commit!(cwd)
 
     runner = fn _cmd, args, _opts ->
       path = prompt_path(args)
@@ -84,6 +93,7 @@ defmodule Thinktank.EngineTest do
 
   test "marks the run as degraded when an agent fails" do
     cwd = unique_tmp_dir("thinktank-engine-degraded")
+    init_git_repo_with_commit!(cwd)
 
     runner = fn _cmd, args, _opts ->
       prompt = File.read!(prompt_path(args))
@@ -163,6 +173,8 @@ defmodule Thinktank.EngineTest do
           default_task: Review the current change and report only real issues with evidence.
       """
     )
+
+    init_git_repo_with_commit!(cwd)
 
     runner = fn _cmd, args, _opts ->
       prompt = File.read!(prompt_path(args))
@@ -275,6 +287,19 @@ defmodule Thinktank.EngineTest do
     plan = result.output_dir |> Path.join("review/plan.json") |> File.read!() |> Jason.decode!()
     assert plan["source"] == "manual"
     assert Enum.map(plan["selected_agents"], & &1["name"]) == ["guard"]
+  end
+
+  test "review bench fails early when workspace has no git repository" do
+    cwd = unique_tmp_dir("thinktank-engine-review-no-git")
+    runner = fn _cmd, _args, _opts -> {"ok", 0} end
+
+    assert {:error, %Error{code: :no_git_repository}, _output_dir} =
+             Engine.run(
+               "review/default",
+               %{input_text: "Review this branch"},
+               cwd: cwd,
+               runner: runner
+             )
   end
 
   test "does not replace malformed input_text with a bench default task" do

@@ -5,15 +5,15 @@ defmodule Thinktank.Review.Context do
 
   @type t :: map()
 
-  @spec capture(String.t(), map(), keyword()) :: t()
+  @spec capture(String.t(), map(), keyword()) :: {:ok, t()} | {:error, atom()}
   def capture(workspace_root, input, opts \\ [])
       when is_binary(workspace_root) and is_map(input) do
     git_runner = Keyword.get(opts, :git_runner, &default_git_runner/2)
 
     if git_available?(workspace_root, git_runner) do
-      build_git_context(workspace_root, stringify_keys(input), git_runner)
+      {:ok, build_git_context(workspace_root, stringify_keys(input), git_runner)}
     else
-      unavailable_context(workspace_root)
+      {:error, :no_git_repository}
     end
   end
 
@@ -95,31 +95,6 @@ defmodule Thinktank.Review.Context do
         "signals" => change_signals(files)
       },
       "warnings" => warnings
-    }
-  end
-
-  defp unavailable_context(workspace_root) do
-    %{
-      "version" => 1,
-      "git" => %{
-        "available" => false,
-        "branch" => nil,
-        "head_sha" => nil,
-        "base" => nil,
-        "head" => nil,
-        "range" => nil,
-        "merge_base" => nil
-      },
-      "change" => %{
-        "file_count" => 0,
-        "directory_count" => 0,
-        "directories" => [],
-        "files" => [],
-        "files_truncated" => false,
-        "line_stats" => %{"added" => 0, "deleted" => 0, "binary_files" => 0},
-        "signals" => empty_signals()
-      },
-      "warnings" => ["git context unavailable for #{workspace_root}"]
     }
   end
 
@@ -215,17 +190,6 @@ defmodule Thinktank.Review.Context do
       "touches_ci" => Enum.any?(files, &ci_path?/1),
       "touches_dependencies" => Enum.any?(files, &dependency_path?/1),
       "touches_security_surface" => Enum.any?(files, &security_path?/1)
-    }
-  end
-
-  defp empty_signals do
-    %{
-      "touches_code" => false,
-      "touches_tests" => false,
-      "touches_docs" => false,
-      "touches_ci" => false,
-      "touches_dependencies" => false,
-      "touches_security_surface" => false
     }
   end
 
