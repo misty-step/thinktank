@@ -1,7 +1,7 @@
 # Delete Dead Workflow API
 
 Priority: low
-Status: ready
+Status: in-progress
 Estimate: S
 
 ## Goal
