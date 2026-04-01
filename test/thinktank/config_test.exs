@@ -98,4 +98,11 @@ defmodule Thinktank.ConfigTest do
     assert {:error, "bench demo/invalid: bench references unknown agent ghost"} =
              Config.load(cwd: tmp, trust_repo_config: true)
   end
+
+  test "does not expose legacy workflow aliases" do
+    assert function_exported?(Config, :bench, 2)
+    assert function_exported?(Config, :list_benches, 1)
+    refute function_exported?(Config, :workflow, 2)
+    refute function_exported?(Config, :list_workflows, 1)
+  end
 end
