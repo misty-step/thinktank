@@ -39,7 +39,7 @@ Rebuild after any code change. If the build fails, that's a P0 — stop QA.
 | 7 | `./thinktank research "test" --dry-run` | Exit 0, prints resolved bench without launching agents |
 | 8 | `./thinktank review --dry-run` | Exit 0, prints resolved review bench |
 | 9 | `./thinktank benches show nonexistent` | Exit 7, prints error message to stderr |
-| 10 | `./thinktank research --dry-run --json` | Exit 0, stdout is valid JSON |
+| 10 | `./thinktank research "test" --dry-run --json` | Exit 0, stdout is valid JSON |
 
 ## Interactive Flows (if PR touches these)
 
