@@ -70,7 +70,7 @@ test -f "$OUTPUT/manifest.json" && echo "manifest.json: ok"
 jq . "$OUTPUT/contract.json" > /dev/null && echo "contract.json: valid JSON"
 
 # manifest.json has expected fields
-jq '.bench_id, .status, .artifacts' "$OUTPUT/manifest.json"
+jq '.bench, .status, .artifacts' "$OUTPUT/manifest.json"
 
 # Agent outputs exist
 ls "$OUTPUT/agents/"*.md 2>/dev/null && echo "agent outputs: ok"

@@ -33,8 +33,9 @@ mix escript.build
 {
   echo "$ ./thinktank [command] [args]"
   ./thinktank [command] [args] 2>&1
+  rc=$?
   echo ""
-  echo "Exit code: $?"
+  echo "Exit code: $rc"
 } > /tmp/demo-thinktank/01-feature-name.txt
 ```
 
@@ -81,12 +82,12 @@ Target: GIFs < 5MB, text captures < 50KB.
 
 ```bash
 PR_NUM=123
-gh release create qa-evidence-pr-${PR_NUM} \
+gh release create demo-evidence-pr-${PR_NUM} \
   --draft \
-  --title "QA Evidence: PR #${PR_NUM}" \
+  --title "Demo Evidence: PR #${PR_NUM}" \
   --notes "Demo artifacts for PR #${PR_NUM}" \
   /tmp/demo-thinktank/*.txt /tmp/demo-thinktank/*.gif 2>/dev/null
-gh pr comment ${PR_NUM} --body "Demo evidence uploaded to draft release qa-evidence-pr-${PR_NUM}"
+gh pr comment ${PR_NUM} --body "Demo evidence uploaded to draft release demo-evidence-pr-${PR_NUM}"
 ```
 
 ## Demo-Worthy Features
