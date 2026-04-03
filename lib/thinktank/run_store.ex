@@ -118,14 +118,22 @@ defmodule Thinktank.RunStore do
   defp content_type(_type, _file), do: "application/octet-stream"
 
   defp read_synthesis(output_dir, artifacts) do
-    case Enum.find(artifacts, &(&1["name"] == "synthesis")) do
-      nil ->
-        nil
+    artifacts
+    |> summary_artifact()
+    |> read_artifact(output_dir)
+  end
 
-      %{"file" => file} ->
-        path = Path.join(output_dir, file)
-        if File.exists?(path), do: File.read!(path), else: nil
-    end
+  defp summary_artifact(artifacts) do
+    Enum.find_value(["synthesis", "review", "summary"], fn name ->
+      Enum.find(artifacts, &(&1["name"] == name))
+    end)
+  end
+
+  defp read_artifact(nil, _output_dir), do: nil
+
+  defp read_artifact(%{"file" => file}, output_dir) do
+    path = Path.join(output_dir, file)
+    if File.exists?(path), do: File.read!(path), else: nil
   end
 
   defp resolve_artifact_path(output_dir, filename) do

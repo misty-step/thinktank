@@ -82,6 +82,7 @@ defmodule Thinktank.EngineTest do
              )
 
     assert result.envelope.status == "complete"
+    assert result.envelope.synthesis =~ "Synthesized summary"
     assert File.exists?(Path.join(result.output_dir, "review.md"))
     assert File.read!(Path.join(result.output_dir, "review.md")) =~ "Synthesized summary"
     assert Enum.map(result.agents, & &1.name) == ["trace", "atlas", "proof"]
