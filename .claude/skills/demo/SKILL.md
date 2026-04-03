@@ -14,33 +14,14 @@ argument-hint: "[feature|PR-number] [--format txt|gif] [upload]"
 Capture thinktank CLI in action. Terminal output captures by default;
 GIF recordings for README or launch artifacts.
 
-## Capture Methods
+## Workflow
 
-| Feature | Method | Tool | Output |
-|---------|--------|------|--------|
-| Bench listing | Output capture | script/redirect | `.txt` |
-| Bench inspection | Output capture | script/redirect | `.txt` |
-| Dry-run | Output capture | script/redirect | `.txt` |
-| Full research run | Output capture + artifact tree | script/redirect | `.txt` |
-| Full review run | Output capture + artifact tree | script/redirect | `.txt` |
-| Any CLI flow | Terminal GIF | asciinema + agg | `.gif` |
+1. **Plan:** Read the diff. Identify which commands show the delta. Build a shot list.
+2. **Capture:** Execute — output capture for most commands, GIF for README-worthy flows.
+3. **Critique:** Fresh subagent (no shared context) reviews artifacts cold.
+4. **Upload:** `gh release create --draft` + PR comment (if requested).
 
-## Workflow: Planner -> Implementer -> Critic
-
-### 1. Plan
-
-Identify what to demo based on the PR or feature:
-
-- What changed? (read the diff or PR description)
-- Which commands show the change? (before -> after)
-- What artifacts prove it worked?
-
-Build a shot list:
-
-| # | Command | Shows | Before State | After State |
-|---|---------|-------|-------------|------------|
-
-### 2. Capture
+## Capture
 
 **Output capture (default):**
 
@@ -79,7 +60,7 @@ OUTPUT=$(ls -td /tmp/thinktank-* | head -1)
 ```bash
 # Record terminal session
 asciinema rec /tmp/demo-thinktank/session.cast \
-  --command "./thinktank benches list && ./thinktank research 'analyze' --dry-run"
+  --command "./thinktank benches list && ./thinktank research 'analyze this' --dry-run"
 
 # Convert to GIF
 agg /tmp/demo-thinktank/session.cast /tmp/demo-thinktank/demo.gif \
@@ -92,38 +73,19 @@ If asciinema/agg unavailable, use script + manual annotation:
 script -q /tmp/demo-thinktank/session.txt ./demo-script.sh
 ```
 
-Rules:
-- Every "after" has a paired "before" at the same viewport/command
-- Dry-run captures are free — prefer them for non-critical demos
-- Full run captures should show the artifact tree, not just stdout
-- Target: GIFs < 5MB, text captures < 50KB
+Every "after" needs a paired "before". Dry-run captures are free — prefer them.
+Full run captures should show the artifact tree, not just stdout.
+Target: GIFs < 5MB, text captures < 50KB.
 
-### 3. Critique
-
-Launch a **fresh subagent** (no context from the implementer) to review:
-
-- Does each capture show a meaningful delta (not just default state)?
-- Are before/after pairs present for claimed changes?
-- Is the text readable and the flow logical?
-- Do artifact trees match what the code should produce?
-- Are GIFs under 5MB with > 10 frames?
-
-### 4. Upload (if requested)
+## Upload (if requested)
 
 ```bash
-# Bundle evidence
 PR_NUM=123
-cd /tmp/demo-thinktank
-tar czf evidence.tar.gz *.txt *.gif 2>/dev/null
-
-# Create draft release and upload
 gh release create qa-evidence-pr-${PR_NUM} \
   --draft \
   --title "QA Evidence: PR #${PR_NUM}" \
   --notes "Demo artifacts for PR #${PR_NUM}" \
   /tmp/demo-thinktank/*.txt /tmp/demo-thinktank/*.gif 2>/dev/null
-
-# Comment on PR
 gh pr comment ${PR_NUM} --body "Demo evidence uploaded to draft release qa-evidence-pr-${PR_NUM}"
 ```
 

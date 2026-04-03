@@ -45,8 +45,8 @@ Rebuild after any code change. If the build fails, that's a P0 — stop QA.
 
 | Flow | Steps |
 |------|-------|
-| Research run | `research "analyze logging" --paths lib/` — verify agents/ dir, task.md, contract.json, manifest.json |
-| Review run | `review --base main --head HEAD` — verify review/, agents/, plan artifacts |
+| Research run | `research "analyze logging" --paths ./lib --dry-run` (or live) — verify agents/ dir, task.md, contract.json, manifest.json |
+| Review run | `review --base origin/main --head HEAD` — verify review/, agents/, plan artifacts |
 | Review eval | `review eval <prior-run-dir>` — verify replay produces fresh artifacts |
 | Repo config | Create `.thinktank/config.yml`, run with `--trust-repo-config` — verify custom bench loads |
 | JSON output | Add `--json` to any command — verify valid JSON envelope on stdout |
@@ -93,19 +93,6 @@ Capture strategy (CLI tool — no browser):
 | Artifact structure | `find $OUTPUT -type f` | `artifacts.txt` |
 | JSON validity | `jq . <file>` | Pass/fail in output |
 | Error cases | Run invalid commands | `errors.txt` |
-
-## Output
-
-```
-Status: PASS / FAIL
-
-Critical paths: 10/10 passed
-Artifact validation: ok / FAIL (details)
-Error handling: exits with correct codes
-Evidence: /tmp/qa-thinktank/
-
-Recommendation: ready to merge / needs fix
-```
 
 ## Gotchas
 
