@@ -113,7 +113,10 @@ defmodule Thinktank.CLI do
   def execute({:ok, %{action: :benches_validate} = command}) do
     case load_config(command) do
       {:ok, config} ->
-        IO.puts("Validated #{length(Config.list_benches(config))} benches")
+        config
+        |> Config.list_benches()
+        |> emit_benches_validate(command)
+
         @exit_codes.success
 
       {:error, reason} ->
@@ -434,6 +437,21 @@ defmodule Thinktank.CLI do
     Enum.each(benches, fn bench ->
       IO.puts("#{bench.id}\t#{bench.description}")
     end)
+  end
+
+  defp emit_benches_validate(benches, %{json: true}) do
+    payload = %{
+      status: "ok",
+      bench_count: length(benches)
+    }
+
+    payload
+    |> Jason.encode!()
+    |> IO.puts()
+  end
+
+  defp emit_benches_validate(benches, _command) do
+    IO.puts("Validated #{length(benches)} benches")
   end
 
   defp resolve_agents_payload(bench, _config, false), do: {:ok, bench.agents}
