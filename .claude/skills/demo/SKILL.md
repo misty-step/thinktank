@@ -11,13 +11,13 @@ argument-hint: "[feature|PR-number] [--format txt|gif] [upload]"
 
 # /demo
 
-Capture thinktank CLI in action. Terminal output captures by default;
-GIF recordings for README or launch artifacts.
+Capture thinktank CLI in action. Screenshots and GIFs are the default
+deliverable — text captures are raw data, not evidence.
 
 ## Workflow
 
 1. **Plan:** Read the diff. Identify which commands show the delta. Build a shot list.
-2. **Capture:** Execute — output capture for most commands, GIF for README-worthy flows.
+2. **Capture:** Execute — screenshot or GIF every command. Text logs are supplementary.
 3. **Critique:** Fresh subagent (no shared context) reviews artifacts cold.
 4. **Upload:** `gh release create --draft` + PR comment (if requested).
 

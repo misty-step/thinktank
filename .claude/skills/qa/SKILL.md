@@ -84,15 +84,18 @@ Evidence goes to `/tmp/qa-thinktank/`.
 mkdir -p /tmp/qa-thinktank
 ```
 
-Capture strategy (CLI tool — no browser):
+Text captures are raw data, not reviewer-facing evidence. Evidence is visual.
 
-| What | How | File |
-|------|-----|------|
-| Command output | Redirect stdout+stderr | `cmd-{name}.txt` |
+| Deliverable | Method | Format |
+|-------------|--------|--------|
+| Terminal screenshots | Screenshot each command + output | `.png` |
+| Terminal GIF | `asciinema rec` + `agg`, or `script` + screen capture | `.gif` |
+| Command log (raw data) | Redirect stdout+stderr | `cmd-{name}.txt` |
 | Exit codes | `echo $?` after each command | Inline in output files |
 | Artifact structure | `find $OUTPUT -type f` | `artifacts.txt` |
 | JSON validity | `jq . <file>` | Pass/fail in output |
-| Error cases | Run invalid commands | `errors.txt` |
+
+The PR comment must include screenshots or GIFs. Text tables are claims, not proof.
 
 ## Gotchas
 
