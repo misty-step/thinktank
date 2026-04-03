@@ -308,8 +308,12 @@ defmodule Thinktank.Executor.Agentic do
         {:ok, %File.Stat{type: :directory}} ->
           walk_reject_symlinks!(path)
 
-        _ ->
+        {:ok, _} ->
           :ok
+
+        {:error, reason} ->
+          raise ArgumentError,
+                "agent_config validation failed at #{path}: #{:file.format_error(reason)}"
       end
     end)
   end
