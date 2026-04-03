@@ -100,6 +100,7 @@ defmodule Thinktank.ConfigTest do
   end
 
   test "does not expose legacy workflow aliases" do
+    assert Code.ensure_loaded?(Config)
     assert function_exported?(Config, :bench, 2)
     assert function_exported?(Config, :list_benches, 1)
     refute function_exported?(Config, :workflow, 2)
