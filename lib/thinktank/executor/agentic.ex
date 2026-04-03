@@ -292,13 +292,21 @@ defmodule Thinktank.Executor.Agentic do
         :ok
     end
 
-    base_dir
-    |> Path.join("**")
-    |> Path.wildcard(match_dot: true)
-    |> Enum.each(fn path ->
+    walk_reject_symlinks!(base_dir)
+  end
+
+  defp walk_reject_symlinks!(dir) do
+    dir
+    |> File.ls!()
+    |> Enum.each(fn entry ->
+      path = Path.join(dir, entry)
+
       case File.lstat(path) do
         {:ok, %File.Stat{type: :symlink}} ->
           raise ArgumentError, "agent_config must not contain symlinks: #{path}"
+
+        {:ok, %File.Stat{type: :directory}} ->
+          walk_reject_symlinks!(path)
 
         _ ->
           :ok
