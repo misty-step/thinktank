@@ -120,6 +120,30 @@ defmodule Thinktank.RunStoreTest do
     assert json_artifact["content_type"] == "application/json"
   end
 
+  test "result_envelope inlines review summaries for review benches" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-store-review-envelope"), "run")
+
+    contract = %RunContract{
+      bench_id: "review/default",
+      workspace_root: File.cwd!(),
+      input: %{input_text: "review this branch"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{id: "review/default", description: "Review", agents: ["trace"]}
+
+    RunStore.init_run(output_dir, contract, bench)
+    RunStore.record_agent_result(output_dir, "trace", "grounded finding", %{status: :ok})
+    RunStore.write_text_artifact(output_dir, "summary", "summary.md", "Review summary")
+    RunStore.write_text_artifact(output_dir, "review", "review.md", "Synthesized review")
+    RunStore.complete_run(output_dir, "complete")
+
+    envelope = RunStore.result_envelope(output_dir)
+
+    assert envelope.synthesis == "Synthesized review"
+  end
+
   test "result_envelope synthesis is nil when no synthesis artifact exists" do
     output_dir = Path.join(unique_tmp_dir("thinktank-run-store-no-synth"), "run")
 

@@ -5,8 +5,6 @@ defmodule Thinktank.CLITest do
 
   alias Thinktank.{CLI, Config}
 
-  @exit_codes CLI.exit_codes()
-
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
     File.rm_rf!(dir)
