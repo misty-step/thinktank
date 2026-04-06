@@ -3,7 +3,9 @@ defmodule Thinktank.CLITest do
 
   import ExUnit.CaptureIO
 
-  alias Thinktank.CLI
+  alias Thinktank.{CLI, Config}
+
+  @exit_codes CLI.exit_codes()
 
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
@@ -194,10 +196,88 @@ defmodule Thinktank.CLITest do
 
   test "parses bench management commands and legacy workflows alias" do
     assert {:ok, %{action: :benches_list}} = CLI.parse_args(["benches", "list"])
-    assert {:ok, %{action: :benches_validate}} = CLI.parse_args(["workflows", "validate"])
+
+    assert {:ok, %{action: :benches_validate, json: true}} =
+             CLI.parse_args(["workflows", "validate", "--json"])
 
     assert {:ok, %{action: :benches_show, bench_id: "review/default"}} =
              CLI.parse_args(["workflows", "show", "review/default"])
+  end
+
+  test "benches validate prints JSON when --json is requested" do
+    {:ok, config} = Config.load()
+    expected_count = length(Config.list_benches(config))
+
+    {:ok, command} = CLI.parse_args(["benches", "validate", "--json"])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.success
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert decoded == %{"status" => "ok", "bench_count" => expected_count}
+  end
+
+  test "benches validate prints a human summary unless --json is requested" do
+    {:ok, config} = Config.load()
+    expected_count = length(Config.list_benches(config))
+
+    {:ok, command} = CLI.parse_args(["benches", "validate"])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.success
+      end)
+
+    assert output == "Validated #{expected_count} benches\n"
+  end
+
+  test "workflows validate prints the same JSON contract while the alias exists" do
+    {:ok, config} = Config.load()
+    expected_count = length(Config.list_benches(config))
+
+    {:ok, command} = CLI.parse_args(["workflows", "validate", "--json"])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.success
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert decoded == %{"status" => "ok", "bench_count" => expected_count}
+  end
+
+  test "benches validate emits structured JSON errors for invalid trusted repo config" do
+    in_tmp_repo_config("[]\n", fn ->
+      assert {:ok, command} =
+               CLI.parse_args(["benches", "validate", "--trust-repo-config", "--json"])
+
+      stderr =
+        capture_io(:stderr, fn ->
+          assert CLI.execute({:ok, command}) == @exit_codes.input_error
+        end)
+
+      assert {:ok, decoded} = Jason.decode(String.trim(stderr))
+      assert decoded["error"]["code"] == "run_error"
+      assert decoded["error"]["message"] =~ "must contain a YAML mapping"
+      assert decoded["error"]["details"] == %{}
+      assert decoded["output_dir"] == nil
+    end)
+  end
+
+  test "benches validate emits text errors without --json" do
+    in_tmp_repo_config("[]\n", fn ->
+      assert {:ok, command} = CLI.parse_args(["benches", "validate", "--trust-repo-config"])
+
+      stderr =
+        capture_io(:stderr, fn ->
+          assert CLI.execute({:ok, command}) == @exit_codes.input_error
+        end)
+
+      assert stderr =~ "Error: config file"
+      assert stderr =~ "must contain a YAML mapping"
+    end)
   end
 
   test "returns :needs_stdin when no research input is provided" do

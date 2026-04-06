@@ -1,7 +1,7 @@
 defmodule Thinktank.Integration.AgentContractTest do
   @moduledoc """
   Integration tests verifying the agent discovery contract:
-  list benches (JSON) -> pick one -> show it (JSON, full) -> verify schema.
+  validate benches (JSON) -> list benches (JSON) -> pick one -> show it (JSON, full).
   Also tests structured error envelope output.
   """
 
@@ -14,6 +14,21 @@ defmodule Thinktank.Integration.AgentContractTest do
   @exit_codes CLI.exit_codes()
 
   describe "agent discovery path" do
+    test "validate benches exposes a machine-readable success payload" do
+      {:ok, validate_cmd} = CLI.parse_args(["benches", "validate", "--json"])
+
+      validate_output =
+        capture_io(fn ->
+          assert CLI.execute({:ok, validate_cmd}) == @exit_codes.success
+        end)
+
+      {:ok, validate_payload} = Jason.decode(String.trim(validate_output))
+      assert validate_payload["status"] == "ok"
+      assert is_integer(validate_payload["bench_count"])
+      assert validate_payload["bench_count"] > 0
+      assert Map.keys(validate_payload) |> Enum.sort() == ["bench_count", "status"]
+    end
+
     test "list benches, pick one, show full spec — all JSON" do
       # Step 1: list benches as JSON
       {:ok, list_cmd} = CLI.parse_args(["benches", "list", "--json"])
