@@ -88,20 +88,18 @@ defmodule Thinktank.CLI do
     with {:ok, config} <- load_config(command),
          {:ok, bench} <- Config.bench(config, bench_id),
          {:ok, agents_payload} <- resolve_agents_payload(bench, config, command.full) do
-      rendered =
-        %{
-          id: bench.id,
-          description: bench.description,
-          kind: bench.kind,
-          agents: agents_payload,
-          planner: bench.planner,
-          synthesizer: bench.synthesizer,
-          concurrency: bench.concurrency,
-          default_task: bench.default_task
-        }
-        |> Jason.encode!(pretty: true)
+      payload = %{
+        id: bench.id,
+        description: bench.description,
+        kind: bench.kind,
+        agents: agents_payload,
+        planner: bench.planner,
+        synthesizer: bench.synthesizer,
+        concurrency: bench.concurrency,
+        default_task: bench.default_task
+      }
 
-      IO.puts(rendered)
+      emit_benches_show(payload, command)
       @exit_codes.success
     else
       {:error, reason} ->
@@ -452,6 +450,65 @@ defmodule Thinktank.CLI do
 
   defp emit_benches_validate(benches, _command) do
     IO.puts("Validated #{length(benches)} benches")
+  end
+
+  defp emit_benches_show(payload, %{json: true}) do
+    payload
+    |> Jason.encode!(pretty: true)
+    |> IO.puts()
+  end
+
+  defp emit_benches_show(payload, _command) do
+    IO.puts("""
+    Bench: #{payload.id}
+    Description: #{payload.description}
+    Kind: #{payload.kind}
+    Planner: #{payload.planner || "none"}
+    Synthesizer: #{payload.synthesizer || "none"}
+    Concurrency: #{payload.concurrency || "none"}
+    Default Task: #{payload.default_task || "none"}
+
+    Agents:
+    #{render_bench_show_agent_lines(payload.agents)}
+    """)
+  end
+
+  defp render_bench_show_agent_lines(agents) do
+    Enum.map_join(agents, "\n", fn
+      name when is_binary(name) ->
+        "- #{name}"
+
+      %{} = agent ->
+        tools =
+          case agent.tools do
+            nil -> "none"
+            [] -> "none"
+            values -> Enum.join(values, ", ")
+          end
+
+        system_prompt =
+          agent.system_prompt
+          |> String.trim_trailing()
+          |> indent_lines("      ")
+
+        """
+        - #{agent.name}
+          model=#{agent.model}
+          provider=#{agent.provider}
+          thinking_level=#{agent.thinking_level}
+          timeout_ms=#{agent.timeout_ms}
+          tools=#{tools}
+          system_prompt:
+        #{system_prompt}
+        """
+        |> String.trim_trailing()
+    end)
+  end
+
+  defp indent_lines(text, prefix) do
+    text
+    |> String.split("\n")
+    |> Enum.map_join("\n", &(prefix <> &1))
   end
 
   defp resolve_agents_payload(bench, _config, false), do: {:ok, bench.agents}

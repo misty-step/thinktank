@@ -526,8 +526,10 @@ defmodule Thinktank.CLITest do
     end)
   end
 
-  test "benches show without --full keeps agent names only" do
-    {:ok, command} = CLI.parse_args(["benches", "show", "research/default"])
+  test "benches show --json preserves the machine-readable payload without --full" do
+    {:ok, command} = CLI.parse_args(["benches", "show", "research/default", "--json"])
+    assert command.action == :benches_show
+    assert command.json == true
     assert command.full == false
 
     output =
@@ -536,6 +538,52 @@ defmodule Thinktank.CLITest do
       end)
 
     assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert decoded["id"] == "research/default"
+    assert decoded["kind"] == "research"
     assert decoded["agents"] == ["systems", "verification", "ml", "dx"]
+    assert decoded["planner"] == nil
+    assert decoded["synthesizer"] == "research-synth"
+  end
+
+  test "benches show without --full emits human-readable text" do
+    {:ok, command} = CLI.parse_args(["benches", "show", "research/default"])
+    assert command.full == false
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == 0
+      end)
+
+    assert output =~ "Bench: research/default"
+    assert output =~ "Description:"
+    assert output =~ "Kind: research"
+    assert output =~ "Agents:"
+    assert output =~ "- systems"
+    assert output =~ "- verification"
+    assert output =~ "- ml"
+    assert output =~ "- dx"
+    assert {:error, _} = Jason.decode(String.trim(output))
+  end
+
+  test "benches show --full emits human-readable agent details without --json" do
+    {:ok, command} = CLI.parse_args(["benches", "show", "review/default", "--full"])
+    assert command.full == true
+    assert command.json == false
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == 0
+      end)
+
+    assert output =~ "Bench: review/default"
+    assert output =~ "Kind: review"
+    assert output =~ "Agents:"
+    assert output =~ "trace"
+    assert output =~ "model="
+    assert output =~ "thinking_level="
+    assert output =~ "timeout_ms="
+    assert output =~ "system_prompt:"
+    assert output =~ ~r/system_prompt:\n\s{6}\S/
+    assert {:error, _} = Jason.decode(String.trim(output))
   end
 end
