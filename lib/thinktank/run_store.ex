@@ -103,6 +103,9 @@ defmodule Thinktank.RunStore do
       output_dir: output_dir,
       bench: manifest["bench"],
       status: manifest["status"],
+      started_at: manifest["started_at"],
+      completed_at: manifest["completed_at"],
+      duration_ms: duration_ms(manifest["started_at"], manifest["completed_at"]),
       agents: manifest["agents"],
       artifacts: artifacts,
       synthesis: read_synthesis(output_dir, artifacts)
@@ -233,4 +236,16 @@ defmodule Thinktank.RunStore do
   end
 
   defp now_iso8601, do: DateTime.utc_now() |> DateTime.to_iso8601()
+
+  defp duration_ms(started_at, completed_at)
+       when is_binary(started_at) and is_binary(completed_at) do
+    with {:ok, start_dt, _} <- DateTime.from_iso8601(started_at),
+         {:ok, end_dt, _} <- DateTime.from_iso8601(completed_at) do
+      DateTime.diff(end_dt, start_dt, :millisecond)
+    else
+      _ -> nil
+    end
+  end
+
+  defp duration_ms(_, _), do: nil
 end

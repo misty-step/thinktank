@@ -18,6 +18,13 @@ defmodule Thinktank.Builtin do
       },
       "agents" => research_agents() |> Map.merge(review_agents()) |> Map.merge(synth_agents()),
       "benches" => %{
+        "research/quick" => %{
+          "kind" => "research",
+          "description" =>
+            "Launch a fast repo-aware research bench without a synthesizer for quick local grounding.",
+          "agents" => ["systems", "verification"],
+          "concurrency" => 2
+        },
         "research/default" => %{
           "kind" => "research",
           "description" =>

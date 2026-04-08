@@ -274,6 +274,9 @@ defmodule Thinktank.Engine do
       status: result.status,
       model: result.agent.model,
       provider: result.agent.provider,
+      started_at: result.started_at,
+      completed_at: result.completed_at,
+      duration_ms: result.duration_ms,
       usage: result.usage,
       error: result.error
     })

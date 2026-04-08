@@ -33,17 +33,23 @@ agents:
     timeout_ms: 600000
 
 benches:
-  review/cerberus:
+  research/quick:
+    kind: research
+    description: Fast repo-aware research bench
+    agents: [systems, verification]
+
+  review/default:
     kind: review
-    description: Fixed review bench
+    description: Default review bench
     agents: [trace, guard, atlas, proof]
+    planner: marshal
     synthesizer: review-synth
     concurrency: 4
     default_task: Review the current change and report only real issues with evidence.
 
   research/default:
     kind: research
-    description: Fixed research bench
+    description: Default research bench
     agents: [systems, verification, ml, dx]
     synthesizer: research-synth
 ```
@@ -67,8 +73,9 @@ stdin or `--input`.
 
 ## Built-In Benches
 
+- `research/quick`
 - `research/default`
-- `review/cerberus`
+- `review/default`
 
 ## Current Provider Support
 

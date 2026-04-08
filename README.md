@@ -26,9 +26,10 @@ Built with Elixir/OTP.
 mix deps.get
 mix escript.build
 
-export OPENROUTER_API_KEY="your-key"
+export THINKTANK_OPENROUTER_API_KEY="your-key"
 
 ./thinktank research "analyze this codebase" --paths ./lib
+./thinktank run research/quick --input "quick repo scan" --paths ./lib --no-synthesis
 ./thinktank review --base origin/main --head HEAD
 ```
 
@@ -69,14 +70,17 @@ thinktank benches list|show|validate
 # Fixed research bench
 thinktank research "what is wrong with this architecture?" --paths ./lib
 
+# Fast repo-aware research bench without an internal synthesizer
+thinktank run research/quick --input "what changed in this subsystem?" --paths ./lib --no-synthesis
+
 # Fixed review bench
 thinktank review --base origin/main --head HEAD
 
-# Replay frozen review workloads through a different bench
-thinktank review eval ./tmp/review-run --bench review/constellation
+# Replay frozen review workloads through a named bench
+thinktank review eval ./tmp/review-run --bench review/default
 
 # Explicit bench invocation with a subset of agents
-thinktank run review/cerberus --input "Review this branch" --agents trace,guard
+thinktank run review/default --input "Review this branch" --agents trace,guard
 
 # Show bench configuration
 thinktank benches show research/default
@@ -93,9 +97,9 @@ ThinkTank loads configuration with this precedence:
 
 Built-in benches:
 
+- `research/quick`
 - `research/default`
-- `review/cerberus`
-- `review/constellation`
+- `review/default`
 
 Config shape:
 
@@ -116,7 +120,7 @@ agents:
     tools: [bash, read, grep, find, ls]
 
 benches:
-  review/cerberus:
+  review/default:
     kind: review
     description: Fixed review bench
     agents: [trace, guard, atlas, proof]
@@ -166,6 +170,10 @@ Each run writes:
 - `review/planner.md` when a planner agent runs
 - `manifest.json` — run metadata and artifact index
 
+`--json` prints the final run envelope to stdout after the bench completes. It
+does not write a `report.json` artifact. For research benches, the synthesized
+document lives in `synthesis.md` when a synthesizer is enabled.
+
 ThinkTank records raw outputs and run metadata. It does not attempt to recover
 structure from agent prose after the fact.
 
@@ -176,9 +184,7 @@ structure from agent prose after the fact.
 - ThinkTank may write a light review context pack and review plan before
   launching reviewers. These are orientation artifacts, not substitutes for
   repository exploration.
-- `review/cerberus` uses a small default roster with `marshal` as planner.
-- `review/constellation` exposes the full cross-model reviewer bench for wider
-  coverage and experimentation.
+- `review/default` uses `marshal` as planner and synthesizes across the full reviewer roster.
 - `--base`, `--head`, `--repo`, and `--pr` are orientation hints for the
   reviewers and synthesizer.
 - Repository-local `agent_config/` is only loaded when

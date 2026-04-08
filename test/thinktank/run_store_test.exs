@@ -59,6 +59,9 @@ defmodule Thinktank.RunStoreTest do
     assert envelope.output_dir == output_dir
     assert envelope.bench == "research/default"
     assert envelope.status == "complete"
+    assert is_binary(envelope.started_at)
+    assert is_binary(envelope.completed_at)
+    assert is_integer(envelope.duration_ms)
     assert Enum.any?(envelope.agents, &(&1["name"] == "systems"))
     assert Enum.any?(envelope.artifacts, &(&1["name"] == "summary"))
   end

@@ -17,10 +17,12 @@ defmodule Thinktank.ConfigTest do
              Config.load(cwd: File.cwd!(), user_config_path: missing_path)
 
     assert Map.has_key?(config.providers, "openrouter")
+    assert Map.has_key?(config.benches, "research/quick")
     assert Map.has_key?(config.benches, "research/default")
     assert Map.has_key?(config.benches, "review/default")
     assert Map.has_key?(config.agents, "marshal")
     assert Map.has_key?(config.agents, "trace")
+    assert config.benches["research/quick"].kind == :research
     assert config.benches["research/default"].kind == :research
     assert config.benches["review/default"].kind == :review
     assert config.benches["review/default"].planner == "marshal"

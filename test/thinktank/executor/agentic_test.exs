@@ -1,5 +1,6 @@
 defmodule Thinktank.Executor.AgenticTest do
   use ExUnit.Case, async: false
+  import ExUnit.CaptureLog
 
   alias Thinktank.{AgentSpec, Config, ProviderSpec, RunContract}
   alias Thinktank.Executor.Agentic
@@ -96,6 +97,33 @@ defmodule Thinktank.Executor.AgenticTest do
     assert_receive {:pi_home, pi_home}
     assert pi_home =~ Path.join(contract(tmp).artifact_dir, "pi-home/trace-guard-")
     assert File.dir?(pi_home)
+  end
+
+  test "records timing metadata for successful runs" do
+    tmp = unique_tmp_dir("thinktank-agentic-timing")
+
+    agent = %AgentSpec{
+      name: "trace",
+      provider: "openrouter",
+      model: "openai/gpt-5.4",
+      system_prompt: "You are a reviewer.",
+      task_prompt: "{{input_text}}",
+      timeout_ms: 5_000
+    }
+
+    runner = fn _cmd, _args, _opts ->
+      Process.sleep(10)
+      {"timed output", 0}
+    end
+
+    [result] = Agentic.run([agent], contract(tmp), %{}, config(), runner: runner)
+
+    assert result.status == :ok
+    assert result.output == "timed output"
+    assert is_binary(result.started_at)
+    assert is_binary(result.completed_at)
+    assert is_integer(result.duration_ms)
+    assert result.duration_ms >= 0
   end
 
   test "rejects trusted agent config trees that contain symlinks" do
@@ -220,7 +248,14 @@ defmodule Thinktank.Executor.AgenticTest do
 
     runner = fn _cmd, _args, _opts -> exit(:boom) end
 
-    [result] = Agentic.run([agent], contract(tmp), %{}, config(), runner: runner)
+    capture_log(fn ->
+      send(
+        self(),
+        {:agentic_result, Agentic.run([agent], contract(tmp), %{}, config(), runner: runner)}
+      )
+    end)
+
+    assert_receive {:agentic_result, [result]}
 
     assert result.status == :error
     assert result.error.category == :crash

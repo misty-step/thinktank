@@ -14,6 +14,9 @@ defmodule Thinktank.Executor.Agentic do
           instance_id: String.t(),
           status: :ok | :error,
           output: String.t(),
+          started_at: String.t() | nil,
+          completed_at: String.t() | nil,
+          duration_ms: non_neg_integer() | nil,
           usage: nil,
           error: map() | nil
         }
@@ -55,83 +58,74 @@ defmodule Thinktank.Executor.Agentic do
         result
 
       {{:exit, reason}, {agent, index}} when reason in [:timeout, {:timeout, nil}] ->
-        %{
-          agent: agent,
-          instance_id: agent_instance_id(agent, index),
-          status: :error,
-          output: "",
-          usage: nil,
-          error: %{category: :timeout}
-        }
+        untimed_result(agent, agent_instance_id(agent, index), :error, "", %{category: :timeout})
 
       {{:exit, reason}, {agent, index}} ->
-        %{
-          agent: agent,
-          instance_id: agent_instance_id(agent, index),
-          status: :error,
-          output: "",
-          usage: nil,
-          error: %{category: :crash, message: inspect(reason)}
-        }
+        untimed_result(
+          agent,
+          agent_instance_id(agent, index),
+          :error,
+          "",
+          %{category: :crash, message: inspect(reason)}
+        )
     end)
   end
 
   defp run_agent(agent, index, contract, context, config, runner, opts) do
     instance_id = agent_instance_id(agent, index)
+    started_at = DateTime.utc_now() |> DateTime.to_iso8601()
+    started_mono = System.monotonic_time(:millisecond)
 
-    rendered_prompt =
-      agent.task_prompt
-      |> Template.render(
-        contract.input
-        |> Map.merge(context)
-        |> Map.merge(stringify_keys(agent.metadata))
-        |> Map.merge(%{
-          "agent_name" => agent.name,
-          "bench_id" => contract.bench_id,
-          "workspace_root" => contract.workspace_root
-        })
-        |> stringify_keys()
-      )
+    try do
+      rendered_prompt =
+        agent.task_prompt
+        |> Template.render(
+          contract.input
+          |> Map.merge(context)
+          |> Map.merge(stringify_keys(agent.metadata))
+          |> Map.merge(%{
+            "agent_name" => agent.name,
+            "bench_id" => contract.bench_id,
+            "workspace_root" => contract.workspace_root
+          })
+          |> stringify_keys()
+        )
 
-    prompt = "#{agent.system_prompt}\n\n#{rendered_prompt}"
-    prompt_file = write_prompt_file(contract, instance_id, prompt)
-    provider = config.providers[agent.provider]
-    {cmd, args} = build_command(agent, prompt_file, tool_list(agent), provider)
+      prompt = "#{agent.system_prompt}\n\n#{rendered_prompt}"
+      prompt_file = write_prompt_file(contract, instance_id, prompt)
+      provider = config.providers[agent.provider]
+      {cmd, args} = build_command(agent, prompt_file, tool_list(agent), provider)
 
-    cmd_opts =
-      build_cmd_opts(agent, instance_id, contract, config.providers[agent.provider], opts)
+      cmd_opts =
+        build_cmd_opts(agent, instance_id, contract, config.providers[agent.provider], opts)
 
-    case attempt(agent.retries + 1, fn -> run_once(runner, cmd, args, cmd_opts) end) do
-      {:ok, output} ->
-        %{
-          agent: agent,
-          instance_id: instance_id,
-          status: :ok,
-          output: output,
-          usage: nil,
-          error: nil
-        }
+      case attempt(agent.retries + 1, fn -> run_once(runner, cmd, args, cmd_opts) end) do
+        {:ok, output} ->
+          timed_result(agent, instance_id, :ok, output, started_at, started_mono, nil)
 
-      {:error, %{output: output} = error} ->
-        %{
-          agent: agent,
-          instance_id: instance_id,
-          status: :error,
-          output: output,
-          usage: nil,
-          error: Map.delete(error, :output)
-        }
+        {:error, %{output: output} = error} ->
+          timed_result(
+            agent,
+            instance_id,
+            :error,
+            output,
+            started_at,
+            started_mono,
+            Map.delete(error, :output)
+          )
+      end
+    rescue
+      error ->
+        timed_result(
+          agent,
+          instance_id,
+          :error,
+          "",
+          started_at,
+          started_mono,
+          %{category: :crash, message: Exception.message(error)}
+        )
     end
-  rescue
-    error ->
-      %{
-        agent: agent,
-        instance_id: agent_instance_id(agent, index),
-        status: :error,
-        output: "",
-        usage: nil,
-        error: %{category: :crash, message: Exception.message(error)}
-      }
   end
 
   defp run_once(runner, cmd, args, cmd_opts) do
@@ -145,6 +139,54 @@ defmodule Thinktank.Executor.Agentic do
       {output, exit_code} ->
         {:error, %{category: :crash, exit_code: exit_code, output: output}}
     end
+  end
+
+  defp timed_result(agent, instance_id, status, output, started_at, started_mono, error) do
+    build_result(
+      agent,
+      instance_id,
+      status,
+      output,
+      started_at,
+      completed_at_iso8601(),
+      elapsed_ms(started_mono),
+      error
+    )
+  end
+
+  defp completed_at_iso8601 do
+    DateTime.utc_now() |> DateTime.to_iso8601()
+  end
+
+  defp elapsed_ms(started_mono) do
+    System.monotonic_time(:millisecond) - started_mono
+  end
+
+  defp untimed_result(agent, instance_id, status, output, error) do
+    build_result(agent, instance_id, status, output, nil, nil, nil, error)
+  end
+
+  defp build_result(
+         agent,
+         instance_id,
+         status,
+         output,
+         started_at,
+         completed_at,
+         duration_ms,
+         error
+       ) do
+    %{
+      agent: agent,
+      instance_id: instance_id,
+      status: status,
+      output: output,
+      started_at: started_at,
+      completed_at: completed_at,
+      duration_ms: duration_ms,
+      usage: nil,
+      error: error
+    }
   end
 
   defp attempt(remaining, fun) when remaining > 0 do
