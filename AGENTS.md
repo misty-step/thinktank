@@ -33,6 +33,11 @@ ThinkTank is a thin Pi bench launcher for research and review.
 - Prefer general tools over bespoke harness logic
 - Prefer deletion over additional orchestration layers
 
+## Local Gates
+
+- Use `mix test` and `mix compile --warnings-as-errors` as the local merge-readiness gates.
+- Do not assume `dagger.json`, verdict refs, or repo-local claim scripts exist here unless you can see them in the tree.
+
 ## Smell Tests
 
 - Regex over agent prose: wrong layer
