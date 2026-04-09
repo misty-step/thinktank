@@ -4,6 +4,7 @@ defmodule Thinktank.RunStore do
   """
 
   alias Thinktank.{BenchSpec, RunContract}
+  alias Thinktank.TraceLog
 
   @manifest_file "manifest.json"
 
@@ -14,13 +15,14 @@ defmodule Thinktank.RunStore do
     mkdir_private!(Path.join(output_dir, "artifacts"))
     mkdir_private!(Path.join(output_dir, "prompts"))
     mkdir_private!(Path.join(output_dir, "pi-home"))
+    started_at = now_iso8601()
 
     manifest = %{
       "version" => version(),
       "bench" => bench.id,
       "status" => "running",
       "workspace_root" => contract.workspace_root,
-      "started_at" => now_iso8601(),
+      "started_at" => started_at,
       "completed_at" => nil,
       "input" => normalize(contract.input),
       "adapter_context" => normalize(contract.adapter_context || %{}),
@@ -33,6 +35,16 @@ defmodule Thinktank.RunStore do
     write_manifest(output_dir, manifest)
     write_json(Path.join(output_dir, "contract.json"), RunContract.to_map(contract))
     record_artifact(output_dir, "contract", "contract.json", "json")
+
+    TraceLog.init_run(output_dir, %{
+      "bench" => bench.id,
+      "workspace_root" => contract.workspace_root,
+      "started_at" => started_at,
+      "status" => "running"
+    })
+
+    record_artifact(output_dir, "trace-events", TraceLog.events_file(), "jsonl")
+    record_artifact(output_dir, "trace-summary", TraceLog.summary_file(), "json")
   end
 
   @spec record_agent_result(Path.t(), String.t(), String.t(), map()) :: :ok
@@ -76,9 +88,13 @@ defmodule Thinktank.RunStore do
 
   @spec complete_run(Path.t(), String.t()) :: :ok
   def complete_run(output_dir, status) do
+    completed_at = now_iso8601()
+
     update_manifest(output_dir, fn manifest ->
-      %{manifest | "status" => status, "completed_at" => now_iso8601()}
+      %{manifest | "status" => status, "completed_at" => completed_at}
     end)
+
+    TraceLog.complete_run(output_dir, %{"status" => status, "completed_at" => completed_at})
   end
 
   @spec set_planned_agents(Path.t(), [String.t()]) :: :ok
@@ -113,6 +129,7 @@ defmodule Thinktank.RunStore do
   end
 
   defp content_type("json", _file), do: "application/json"
+  defp content_type("jsonl", _file), do: "application/x-ndjson"
 
   defp content_type("text", file) when is_binary(file) do
     if String.ends_with?(file, ".md"), do: "text/markdown", else: "text/plain"

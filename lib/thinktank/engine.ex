@@ -9,7 +9,9 @@ defmodule Thinktank.Engine do
     Config,
     Error,
     RunContract,
-    RunStore
+    RunStore,
+    RunTracker,
+    TraceLog
   }
 
   alias Thinktank.Executor.Agentic
@@ -82,36 +84,8 @@ defmodule Thinktank.Engine do
           {:ok, run_result()} | {:error, Error.t(), String.t() | nil}
   def run(bench_id, input, opts \\ []) do
     case resolve(bench_id, input, opts) do
-      {:ok,
-       %{
-         config: config,
-         bench: bench,
-         contract: contract,
-         output_dir: output_dir,
-         agents: agents,
-         planner: planner,
-         synthesizer: synthesizer
-       }} ->
-        RunStore.init_run(output_dir, contract, bench)
-        write_task_artifact(output_dir, contract.input)
-
-        case prepare_execution(bench, agents, planner, contract, config, opts, output_dir) do
-          {:ok, planned_agents, context} ->
-            execute_bench(
-              planned_agents,
-              context,
-              bench,
-              contract,
-              config,
-              synthesizer,
-              planner,
-              opts
-            )
-
-          {:error, reason} ->
-            RunStore.complete_run(output_dir, "failed")
-            {:error, Error.from_reason(reason), output_dir}
-        end
+      {:ok, resolved} ->
+        run_resolved(resolved, opts)
 
       {:error, reason, output_dir} ->
         {:error, reason, output_dir}
@@ -143,6 +117,12 @@ defmodule Thinktank.Engine do
 
     RunStore.set_planned_agents(output_dir, Enum.map(planned_agents, & &1.name))
 
+    TraceLog.record_event(output_dir, "planned_agents_selected", %{
+      "bench" => bench.id,
+      "agent_names" => Enum.map(planned_agents, & &1.name),
+      "agent_count" => length(planned_agents)
+    })
+
     results =
       Agentic.run(planned_agents, contract, context, config,
         concurrency: bench.concurrency || length(planned_agents),
@@ -165,7 +145,13 @@ defmodule Thinktank.Engine do
       )
 
     status = derive_status(results, synthesis)
-    RunStore.complete_run(output_dir, status)
+
+    RunTracker.finish(output_dir, status, %{
+      "bench" => bench.id,
+      "successful_agents" => Enum.count(results, &(&1.status == :ok)),
+      "failed_agents" => Enum.count(results, &(&1.status == :error)),
+      "synthesis_status" => synthesis && synthesis.status
+    })
 
     run_result = %{
       contract: contract,
@@ -183,6 +169,195 @@ defmodule Thinktank.Engine do
       "failed" -> {:error, Error.from_reason(:no_successful_agents), output_dir}
       _ -> {:ok, run_result}
     end
+  end
+
+  defp run_resolved(
+         %{
+           config: config,
+           bench: bench,
+           contract: contract,
+           output_dir: output_dir,
+           agents: agents,
+           planner: planner,
+           synthesizer: synthesizer
+         },
+         opts
+       ) do
+    with :ok <- init_run(output_dir, contract, bench),
+         :ok <- write_bootstrap_artifacts(output_dir, contract.input, bench, contract) do
+      record_run_started(output_dir, contract, bench, planner, synthesizer)
+
+      prepare_and_execute(bench, agents, planner, contract, config, opts, output_dir, synthesizer)
+    else
+      {:error, reason} ->
+        {:error, reason, output_dir}
+    end
+  end
+
+  defp prepare_and_execute(
+         bench,
+         agents,
+         planner,
+         contract,
+         config,
+         opts,
+         output_dir,
+         synthesizer
+       ) do
+    case prepare_execution(bench, agents, planner, contract, config, opts, output_dir) do
+      {:ok, planned_agents, context} ->
+        execute_bench(
+          planned_agents,
+          context,
+          bench,
+          contract,
+          config,
+          synthesizer,
+          planner,
+          opts
+        )
+
+      {:error, reason} ->
+        RunTracker.finish(output_dir, "failed", %{
+          "bench" => bench.id,
+          "phase" => "prepare_execution",
+          "error" => Error.from_reason(reason)
+        })
+
+        {:error, Error.from_reason(reason), output_dir}
+    end
+  end
+
+  defp init_run(output_dir, contract, bench) do
+    rescue_bootstrap_failure("init_run", bench, contract, fn ->
+      RunStore.init_run(output_dir, contract, bench)
+      RunTracker.start(output_dir, %{"bench" => bench.id})
+      :ok
+    end)
+  end
+
+  defp write_bootstrap_artifacts(output_dir, input, bench, contract) do
+    rescue_bootstrap_failure("task_artifact", bench, contract, fn ->
+      write_task_artifact(output_dir, input)
+      :ok
+    end)
+  end
+
+  defp rescue_bootstrap_failure(phase, bench, contract, fun) do
+    fun.()
+  rescue
+    error ->
+      {:error, bootstrap_failure(phase, bench, contract, {:exception, error})}
+  catch
+    kind, reason ->
+      {:error, bootstrap_failure(phase, bench, contract, {kind, reason})}
+  end
+
+  defp bootstrap_failure(phase, bench, contract, failure) do
+    details = bootstrap_error_details(phase, bench, contract, failure)
+
+    if File.exists?(Path.join(contract.artifact_dir, "manifest.json")) do
+      try do
+        RunTracker.finish(contract.artifact_dir, "failed", %{
+          "bench" => bench.id,
+          "phase" => phase,
+          "error" => details
+        })
+      rescue
+        _ ->
+          TraceLog.record_global_event("bootstrap_failed", details)
+      catch
+        _, _ ->
+          TraceLog.record_global_event("bootstrap_failed", details)
+      end
+    else
+      TraceLog.record_global_event("bootstrap_failed", details)
+    end
+
+    Error.from_reason(
+      Map.merge(details, %{
+        category: :bootstrap_failed,
+        message: "failed to initialize run artifacts"
+      })
+    )
+  end
+
+  defp bootstrap_error_details(phase, bench, contract, {:exception, error}) do
+    %{
+      phase: phase,
+      bench: bench.id,
+      kind: bench.kind,
+      workspace_root: contract.workspace_root,
+      output_dir: contract.artifact_dir,
+      input: summarize_bootstrap_input(contract.input),
+      error: %{
+        category: :bootstrap_failed,
+        kind: "exception",
+        type: inspect(error.__struct__),
+        message: Exception.message(error)
+      }
+    }
+  end
+
+  defp bootstrap_error_details(phase, bench, contract, {kind, reason}) do
+    %{
+      phase: phase,
+      bench: bench.id,
+      kind: bench.kind,
+      workspace_root: contract.workspace_root,
+      output_dir: contract.artifact_dir,
+      input: summarize_bootstrap_input(contract.input),
+      error: %{
+        category: :bootstrap_failed,
+        kind: inspect(kind),
+        message: inspect(reason)
+      }
+    }
+  end
+
+  defp summarize_bootstrap_input(input) do
+    input_text = input_value(input, :input_text) || ""
+    paths = input_list(input, :paths)
+    agents = input_list(input, :agents)
+
+    %{
+      input_text_bytes: input_text_bytes(input_text),
+      input_text_sha256: sha256_hex(input_text),
+      path_count: length(paths),
+      agent_count: length(agents),
+      no_synthesis: input_value(input, :no_synthesis) || false
+    }
+  end
+
+  defp input_text_bytes(nil), do: 0
+  defp input_text_bytes(value) when is_binary(value), do: byte_size(value)
+  defp input_text_bytes(value), do: value |> to_string() |> byte_size()
+
+  defp input_value(input, key) when is_map(input) and is_atom(key) do
+    Map.get(input, Atom.to_string(key)) || Map.get(input, key)
+  end
+
+  defp input_list(input, key) do
+    case input_value(input, key) do
+      list when is_list(list) -> list
+      _ -> []
+    end
+  end
+
+  defp sha256_hex(value) when is_binary(value) do
+    :crypto.hash(:sha256, value)
+    |> Base.encode16(case: :lower)
+  end
+
+  defp record_run_started(output_dir, contract, bench, planner, synthesizer) do
+    TraceLog.record_event(output_dir, "run_started", %{
+      "bench" => bench.id,
+      "kind" => bench.kind,
+      "workspace_root" => contract.workspace_root,
+      "planned_agents" => bench.agents,
+      "planner" => planner && planner.name,
+      "synthesizer" => synthesizer && synthesizer.name
+    })
   end
 
   defp maybe_run_synthesizer(

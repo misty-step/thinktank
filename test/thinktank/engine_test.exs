@@ -1,13 +1,20 @@
 defmodule Thinktank.EngineTest do
   use ExUnit.Case, async: false
 
-  alias Thinktank.{Engine, Error}
+  alias Thinktank.{Engine, Error, RunTracker}
 
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
     File.rm_rf!(dir)
     File.mkdir_p!(dir)
     dir
+  end
+
+  defp read_jsonl(path) do
+    path
+    |> File.read!()
+    |> String.split("\n", trim: true)
+    |> Enum.map(&Jason.decode!/1)
   end
 
   defp prompt_path(args) do
@@ -301,6 +308,92 @@ defmodule Thinktank.EngineTest do
                cwd: cwd,
                runner: runner
              )
+  end
+
+  test "run emits lifecycle trace events with the final status" do
+    cwd = unique_tmp_dir("thinktank-engine-trace")
+    output_dir = Path.join(cwd, "captured-run")
+    init_git_repo_with_commit!(cwd)
+
+    runner = fn _cmd, _args, _opts -> {"ok", 0} end
+
+    assert {:ok, result} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", no_synthesis: true},
+               cwd: cwd,
+               output: output_dir,
+               runner: runner
+             )
+
+    assert result.output_dir == output_dir
+
+    events = read_jsonl(Path.join(output_dir, "trace/events.jsonl"))
+
+    assert Enum.any?(events, fn event ->
+             event["event"] == "run_started" and event["bench"] == "research/default"
+           end)
+
+    assert Enum.any?(events, fn event ->
+             event["event"] == "planned_agents_selected" and
+               event["agent_names"] == Enum.map(result.agents, & &1.name)
+           end)
+
+    assert Enum.any?(events, fn event ->
+             event["event"] == "run_completed" and event["status"] == "complete"
+           end)
+
+    assert RunTracker.active_runs() == []
+  end
+
+  test "bootstrap failures before run initialization are recorded in the global log" do
+    cwd = unique_tmp_dir("thinktank-engine-bootstrap")
+    log_dir = unique_tmp_dir("thinktank-engine-bootstrap-logs")
+    output_dir = Path.join(cwd, "blocked-output")
+    previous_log_dir = System.get_env("THINKTANK_LOG_DIR")
+
+    File.write!(output_dir, "not a directory")
+    System.put_env("THINKTANK_LOG_DIR", log_dir)
+
+    on_exit(fn ->
+      if is_nil(previous_log_dir) do
+        System.delete_env("THINKTANK_LOG_DIR")
+      else
+        System.put_env("THINKTANK_LOG_DIR", previous_log_dir)
+      end
+    end)
+
+    init_git_repo_with_commit!(cwd)
+
+    runner = fn _cmd, _args, _opts -> flunk("runner should not execute when bootstrap fails") end
+
+    assert {:error, %Error{} = error, ^output_dir} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", no_synthesis: true},
+               cwd: cwd,
+               output: output_dir,
+               runner: runner
+             )
+
+    assert error.code == :bootstrap_failed
+    assert error.message == "failed to initialize run artifacts"
+    assert error.details[:phase] == "init_run"
+    assert error.details[:output_dir] == output_dir
+    assert error.details[:input][:input_text_bytes] == 13
+
+    [global_log] = Path.wildcard(Path.join(log_dir, "*.jsonl"))
+    [event] = read_jsonl(global_log)
+
+    assert event["event"] == "bootstrap_failed"
+    assert event["phase"] == "init_run"
+    assert event["bench"] == "research/default"
+    assert event["output_dir"] == output_dir
+    assert event["error"]["category"] == "bootstrap_failed"
+    assert event["error"]["message"] =~ "not a directory"
+
+    refute File.exists?(Path.join(output_dir, "manifest.json"))
+    assert RunTracker.active_runs() == []
   end
 
   test "does not replace malformed input_text with a bench default task" do

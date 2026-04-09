@@ -3,7 +3,7 @@ defmodule Thinktank.Executor.Agentic do
   Pi subprocess executor for tool-using agent runs.
   """
 
-  alias Thinktank.{AgentSpec, Config, RunContract, Template}
+  alias Thinktank.{AgentSpec, Config, RunContract, Template, TraceLog}
 
   @allowed_tools MapSet.new(~w(read bash edit write grep find ls))
   @default_tools ["bash", "read", "grep", "find", "ls"]
@@ -58,15 +58,42 @@ defmodule Thinktank.Executor.Agentic do
         result
 
       {{:exit, reason}, {agent, index}} when reason in [:timeout, {:timeout, nil}] ->
-        untimed_result(agent, agent_instance_id(agent, index), :error, "", %{category: :timeout})
+        instance_id = agent_instance_id(agent, index)
+
+        TraceLog.record_event(contract.artifact_dir, "agent_finished", %{
+          "bench" => contract.bench_id,
+          "agent_name" => agent.name,
+          "instance_id" => instance_id,
+          "provider" => agent.provider,
+          "model" => agent.model,
+          "status" => "error",
+          "attempts" => 0,
+          "error" => %{category: :timeout}
+        })
+
+        untimed_result(agent, instance_id, :error, "", %{category: :timeout})
 
       {{:exit, reason}, {agent, index}} ->
+        instance_id = agent_instance_id(agent, index)
+        error = %{category: :crash, message: inspect(reason)}
+
+        TraceLog.record_event(contract.artifact_dir, "agent_finished", %{
+          "bench" => contract.bench_id,
+          "agent_name" => agent.name,
+          "instance_id" => instance_id,
+          "provider" => agent.provider,
+          "model" => agent.model,
+          "status" => "error",
+          "attempts" => 0,
+          "error" => error
+        })
+
         untimed_result(
           agent,
-          agent_instance_id(agent, index),
+          instance_id,
           :error,
           "",
-          %{category: :crash, message: inspect(reason)}
+          error
         )
     end)
   end
@@ -75,6 +102,21 @@ defmodule Thinktank.Executor.Agentic do
     instance_id = agent_instance_id(agent, index)
     started_at = DateTime.utc_now() |> DateTime.to_iso8601()
     started_mono = System.monotonic_time(:millisecond)
+    tools = tool_list(agent)
+
+    trace_context = %{
+      "bench" => contract.bench_id,
+      "output_dir" => contract.artifact_dir,
+      "agent_name" => agent.name,
+      "instance_id" => instance_id,
+      "provider" => agent.provider,
+      "model" => agent.model,
+      "runner" => runner_name(opts[:runner]),
+      "timeout_ms" => agent.timeout_ms,
+      "tool_names" => tools
+    }
+
+    TraceLog.record_event(contract.artifact_dir, "agent_started", trace_context)
 
     try do
       rendered_prompt =
@@ -94,49 +136,171 @@ defmodule Thinktank.Executor.Agentic do
       prompt = "#{agent.system_prompt}\n\n#{rendered_prompt}"
       prompt_file = write_prompt_file(contract, instance_id, prompt)
       provider = config.providers[agent.provider]
-      {cmd, args} = build_command(agent, prompt_file, tool_list(agent), provider)
+      {cmd, args} = build_command(agent, prompt_file, tools, provider)
 
       cmd_opts =
         build_cmd_opts(agent, instance_id, contract, config.providers[agent.provider], opts)
 
-      case attempt(agent.retries + 1, fn -> run_once(runner, cmd, args, cmd_opts) end) do
-        {:ok, output} ->
-          timed_result(agent, instance_id, :ok, output, started_at, started_mono, nil)
+      TraceLog.record_event(contract.artifact_dir, "prompt_written", %{
+        "bench" => contract.bench_id,
+        "agent_name" => agent.name,
+        "instance_id" => instance_id,
+        "prompt_file" => relative_artifact_path(prompt_file, contract.artifact_dir),
+        "prompt_bytes" => byte_size(prompt),
+        "prompt_sha256" => sha256_hex(prompt)
+      })
 
-        {:error, %{output: output} = error} ->
+      max_attempts = max(agent.retries + 1, 1)
+
+      case attempt(max_attempts, contract.artifact_dir, trace_context, fn attempt_number ->
+             run_once(
+               runner,
+               cmd,
+               args,
+               cmd_opts,
+               Map.merge(trace_context, %{
+                 "attempt" => attempt_number,
+                 "max_attempts" => max_attempts
+               })
+             )
+           end) do
+        {:ok, output, attempts_run} ->
+          result = timed_result(agent, instance_id, :ok, output, started_at, started_mono, nil)
+
+          TraceLog.record_event(contract.artifact_dir, "agent_finished", %{
+            "bench" => contract.bench_id,
+            "agent_name" => agent.name,
+            "instance_id" => instance_id,
+            "provider" => agent.provider,
+            "model" => agent.model,
+            "status" => "ok",
+            "attempts" => attempts_run,
+            "started_at" => started_at,
+            "completed_at" => result.completed_at,
+            "duration_ms" => result.duration_ms,
+            "output_bytes" => byte_size(output)
+          })
+
+          result
+
+        {:error, %{output: output} = error, attempts_run} ->
+          result =
+            timed_result(
+              agent,
+              instance_id,
+              :error,
+              output,
+              started_at,
+              started_mono,
+              Map.delete(error, :output)
+            )
+
+          TraceLog.record_event(contract.artifact_dir, "agent_finished", %{
+            "bench" => contract.bench_id,
+            "agent_name" => agent.name,
+            "instance_id" => instance_id,
+            "provider" => agent.provider,
+            "model" => agent.model,
+            "status" => "error",
+            "attempts" => attempts_run,
+            "started_at" => started_at,
+            "completed_at" => result.completed_at,
+            "duration_ms" => result.duration_ms,
+            "output_bytes" => byte_size(output),
+            "error" => Map.delete(error, :output)
+          })
+
+          result
+      end
+    rescue
+      error ->
+        result =
           timed_result(
             agent,
             instance_id,
             :error,
-            output,
+            "",
             started_at,
             started_mono,
-            Map.delete(error, :output)
+            %{category: :crash, message: Exception.message(error)}
           )
-      end
-    rescue
-      error ->
-        timed_result(
-          agent,
-          instance_id,
-          :error,
-          "",
-          started_at,
-          started_mono,
-          %{category: :crash, message: Exception.message(error)}
-        )
+
+        TraceLog.record_event(contract.artifact_dir, "agent_finished", %{
+          "bench" => contract.bench_id,
+          "agent_name" => agent.name,
+          "instance_id" => instance_id,
+          "provider" => agent.provider,
+          "model" => agent.model,
+          "status" => "error",
+          "attempts" => 0,
+          "started_at" => started_at,
+          "completed_at" => result.completed_at,
+          "duration_ms" => result.duration_ms,
+          "error" => %{category: :crash, message: Exception.message(error)}
+        })
+
+        result
     end
   end
 
-  defp run_once(runner, cmd, args, cmd_opts) do
+  defp run_once(runner, cmd, args, cmd_opts, trace_context) do
+    output_dir = trace_context["output_dir"] || cmd_opts[:cd]
+    started_mono = System.monotonic_time(:millisecond)
+
+    TraceLog.record_event(output_dir, "subprocess_started", %{
+      "bench" => trace_context["bench"],
+      "agent_name" => trace_context["agent_name"],
+      "instance_id" => trace_context["instance_id"],
+      "attempt" => trace_context["attempt"],
+      "max_attempts" => trace_context["max_attempts"],
+      "command" => cmd,
+      "args" => args,
+      "cwd" => cmd_opts[:cd],
+      "timeout_ms" => cmd_opts[:timeout],
+      "env_keys" => cmd_opts |> Keyword.get(:env, []) |> Enum.map(&elem(&1, 0))
+    })
+
     case runner.(cmd, args, cmd_opts) do
       {output, 0} ->
+        TraceLog.record_event(output_dir, "subprocess_finished", %{
+          "bench" => trace_context["bench"],
+          "agent_name" => trace_context["agent_name"],
+          "instance_id" => trace_context["instance_id"],
+          "attempt" => trace_context["attempt"],
+          "status" => "ok",
+          "exit_code" => 0,
+          "duration_ms" => elapsed_ms(started_mono),
+          "output_bytes" => byte_size(output)
+        })
+
         {:ok, output}
 
       {output, :timeout} ->
+        TraceLog.record_event(output_dir, "subprocess_finished", %{
+          "bench" => trace_context["bench"],
+          "agent_name" => trace_context["agent_name"],
+          "instance_id" => trace_context["instance_id"],
+          "attempt" => trace_context["attempt"],
+          "status" => "timeout",
+          "exit_code" => nil,
+          "duration_ms" => elapsed_ms(started_mono),
+          "output_bytes" => byte_size(output)
+        })
+
         {:error, %{category: :timeout, output: output}}
 
       {output, exit_code} ->
+        TraceLog.record_event(output_dir, "subprocess_finished", %{
+          "bench" => trace_context["bench"],
+          "agent_name" => trace_context["agent_name"],
+          "instance_id" => trace_context["instance_id"],
+          "attempt" => trace_context["attempt"],
+          "status" => "error",
+          "exit_code" => exit_code,
+          "duration_ms" => elapsed_ms(started_mono),
+          "output_bytes" => byte_size(output)
+        })
+
         {:error, %{category: :crash, exit_code: exit_code, output: output}}
     end
   end
@@ -189,17 +353,68 @@ defmodule Thinktank.Executor.Agentic do
     }
   end
 
-  defp attempt(remaining, fun) when remaining > 0 do
-    case fun.() do
-      {:ok, _} = ok ->
-        ok
+  defp attempt(max_attempts, output_dir, trace_context, fun) when max_attempts > 0 do
+    do_attempt(1, max_attempts, output_dir, trace_context, fun)
+  end
+
+  defp do_attempt(current, max_attempts, output_dir, trace_context, fun) do
+    TraceLog.record_event(output_dir, "attempt_started", %{
+      "bench" => trace_context["bench"],
+      "agent_name" => trace_context["agent_name"],
+      "instance_id" => trace_context["instance_id"],
+      "attempt" => current,
+      "max_attempts" => max_attempts
+    })
+
+    started_mono = System.monotonic_time(:millisecond)
+
+    case fun.(current) do
+      {:ok, output} ->
+        TraceLog.record_event(output_dir, "attempt_finished", %{
+          "bench" => trace_context["bench"],
+          "agent_name" => trace_context["agent_name"],
+          "instance_id" => trace_context["instance_id"],
+          "attempt" => current,
+          "max_attempts" => max_attempts,
+          "status" => "ok",
+          "duration_ms" => elapsed_ms(started_mono),
+          "output_bytes" => byte_size(output)
+        })
+
+        {:ok, output, current}
 
       {:error, error} ->
-        if remaining > 1 and retryable?(error) do
+        trimmed_error = Map.delete(error, :output)
+
+        TraceLog.record_event(output_dir, "attempt_finished", %{
+          "bench" => trace_context["bench"],
+          "agent_name" => trace_context["agent_name"],
+          "instance_id" => trace_context["instance_id"],
+          "attempt" => current,
+          "max_attempts" => max_attempts,
+          "status" => "error",
+          "duration_ms" => elapsed_ms(started_mono),
+          "output_bytes" => byte_size(Map.get(error, :output, "")),
+          "error" => trimmed_error
+        })
+
+        if current < max_attempts and retryable?(error) do
+          next_attempt = current + 1
+
+          TraceLog.record_event(output_dir, "attempt_retry_scheduled", %{
+            "bench" => trace_context["bench"],
+            "agent_name" => trace_context["agent_name"],
+            "instance_id" => trace_context["instance_id"],
+            "attempt" => current,
+            "next_attempt" => next_attempt,
+            "delay_ms" => 250,
+            "error" => trimmed_error
+          })
+
           Process.sleep(250)
-          attempt(remaining - 1, fun)
+          do_attempt(next_attempt, max_attempts, output_dir, trace_context, fun)
         else
-          {:error, error}
+          {:error, error, current}
         end
     end
   end
@@ -370,6 +585,21 @@ defmodule Thinktank.Executor.Agentic do
     map
     |> Enum.map(fn {key, value} -> {to_string(key), value} end)
     |> Enum.into(%{})
+  end
+
+  defp runner_name(nil) do
+    if disable_muontrap?() or not muontrap_available?(), do: "system_cmd", else: "muontrap_cmd"
+  end
+
+  defp runner_name(_), do: "custom"
+
+  defp relative_artifact_path(path, output_dir) do
+    Path.relative_to(path, output_dir)
+  end
+
+  defp sha256_hex(contents) do
+    :crypto.hash(:sha256, contents)
+    |> Base.encode16(case: :lower)
   end
 
   @doc false

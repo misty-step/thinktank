@@ -10,8 +10,9 @@ the reviewer subset and write a lightweight context pack.
 
 Built with Elixir/OTP.
 
-Local tooling expects `mix`, `python3`, and either Docker+`dagger` or a host
-Elixir toolchain for the fallback path.
+Local tooling expects `mix`, `python3`, Colima, a standalone `docker` CLI, and
+`dagger` for the container gate path. Host-native Elixir gates remain the
+fallback path when the container toolchain is unavailable.
 
 ## Philosophy
 
@@ -30,7 +31,7 @@ Elixir toolchain for the fallback path.
 
 export THINKTANK_OPENROUTER_API_KEY="your-key"
 
-dagger call check
+./scripts/with-colima.sh dagger call check
 ./thinktank research "analyze this codebase" --paths ./lib
 git diff | ./thinktank research --paths ./lib
 ./thinktank run research/quick --input "quick repo scan" --paths ./lib --no-synthesis
@@ -169,6 +170,8 @@ benches:
 Each run writes:
 
 - `contract.json` — resolved bench contract
+- `trace/events.jsonl` — append-only run, agent, attempt, and subprocess events
+- `trace/summary.json` — run trace metadata, status, and local log location
 - `task.md` — task text and pointed paths
 - `agents/*.md` — raw agent outputs
 - `prompts/*.md` — rendered prompts passed to Pi
@@ -184,6 +187,12 @@ Each run writes:
 including `output_dir`, artifact metadata, and inline synthesis text when
 available. It does not write a `report.json` artifact. For research benches,
 the synthesized document lives in `synthesis.md` when a synthesizer is enabled.
+
+By default, ThinkTank also mirrors the same structured events into a rotating
+daily JSONL log under `~/.local/state/thinktank/logs/`. Override that path with
+`THINKTANK_LOG_DIR=/path/to/logs`, or set `THINKTANK_LOG_DIR=off` to disable the
+global mirror while keeping the per-run trace artifacts. This first slice keeps
+one file per UTC day and leaves retention policy to the operator.
 
 ThinkTank records raw outputs and run metadata. It does not attempt to recover
 structure from agent prose after the fact.
@@ -212,19 +221,25 @@ automatic scoring framework.
 
 ```bash
 ./scripts/setup.sh
-dagger call check
-dagger functions
+./scripts/with-colima.sh dagger call check
+./scripts/with-colima.sh dagger functions
 mix test
 mix format
 mix compile --warnings-as-errors
 mix escript.build
+MIX_ENV=test mix coveralls
 ```
 
-`dagger call check` is the canonical local CI entrypoint. It runs the repo's
-full local gate set in containers and is the same command the native pre-push
-hook runs. `dagger functions` lists the individual Dagger gates when you need a
-targeted rerun. The default gate now includes the repo-specific architecture
-gate, live OpenRouter model-ID validation, and an `87%` coverage threshold.
+`./scripts/with-colima.sh dagger call check` is the canonical local CI
+entrypoint. It runs the repo's full local gate set in containers and is the
+same command the native pre-push hook runs. `./scripts/with-colima.sh dagger
+functions` lists the individual Dagger gates when you need a targeted rerun.
+The helper exports Colima's docker socket and rejects Docker Desktop's CLI so
+the local runtime stays on one path. The default gate now includes the
+repo-specific architecture gate, live OpenRouter model-ID validation, and an
+`87%` coverage threshold.
+For host-native coverage debugging, use `MIX_ENV=test mix coveralls`; the
+threshold is enforced through [`coveralls.json`](coveralls.json).
 
 If Pi subprocess execution is unreliable in your environment, set
 `THINKTANK_DISABLE_MUONTRAP=1` to force ThinkTank onto the plain `System.cmd/3`
@@ -232,7 +247,7 @@ runner for local debugging and review runs.
 
 `./scripts/setup.sh` creates `.env` when missing, installs native Git hooks
 from `.githooks/`, builds the local escript, and prefers the Dagger gate when
-Docker and `dagger` are available.
+Colima and `dagger` are available.
 
 ## Docs
 

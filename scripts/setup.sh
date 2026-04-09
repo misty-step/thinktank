@@ -19,17 +19,17 @@ if [ ! -f .env ]; then
   echo "Created .env from .env.example."
 fi
 
-chmod +x .githooks/* scripts/refresh-local-tooling.sh
+chmod +x .githooks/* scripts/refresh-local-tooling.sh scripts/with-colima.sh
 git config core.hooksPath .githooks
 
 mix deps.get
 mix escript.build
 ./thinktank --help >/dev/null
 
-if command -v dagger >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+if command -v dagger >/dev/null 2>&1 && command -v colima >/dev/null 2>&1; then
   export DAGGER_NO_NAG=1
-  dagger develop >/dev/null
-  dagger call check
+  ./scripts/with-colima.sh dagger develop >/dev/null
+  ./scripts/with-colima.sh dagger call check
 else
   mix compile --warnings-as-errors
   mix test

@@ -11,6 +11,8 @@ defmodule Thinktank.RunStoreTest do
     dir
   end
 
+  defp read_json(path), do: path |> File.read!() |> Jason.decode!()
+
   test "stores run artifacts inside a private output directory" do
     output_dir = Path.join(unique_tmp_dir("thinktank-run-store"), "run")
 
@@ -166,5 +168,45 @@ defmodule Thinktank.RunStoreTest do
 
     envelope = RunStore.result_envelope(output_dir)
     assert envelope.synthesis == nil
+  end
+
+  test "initializes trace artifacts and updates trace summary on completion" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-store-trace"), "run")
+
+    contract = %RunContract{
+      bench_id: "research/default",
+      workspace_root: File.cwd!(),
+      input: %{input_text: "trace this"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{id: "research/default", description: "Demo", agents: ["systems"]}
+
+    RunStore.init_run(output_dir, contract, bench)
+
+    manifest = read_json(Path.join(output_dir, "manifest.json"))
+
+    assert Enum.any?(manifest["artifacts"], fn artifact ->
+             artifact["name"] == "trace-events" and artifact["file"] == "trace/events.jsonl" and
+               artifact["type"] == "jsonl"
+           end)
+
+    assert Enum.any?(manifest["artifacts"], fn artifact ->
+             artifact["name"] == "trace-summary" and artifact["file"] == "trace/summary.json" and
+               artifact["type"] == "json"
+           end)
+
+    assert File.exists?(Path.join(output_dir, "trace/events.jsonl"))
+
+    summary = read_json(Path.join(output_dir, "trace/summary.json"))
+    assert summary["run_id"] == Path.basename(output_dir)
+    assert summary["status"] == "running"
+
+    RunStore.complete_run(output_dir, "complete")
+
+    completed = read_json(Path.join(output_dir, "trace/summary.json"))
+    assert completed["status"] == "complete"
+    assert is_binary(completed["completed_at"])
   end
 end

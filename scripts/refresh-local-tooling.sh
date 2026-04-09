@@ -27,7 +27,9 @@ cp ./thinktank "${HOME}/.local/bin/thinktank"
 
 if [ -f dagger.json ] && command -v dagger >/dev/null 2>&1; then
   export DAGGER_NO_NAG=1
-  dagger develop >/dev/null
+  if command -v colima >/dev/null 2>&1; then
+    ./scripts/with-colima.sh dagger develop >/dev/null
+  fi
 fi
 
 echo "thinktank updated: $(./thinktank --version)"

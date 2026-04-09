@@ -15,12 +15,12 @@ if ! command -v dagger >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! docker info >/dev/null 2>&1; then
-  echo "pre-push: Docker or Colima must be running for local Dagger CI." >&2
+if [ ! -x ./scripts/with-colima.sh ]; then
+  echo "pre-push: ./scripts/with-colima.sh is required for Colima-backed local CI." >&2
   exit 1
 fi
 
 export DAGGER_NO_NAG=1
 
-echo "pre-push: running dagger call check..." >&2
-dagger call check
+echo "pre-push: running Colima-backed dagger call check..." >&2
+./scripts/with-colima.sh dagger call check
