@@ -4,14 +4,14 @@ defmodule Thinktank.RunContract do
   """
 
   @enforce_keys [:bench_id, :workspace_root, :input, :artifact_dir]
-  defstruct [:bench_id, :workspace_root, :input, :artifact_dir, :adapter_context]
+  defstruct [:bench_id, :workspace_root, :input, :artifact_dir, adapter_context: %{}]
 
   @type t :: %__MODULE__{
           bench_id: String.t(),
           workspace_root: String.t(),
           input: map(),
           artifact_dir: String.t(),
-          adapter_context: map() | nil
+          adapter_context: map()
         }
 
   @spec to_map(t()) :: map()
@@ -46,24 +46,39 @@ defmodule Thinktank.RunContract do
   def from_map(_), do: {:error, "run contract must be a map"}
 
   defp fetch_string(map, key) do
-    case Map.get(map, key) || Map.get(map, String.to_atom(key)) do
+    case fetch_value(map, key) do
       value when is_binary(value) and value != "" -> {:ok, value}
       _ -> {:error, "missing #{key}"}
     end
   end
 
   defp fetch_map(map, key) do
-    case Map.get(map, key) || Map.get(map, String.to_atom(key)) do
+    case fetch_value(map, key) do
       value when is_map(value) -> {:ok, value}
       _ -> {:error, "#{key} must be a map"}
     end
   end
 
   defp fetch_optional_map(map, key) do
-    case Map.get(map, key) || Map.get(map, String.to_atom(key)) do
+    case fetch_value(map, key) do
       nil -> {:ok, %{}}
       value when is_map(value) -> {:ok, value}
       _ -> {:error, "#{key} must be a map"}
     end
+  end
+
+  defp fetch_value(map, key) do
+    case Map.fetch(map, key) do
+      {:ok, value} -> value
+      :error -> fetch_atom_key(map, key)
+    end
+  end
+
+  defp fetch_atom_key(map, key) do
+    key
+    |> String.to_existing_atom()
+    |> then(&Map.get(map, &1))
+  rescue
+    ArgumentError -> nil
   end
 end

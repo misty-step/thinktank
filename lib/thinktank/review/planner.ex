@@ -107,7 +107,8 @@ defmodule Thinktank.Review.Planner do
     Review plan:
     - Source: #{Map.get(plan, "source", "unknown")}
     - Summary: #{Map.get(plan, "summary", "No planner summary provided.")}
-    - Synth brief: #{Map.get(plan, "synthesis_brief", "Use reviewer evidence and suppress overlap.")}
+    - Synth brief:
+      #{Map.get(plan, "synthesis_brief", "Use reviewer evidence and suppress overlap.")}
 
     Selected reviewers:
     #{reviewers}

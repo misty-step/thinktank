@@ -12,7 +12,7 @@ thinktank-*.tar
 
 # Test output directories
 **/thinktank_20*
-**/thinktank_*/
+**/thinktank_[0-9]*/
 
 # IDE
 .idea/
@@ -29,6 +29,8 @@ Thumbs.db
 
 # Environment and credentials
 .env
+*.pem
+*.key
 agent_config/auth.json
 agent_config/cache/
 agent_config/logs/

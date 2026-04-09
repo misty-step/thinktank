@@ -33,7 +33,9 @@ defmodule Thinktank.ProviderSpec do
 
   def from_pair(id, _raw), do: {:error, "provider #{id} must be a map"}
 
-  defp parse_adapter(adapter) when is_atom(adapter), do: parse_adapter(Atom.to_string(adapter))
+  defp parse_adapter(adapter) when is_atom(adapter) and not is_nil(adapter) do
+    parse_adapter(Atom.to_string(adapter))
+  end
 
   defp parse_adapter(adapter) when is_binary(adapter) and adapter != "" do
     case Map.fetch(@valid_adapters, adapter) do

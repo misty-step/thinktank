@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$REPO_ROOT"
+
+git diff --cached --check
+
+if command -v pre-commit >/dev/null 2>&1; then
+  exec pre-commit run --config .pre-commit-config.yaml --hook-stage pre-commit
+fi
+
+if ! command -v mix >/dev/null 2>&1; then
+  echo "pre-commit: install pre-commit or ensure mix is available." >&2
+  exit 1
+fi
+
+mapfile -t staged_elixir < <(
+  git diff --cached --name-only --diff-filter=ACMR | grep -E '\.exs?$' || true
+)
+
+if [ "${#staged_elixir[@]}" -eq 0 ]; then
+  exit 0
+fi
+
+mix format "${staged_elixir[@]}"
+scripts/ci/architecture-gate.sh
+scripts/validate-elixir-models.sh
+git add "${staged_elixir[@]}"

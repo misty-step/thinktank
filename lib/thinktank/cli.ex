@@ -384,7 +384,7 @@ defmodule Thinktank.CLI do
 
     case Engine.run(command.bench_id, command.input, run_opts) do
       {:ok, result} ->
-        emit(command, result.envelope)
+        emit(command, contract_payload(result.envelope))
 
         case result.envelope.status do
           "complete" -> @exit_codes.success
@@ -566,6 +566,7 @@ defmodule Thinktank.CLI do
     IO.puts("""
     Bench: #{payload.bench}
     Status: #{payload.status}
+    Output: #{payload.output_dir}
 
     Agents:
     #{render_agent_lines(payload.agents)}
@@ -706,6 +707,8 @@ defmodule Thinktank.CLI do
       thinktank review eval <contract-or-dir> [--bench <bench>]
       thinktank benches list|show|validate
 
+    Task text can come from --input, positional text, or piped stdin.
+
     Options:
       --input TEXT          Task text
       --paths PATH          Point the bench at paths in the workspace (repeatable)
@@ -729,4 +732,18 @@ defmodule Thinktank.CLI do
       thinktank benches show research/default
     """
   end
+
+  defp contract_payload(payload) do
+    Map.put(payload, :error, contract_error(payload))
+  end
+
+  defp contract_error(%{status: "complete"}), do: nil
+
+  defp contract_error(%{status: "degraded"}) do
+    Error.from_contract(:degraded_run, %{
+      status: "degraded"
+    })
+  end
+
+  defp contract_error(_payload), do: nil
 end

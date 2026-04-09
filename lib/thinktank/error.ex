@@ -18,6 +18,12 @@ defmodule Thinktank.Error do
     no_git_repository: "workspace is not a git repository — review requires git"
   }
 
+  @contract_reasons %{
+    degraded_run: "one or more agents failed",
+    review_eval_degraded: "one or more review eval cases degraded",
+    review_eval_failed: "one or more review eval cases failed"
+  }
+
   @spec from_reason(term()) :: t()
   def from_reason(reason) when is_atom(reason) do
     %__MODULE__{
@@ -41,5 +47,15 @@ defmodule Thinktank.Error do
 
   def from_reason(other) do
     %__MODULE__{code: :unknown, message: inspect(other), details: %{}}
+  end
+
+  @spec from_contract(atom(), map()) :: t()
+  def from_contract(code, details \\ %{}) when is_atom(code) and is_map(details) do
+    from_reason(
+      Map.merge(
+        %{category: code, message: Map.get(@contract_reasons, code, Atom.to_string(code))},
+        details
+      )
+    )
   end
 end

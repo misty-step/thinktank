@@ -15,7 +15,19 @@ defmodule Thinktank.Prompts.SynthesisTest do
     task = Synthesis.review_task()
 
     for placeholder <-
-          ~w({{input_text}} {{workspace_root}} {{repo}} {{pr}} {{base}} {{head}} {{paths_hint}} {{review_context}} {{review_plan}} {{synthesis_brief}} {{agent_outputs}}) do
+          ~w(
+            {{input_text}}
+            {{workspace_root}}
+            {{repo}}
+            {{pr}}
+            {{base}}
+            {{head}}
+            {{paths_hint}}
+            {{review_context}}
+            {{review_plan}}
+            {{synthesis_brief}}
+            {{agent_outputs}}
+          ) do
       assert task =~ placeholder, "review synthesis task missing #{placeholder}"
     end
   end

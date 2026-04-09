@@ -374,7 +374,7 @@ defmodule Thinktank.Executor.Agentic do
 
   @doc false
   def default_runner do
-    if muontrap_available?(), do: &muontrap_cmd/3, else: &system_cmd/3
+    if disable_muontrap?() or not muontrap_available?(), do: &system_cmd/3, else: &muontrap_cmd/3
   end
 
   @doc false
@@ -383,6 +383,13 @@ defmodule Thinktank.Executor.Agentic do
     File.exists?(path)
   rescue
     _ -> false
+  end
+
+  defp disable_muontrap? do
+    case System.get_env("THINKTANK_DISABLE_MUONTRAP") do
+      value when value in ["1", "true", "TRUE"] -> true
+      _ -> false
+    end
   end
 
   @doc false

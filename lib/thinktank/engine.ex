@@ -129,7 +129,16 @@ defmodule Thinktank.Engine do
     Path.join(System.tmp_dir!(), "thinktank-#{bench_slug}-#{timestamp}-#{suffix}")
   end
 
-  defp execute_bench(planned_agents, context, bench, contract, config, synthesizer, planner, opts) do
+  defp execute_bench(
+         planned_agents,
+         context,
+         bench,
+         contract,
+         config,
+         synthesizer,
+         planner,
+         opts
+       ) do
     output_dir = contract.artifact_dir
 
     RunStore.set_planned_agents(output_dir, Enum.map(planned_agents, & &1.name))

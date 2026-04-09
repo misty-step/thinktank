@@ -456,6 +456,7 @@ defmodule Thinktank.CLITest do
 
     assert output =~ "thinktank benches"
     assert output =~ "thinktank review"
+    assert output =~ "Task text can come from --input, positional text, or piped stdin."
   end
 
   test "benches list --json emits a JSON array with id, description, kind, agent_count" do

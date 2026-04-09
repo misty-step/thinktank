@@ -22,10 +22,11 @@ defmodule Thinktank.Prompts.Review do
   Bench plan:
   {{review_plan}}
 
-  You are doing code review. Use bash, git, and file tools to inspect the current repository yourself.
-  Start with git status and git diff. If base/head are provided, compare them. If repo/pr are provided,
-  use them as orientation, not as a substitute for local inspection. Report only issues you can ground in
-  the actual repository state, diff, or nearby code.
+  You are doing code review. Use bash, git, and file tools to inspect the
+  current repository yourself. Start with git status and git diff. If base/head
+  are provided, compare them. If repo/pr are provided, use them as orientation,
+  not as a substitute for local inspection. Report only issues you can ground
+  in the actual repository state, diff, or nearby code.
   """
 
   @plan_task """
@@ -55,9 +56,10 @@ defmodule Thinktank.Prompts.Review do
     "warnings": ["optional planner caveat"]
   }
 
-  Use exact agent names from the roster (e.g., "trace", "guard", "atlas"), not role descriptions.
-  Pick only reviewers that materially add signal for this change. Avoid selecting everyone unless the
-  change is genuinely broad. Do not report findings here. This step is only planning and tasking.
+  Use exact agent names from the roster (e.g., "trace", "guard", "atlas"), not
+  role descriptions. Pick only reviewers that materially add signal for this
+  change. Avoid selecting everyone unless the change is genuinely broad. Do not
+  report findings here. This step is only planning and tasking.
   """
 
   @marshal """

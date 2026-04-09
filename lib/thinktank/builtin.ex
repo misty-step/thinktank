@@ -21,7 +21,8 @@ defmodule Thinktank.Builtin do
         "research/quick" => %{
           "kind" => "research",
           "description" =>
-            "Launch a fast repo-aware research bench without a synthesizer for quick local grounding.",
+            "Launch a fast repo-aware research bench without a synthesizer " <>
+              "for quick local grounding.",
           "agents" => ["systems", "verification"],
           "concurrency" => 2
         },
@@ -36,7 +37,8 @@ defmodule Thinktank.Builtin do
         "review/default" => %{
           "kind" => "review",
           "description" =>
-            "Launch the review bench: marshal plans, selects reviewers from the full roster, then synthesizes.",
+            "Launch the review bench: marshal plans, selects reviewers " <>
+              "from the full roster, then synthesizes.",
           "agents" => [
             "trace",
             "guard",
@@ -91,8 +93,8 @@ defmodule Thinktank.Builtin do
 
   defp review_agents do
     reviewers = [
-      {"trace", "x-ai/grok-4.20-beta", Review.trace(), "correctness"},
-      {"guard", "x-ai/grok-4.20-multi-agent-beta", Review.guard(), "security"},
+      {"trace", "x-ai/grok-4.20", Review.trace(), "correctness"},
+      {"guard", "x-ai/grok-4.20-multi-agent", Review.guard(), "security"},
       {"atlas", "openai/gpt-5.4-mini", Review.atlas(), "architecture"},
       {"proof", "openai/gpt-5.4-mini", Review.proof(), "tests"},
       {"vector", "z-ai/glm-5-turbo", Review.vector(), "interfaces"},

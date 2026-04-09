@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$REPO_ROOT"
+
+[ -f dagger.json ] || exit 0
+
+if [ ! -f .env ] && [ -f .env.example ]; then
+  cp .env.example .env
+fi
+
+if ! command -v dagger >/dev/null 2>&1; then
+  echo "pre-push: dagger is required for local CI. Run ./scripts/setup.sh." >&2
+  exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  echo "pre-push: Docker or Colima must be running for local Dagger CI." >&2
+  exit 1
+fi
+
+export DAGGER_NO_NAG=1
+
+echo "pre-push: running dagger call check..." >&2
+dagger call check

@@ -10,6 +10,9 @@ the reviewer subset and write a lightweight context pack.
 
 Built with Elixir/OTP.
 
+Local tooling expects `mix`, `python3`, and either Docker+`dagger` or a host
+Elixir toolchain for the fallback path.
+
 ## Philosophy
 
 - Workspace is context. Run ThinkTank in the repo you want agents to inspect.
@@ -23,12 +26,13 @@ Built with Elixir/OTP.
 ## Quick Start
 
 ```bash
-mix deps.get
-mix escript.build
+./scripts/setup.sh
 
 export THINKTANK_OPENROUTER_API_KEY="your-key"
 
+dagger call check
 ./thinktank research "analyze this codebase" --paths ./lib
+git diff | ./thinktank research --paths ./lib
 ./thinktank run research/quick --input "quick repo scan" --paths ./lib --no-synthesis
 ./thinktank review --base origin/main --head HEAD
 ```
@@ -45,6 +49,9 @@ thinktank benches list|show|validate
 
 `workflows list|show|validate` is still accepted as a compatibility alias for
 `benches`.
+
+Task text can come from `--input`, positional text on fixed commands like
+`research`, or piped stdin.
 
 ### Options
 
@@ -69,6 +76,9 @@ thinktank benches list|show|validate
 ```bash
 # Fixed research bench
 thinktank research "what is wrong with this architecture?" --paths ./lib
+
+# Pipe task text from another command
+git diff | thinktank research --paths ./lib
 
 # Fast repo-aware research bench without an internal synthesizer
 thinktank run research/quick --input "what changed in this subsystem?" --paths ./lib --no-synthesis
@@ -170,9 +180,10 @@ Each run writes:
 - `review/planner.md` when a planner agent runs
 - `manifest.json` — run metadata and artifact index
 
-`--json` prints the final run envelope to stdout after the bench completes. It
-does not write a `report.json` artifact. For research benches, the synthesized
-document lives in `synthesis.md` when a synthesizer is enabled.
+`--json` prints the final run envelope to stdout after the bench completes,
+including `output_dir`, artifact metadata, and inline synthesis text when
+available. It does not write a `report.json` artifact. For research benches,
+the synthesized document lives in `synthesis.md` when a synthesizer is enabled.
 
 ThinkTank records raw outputs and run metadata. It does not attempt to recover
 structure from agent prose after the fact.
@@ -200,8 +211,31 @@ automatic scoring framework.
 ## Development
 
 ```bash
+./scripts/setup.sh
+dagger call check
+dagger functions
 mix test
 mix format
 mix compile --warnings-as-errors
 mix escript.build
 ```
+
+`dagger call check` is the canonical local CI entrypoint. It runs the repo's
+full local gate set in containers and is the same command the native pre-push
+hook runs. `dagger functions` lists the individual Dagger gates when you need a
+targeted rerun. The default gate now includes the repo-specific architecture
+gate, live OpenRouter model-ID validation, and an `87%` coverage threshold.
+
+If Pi subprocess execution is unreliable in your environment, set
+`THINKTANK_DISABLE_MUONTRAP=1` to force ThinkTank onto the plain `System.cmd/3`
+runner for local debugging and review runs.
+
+`./scripts/setup.sh` creates `.env` when missing, installs native Git hooks
+from `.githooks/`, builds the local escript, and prefers the Dagger gate when
+Docker and `dagger` are available.
+
+## Docs
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- [`docs/runbook.md`](docs/runbook.md)
+- [`docs/adr/0001-thin-pi-bench-launcher.md`](docs/adr/0001-thin-pi-bench-launcher.md)

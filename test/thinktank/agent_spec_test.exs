@@ -61,4 +61,72 @@ defmodule Thinktank.AgentSpecTest do
                "system_prompt" => "   "
              })
   end
+
+  test "parses retries, legacy timeout alias, metadata, and list tools" do
+    assert {:ok, spec} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are trace.",
+               "retries" => "2",
+               "timeout" => 7000,
+               "tools" => ["bash", 42, "read"],
+               "metadata" => %{"role" => "correctness"}
+             })
+
+    assert spec.retries == 2
+    assert spec.timeout_ms == 7000
+    assert spec.tools == ["bash", "read"]
+    assert spec.metadata == %{"role" => "correctness"}
+  end
+
+  test "rejects non-map specs and invalid numeric fields" do
+    assert {:error, "agent trace must be a map"} = AgentSpec.from_pair("trace", nil)
+
+    assert {:error, "agent retries must be a non-negative integer"} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are trace.",
+               "retries" => "-1"
+             })
+
+    assert {:error, "agent timeout_ms must be a non-negative integer"} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are trace.",
+               "timeout_ms" => "nope"
+             })
+  end
+
+  test "rejects missing required strings" do
+    assert {:error, "agent provider is required"} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => " ",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are trace."
+             })
+
+    assert {:error, "agent model is required"} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "system_prompt" => "You are trace."
+             })
+  end
+
+  test "falls back to nil tools and empty metadata for unsupported values" do
+    assert {:ok, spec} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
+               "system_prompt" => "You are trace.",
+               "retries" => 1,
+               "tools" => %{"bash" => true}
+             })
+
+    assert spec.retries == 1
+    assert spec.tools == nil
+    assert spec.metadata == %{}
+  end
 end

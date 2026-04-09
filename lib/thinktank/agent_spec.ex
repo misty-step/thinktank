@@ -38,7 +38,11 @@ defmodule Thinktank.AgentSpec do
          {:ok, system_prompt} <- require_string(raw, "system_prompt"),
          {:ok, retries} <- parse_non_neg_int("retries", raw["retries"], 0),
          {:ok, timeout_ms} <-
-           parse_non_neg_int("timeout_ms", raw["timeout_ms"] || raw["timeout"], :timer.minutes(5)) do
+           parse_non_neg_int(
+             "timeout_ms",
+             raw["timeout_ms"] || raw["timeout"],
+             :timer.minutes(5)
+           ) do
       {:ok,
        %__MODULE__{
          name: name,

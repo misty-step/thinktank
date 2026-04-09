@@ -7,7 +7,19 @@ defmodule Thinktank.Prompts.ReviewTest do
     task = Review.task()
 
     for placeholder <-
-          ~w({{input_text}} {{workspace_root}} {{repo}} {{pr}} {{base}} {{head}} {{paths_hint}} {{review_role}} {{review_brief}} {{review_context}} {{review_plan}}) do
+          ~w(
+            {{input_text}}
+            {{workspace_root}}
+            {{repo}}
+            {{pr}}
+            {{base}}
+            {{head}}
+            {{paths_hint}}
+            {{review_role}}
+            {{review_brief}}
+            {{review_context}}
+            {{review_plan}}
+          ) do
       assert task =~ placeholder, "review task prompt missing #{placeholder}"
     end
   end
@@ -16,7 +28,17 @@ defmodule Thinktank.Prompts.ReviewTest do
     plan = Review.plan_task()
 
     for placeholder <-
-          ~w({{input_text}} {{workspace_root}} {{repo}} {{pr}} {{base}} {{head}} {{paths_hint}} {{review_context}} {{review_roster}}) do
+          ~w(
+            {{input_text}}
+            {{workspace_root}}
+            {{repo}}
+            {{pr}}
+            {{base}}
+            {{head}}
+            {{paths_hint}}
+            {{review_context}}
+            {{review_roster}}
+          ) do
       assert plan =~ placeholder, "review plan_task prompt missing #{placeholder}"
     end
   end

@@ -13,12 +13,12 @@ repos:
     -   id: end-of-file-fixer
     -   id: check-yaml
 
-# Elixir formatting — mirrors CI `mix format --check-formatted`
+# Elixir formatting — auto-apply locally before CI enforces formatting
 -   repo: local
     hooks:
     -   id: mix-format
         name: mix-format
-        entry: mix format --check-formatted
+        entry: mix format
         language: system
         files: \.exs?$
         pass_filenames: false
@@ -28,8 +28,18 @@ repos:
     hooks:
     -   id: mix-credo
         name: mix-credo
-        entry: mix credo
+        entry: mix credo --strict
         language: system
+        files: \.exs?$
+        pass_filenames: false
+
+# Architecture gate — enforce repo-specific boundaries before local CI
+-   repo: local
+    hooks:
+    -   id: architecture-gate
+        name: architecture-gate
+        entry: scripts/ci/architecture-gate.sh
+        language: script
         files: \.exs?$
         pass_filenames: false
 

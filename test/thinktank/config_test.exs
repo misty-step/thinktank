@@ -108,4 +108,61 @@ defmodule Thinktank.ConfigTest do
     refute function_exported?(Config, :workflow, 2)
     refute function_exported?(Config, :list_workflows, 1)
   end
+
+  test "user_config_dir honors a provided home directory" do
+    assert Config.user_config_dir(user_home: "/tmp/example-home") ==
+             "/tmp/example-home/.config/thinktank"
+  end
+
+  test "trusted repo config must contain a YAML mapping" do
+    tmp = unique_tmp_dir("thinktank-config-non-map")
+    repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+    File.mkdir_p!(Path.dirname(repo_cfg))
+    File.write!(repo_cfg, "- invalid\n")
+
+    assert Config.load(cwd: tmp, trust_repo_config: true) ==
+             {:error, "config file #{repo_cfg} must contain a YAML mapping"}
+  end
+
+  test "returns an error when an agent references an unknown provider" do
+    tmp = unique_tmp_dir("thinktank-config-provider-ref")
+    repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+    File.mkdir_p!(Path.dirname(repo_cfg))
+
+    File.write!(
+      repo_cfg,
+      """
+      agents:
+        trace:
+          provider: missing
+          model: openai/gpt-5.4
+          system_prompt: Repo override
+      """
+    )
+
+    assert {:error, "agent trace references unknown provider missing"} =
+             Config.load(cwd: tmp, trust_repo_config: true)
+  end
+
+  test "returns an error when a planner reference is invalid" do
+    tmp = unique_tmp_dir("thinktank-config-invalid-planner")
+    repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+    File.mkdir_p!(Path.dirname(repo_cfg))
+
+    File.write!(
+      repo_cfg,
+      """
+      benches:
+        demo/review:
+          kind: review
+          description: Invalid planner
+          agents:
+            - trace
+          planner: 123
+      """
+    )
+
+    assert {:error, "bench demo/review: bench optional string fields must be strings"} =
+             Config.load(cwd: tmp, trust_repo_config: true)
+  end
 end

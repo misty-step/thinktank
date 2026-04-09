@@ -37,4 +37,33 @@ defmodule Thinktank.BenchSpecTest do
       assert {:error, ^expected_error} = BenchSpec.from_pair("review/default", raw)
     end
   end
+
+  test "uses defaults for omitted optional fields" do
+    assert {:ok, bench} =
+             BenchSpec.from_pair("research/quick", %{
+               "description" => "Quick research bench",
+               "agents" => ["trace"]
+             })
+
+    assert bench.kind == :default
+    assert bench.planner == nil
+    assert bench.synthesizer == nil
+    assert bench.concurrency == nil
+    assert bench.default_task == nil
+  end
+
+  test "rejects non-map benches, missing descriptions, and invalid concurrency" do
+    assert {:error, "bench review/default must be a map"} =
+             BenchSpec.from_pair("review/default", nil)
+
+    assert {:error, "bench description is required"} =
+             BenchSpec.from_pair("review/default", %{"agents" => ["trace"]})
+
+    assert {:error, "bench concurrency must be a positive integer"} =
+             BenchSpec.from_pair("review/default", %{
+               "description" => "Review bench",
+               "agents" => ["trace"],
+               "concurrency" => "0"
+             })
+  end
 end
