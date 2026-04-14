@@ -317,7 +317,7 @@ defmodule Thinktank.CLITest do
     assert {:ok, updated} =
              CLI.read_stdin(command,
                stdin_piped?: true,
-               reader: fn :stdio, :all -> "  inspect this branch  \n" end
+               reader: fn :stdio, :eof -> "  inspect this branch  \n" end
              )
 
     assert updated.input.input_text == "inspect this branch"

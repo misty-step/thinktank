@@ -10,111 +10,11 @@ defmodule Thinktank.Integration.AgentContractTest do
   import ExUnit.CaptureIO
 
   alias Thinktank.CLI
+  alias Thinktank.Test.FakePi
+  alias Thinktank.Test.Workspace
 
   @exit_codes CLI.exit_codes()
   @repo_root Path.expand("../../..", __DIR__)
-
-  defp unique_tmp_dir(prefix) do
-    dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
-    File.rm_rf!(dir)
-    File.mkdir_p!(dir)
-    dir
-  end
-
-  defp git!(cwd, args) do
-    case System.cmd("git", args, cd: cwd, stderr_to_stdout: true, env: [{"LEFTHOOK", "0"}]) do
-      {_output, 0} -> :ok
-      {output, status} -> flunk("git #{Enum.join(args, " ")} failed (#{status}): #{output}")
-    end
-  end
-
-  defp init_git_repo_with_commit!(cwd) do
-    git!(cwd, ["init"])
-    git!(cwd, ["config", "user.email", "thinktank@example.com"])
-    git!(cwd, ["config", "user.name", "ThinkTank Test"])
-    File.write!(Path.join(cwd, ".gitkeep"), "")
-    git!(cwd, ["add", "."])
-    git!(cwd, ["commit", "-m", "initial"])
-  end
-
-  defp with_fake_pi(mode, fun) do
-    tmp = unique_tmp_dir("thinktank-fake-pi")
-    pi_path = Path.join(tmp, "pi")
-
-    File.write!(
-      pi_path,
-      """
-      #!/bin/sh
-      mode="${THINKTANK_TEST_PI_MODE:-success}"
-      prev=""
-      prompt_file=""
-
-      for arg in "$@"; do
-        if [ "$prev" = "-p" ]; then
-          prompt_file="$arg"
-          break
-        fi
-
-        prev="$arg"
-      done
-
-      prompt_name="$(basename "${prompt_file#@}" .md)"
-      prompt="$(cat "${prompt_file#@}")"
-
-      if [ "$mode" = "fail" ]; then
-        echo "simulated failure"
-        exit 1
-      fi
-
-      if [ "$mode" = "degraded" ]; then
-        case "$prompt_name" in
-          systems-*)
-            echo "Raw agent output"
-            exit 0
-            ;;
-          *)
-            echo "simulated failure"
-            exit 1
-            ;;
-        esac
-      fi
-
-      case "$prompt_name" in
-        marshal-*)
-        printf '%s\\n' \
-          '{"summary":"Planner summary.",' \
-          '"selected_agents":[{"name":"trace","brief":"Check correctness."}],' \
-          '"synthesis_brief":"Use grounded evidence."}'
-        ;;
-        review-synth-*|research-synth-*)
-        echo "Synthesized summary"
-        ;;
-        *)
-        echo "Raw agent output"
-        ;;
-      esac
-      """
-    )
-
-    File.chmod!(pi_path, 0o755)
-
-    original_path = System.get_env("PATH")
-    original_mode = System.get_env("THINKTANK_TEST_PI_MODE")
-    System.put_env("PATH", "#{tmp}:#{original_path}")
-    System.put_env("THINKTANK_TEST_PI_MODE", mode)
-
-    on_exit(fn ->
-      System.put_env("PATH", original_path || "")
-
-      if is_nil(original_mode) do
-        System.delete_env("THINKTANK_TEST_PI_MODE")
-      else
-        System.put_env("THINKTANK_TEST_PI_MODE", original_mode)
-      end
-    end)
-
-    fun.()
-  end
 
   describe "agent discovery path" do
     test "validate benches exposes a machine-readable success payload" do
@@ -206,8 +106,8 @@ defmodule Thinktank.Integration.AgentContractTest do
     end
 
     test "research can read stdin and expose output_dir and artifacts in JSON" do
-      with_fake_pi("success", fn ->
-        workspace = unique_tmp_dir("thinktank-agent-run-contract")
+      FakePi.with_fake_pi("success", fn _env ->
+        workspace = Workspace.unique_tmp_dir("thinktank-agent-run-contract")
 
         File.cd!(workspace, fn ->
           assert {:needs_stdin, command} =
@@ -216,7 +116,7 @@ defmodule Thinktank.Integration.AgentContractTest do
           assert {:ok, command} =
                    CLI.read_stdin(command,
                      stdin_piped?: true,
-                     reader: fn :stdio, :all -> "inspect this repo\n" end
+                     reader: fn :stdio, :eof -> "inspect this repo\n" end
                    )
 
           output =
@@ -252,8 +152,8 @@ defmodule Thinktank.Integration.AgentContractTest do
     end
 
     test "non-json run output includes the selected output directory" do
-      with_fake_pi("success", fn ->
-        workspace = unique_tmp_dir("thinktank-agent-run-text")
+      FakePi.with_fake_pi("success", fn _env ->
+        workspace = Workspace.unique_tmp_dir("thinktank-agent-run-text")
         output_root = Path.join(workspace, "captured-run")
 
         File.cd!(workspace, fn ->
@@ -279,8 +179,8 @@ defmodule Thinktank.Integration.AgentContractTest do
     end
 
     test "degraded run json exposes a typed top-level error" do
-      with_fake_pi("degraded", fn ->
-        workspace = unique_tmp_dir("thinktank-agent-run-degraded")
+      FakePi.with_fake_pi("degraded", fn _env ->
+        workspace = Workspace.unique_tmp_dir("thinktank-agent-run-degraded")
 
         File.cd!(workspace, fn ->
           assert {:ok, command} =
@@ -306,11 +206,11 @@ defmodule Thinktank.Integration.AgentContractTest do
     end
 
     test "review eval json exposes typed errors and aggregate artifacts" do
-      with_fake_pi("fail", fn ->
-        workspace = unique_tmp_dir("thinktank-agent-review-eval")
-        init_git_repo_with_commit!(workspace)
-        fixture_root = unique_tmp_dir("thinktank-agent-review-fixtures")
-        output_root = Path.join(unique_tmp_dir("thinktank-agent-review-output"), "runs")
+      FakePi.with_fake_pi("fail", fn _env ->
+        workspace = Workspace.unique_tmp_dir("thinktank-agent-review-eval")
+        Workspace.init_git_repo!(workspace)
+        fixture_root = Workspace.unique_tmp_dir("thinktank-agent-review-fixtures")
+        output_root = Path.join(Workspace.unique_tmp_dir("thinktank-agent-review-output"), "runs")
 
         contract = %{
           "bench_id" => "review/default",
@@ -362,11 +262,13 @@ defmodule Thinktank.Integration.AgentContractTest do
     end
 
     test "review eval text output includes the selected output directory" do
-      with_fake_pi("success", fn ->
-        workspace = unique_tmp_dir("thinktank-agent-review-eval-text")
-        init_git_repo_with_commit!(workspace)
-        fixture_root = unique_tmp_dir("thinktank-agent-review-text-fixtures")
-        output_root = Path.join(unique_tmp_dir("thinktank-agent-review-text-output"), "runs")
+      FakePi.with_fake_pi("success", fn _env ->
+        workspace = Workspace.unique_tmp_dir("thinktank-agent-review-eval-text")
+        Workspace.init_git_repo!(workspace)
+        fixture_root = Workspace.unique_tmp_dir("thinktank-agent-review-text-fixtures")
+
+        output_root =
+          Path.join(Workspace.unique_tmp_dir("thinktank-agent-review-text-output"), "runs")
 
         contract = %{
           "bench_id" => "review/default",

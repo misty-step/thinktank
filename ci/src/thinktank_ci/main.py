@@ -170,6 +170,32 @@ class ThinktankCi:
         )
 
     @function
+    async def e2e_smoke(
+        self,
+        source: Annotated[
+            dagger.Directory,
+            DefaultPath("/"),
+            Ignore(SOURCE_IGNORE),
+            Doc("Repo source directory"),
+        ],
+    ) -> None:
+        """Build the escript and run the CLI e2e smoke suite."""
+        await (
+            _elixir_env(source, "test", "escript")
+            .with_exec(["mix", "escript.build"])
+            .with_exec(
+                [
+                    "mix",
+                    "test",
+                    "--include",
+                    "e2e",
+                    "test/thinktank/e2e/smoke_test.exs",
+                ]
+            )
+            .sync()
+        )
+
+    @function
     async def shell(
         self,
         source: Annotated[
@@ -301,6 +327,7 @@ for path in paths:
             await run_gate("coveralls", self.coveralls(source))
             await run_gate("dialyzer", self.dialyzer(source))
             await run_gate("escript", self.escript(source))
+            await run_gate("e2e-smoke", self.e2e_smoke(source))
 
         lines = ["ThinkTank CI Results", "=" * 40]
         passed = 0
