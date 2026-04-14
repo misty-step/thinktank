@@ -19,8 +19,7 @@ defmodule Thinktank.Test.Workspace do
     dir
   end
 
-  @spec git!(String.t(), [String.t()]) :: :ok
-  def git!(cwd, args) when is_binary(cwd) and is_list(args) do
+  defp git!(cwd, args) when is_binary(cwd) and is_list(args) do
     case System.cmd("git", args, cd: cwd, stderr_to_stdout: true, env: [{"LEFTHOOK", "0"}]) do
       {_output, 0} ->
         :ok

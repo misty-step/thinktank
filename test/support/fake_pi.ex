@@ -18,6 +18,8 @@ defmodule Thinktank.Test.FakePi do
 
   import ExUnit.Callbacks, only: [on_exit: 1]
 
+  alias Thinktank.Test.Workspace
+
   @type mode :: String.t()
   @type env :: %{
           required(:mode) => mode(),
@@ -26,7 +28,7 @@ defmodule Thinktank.Test.FakePi do
 
   @spec with_fake_pi(mode(), (env() -> any())) :: any()
   def with_fake_pi(mode, fun) when is_binary(mode) and is_function(fun, 1) do
-    tmp = unique_tmp_dir("thinktank-fake-pi")
+    tmp = Workspace.unique_tmp_dir("thinktank-fake-pi")
     pi_path = Path.join(tmp, "pi")
 
     File.write!(pi_path, script())
@@ -83,13 +85,6 @@ defmodule Thinktank.Test.FakePi do
     ]
 
     base ++ extra
-  end
-
-  defp unique_tmp_dir(prefix) do
-    dir = Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive])}")
-    File.rm_rf!(dir)
-    File.mkdir_p!(dir)
-    dir
   end
 
   defp script do
