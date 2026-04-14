@@ -1,7 +1,7 @@
 # Add CLI E2E Smoke Suite
 
 Priority: high
-Status: ready
+Status: in-progress
 Estimate: M
 
 ## Goal
