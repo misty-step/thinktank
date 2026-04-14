@@ -4,6 +4,15 @@ set -euo pipefail
 PROFILE="${THINKTANK_COLIMA_PROFILE:-default}"
 SOCKET_PATH="${HOME}/.colima/${PROFILE}/docker.sock"
 
+ensure_repo_env_file() {
+  if [ -f .env ] || [ ! -f .env.example ]; then
+    return
+  fi
+
+  cp .env.example .env
+  echo "thinktank: seeded .env from .env.example for this worktree." >&2
+}
+
 require_command() {
   local name="$1"
 
@@ -79,5 +88,7 @@ export DOCKER_HOST="unix://${SOCKET_PATH}"
 unset DOCKER_CONTEXT
 unset DOCKER_TLS_VERIFY
 unset DOCKER_CERT_PATH
+
+ensure_repo_env_file
 
 exec "$@"
