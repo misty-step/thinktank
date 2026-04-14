@@ -636,7 +636,7 @@ defmodule Thinktank.CLI do
       input =
         opts
         |> Keyword.get(:reader, &IO.read/2)
-        |> then(& &1.(:stdio, :all))
+        |> then(& &1.(:stdio, :eof))
         |> case do
           data when is_binary(data) -> String.trim(data)
           _ -> ""
