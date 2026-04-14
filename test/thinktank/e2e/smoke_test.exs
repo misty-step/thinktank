@@ -117,6 +117,12 @@ defmodule Thinktank.E2E.SmokeTest do
         assert status == 0,
                "expected exit 0, got #{status}. stdout:\n#{stdout}\nstderr:\n#{stderr}"
 
+        refute stdout =~ "openrouter.ai",
+               "stdout leaked openrouter.ai reference:\n#{stdout}"
+
+        refute stdout =~ "https://api.",
+               "stdout leaked HTTPS api reference:\n#{stdout}"
+
         refute stderr =~ "openrouter.ai",
                "stderr leaked openrouter.ai reference:\n#{stderr}"
 

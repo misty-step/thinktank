@@ -36,12 +36,23 @@ defmodule Thinktank.Test.FakePi do
 
     original_path = System.get_env("PATH")
     original_mode = System.get_env("THINKTANK_TEST_PI_MODE")
-    new_path = "#{tmp}:#{original_path}"
+
+    new_path =
+      if original_path in [nil, ""] do
+        tmp
+      else
+        "#{tmp}:#{original_path}"
+      end
+
     System.put_env("PATH", new_path)
     System.put_env("THINKTANK_TEST_PI_MODE", mode)
 
     on_exit(fn ->
-      System.put_env("PATH", original_path || "")
+      if is_nil(original_path) do
+        System.delete_env("PATH")
+      else
+        System.put_env("PATH", original_path)
+      end
 
       if is_nil(original_mode) do
         System.delete_env("THINKTANK_TEST_PI_MODE")
@@ -104,7 +115,6 @@ defmodule Thinktank.Test.FakePi do
     done
 
     prompt_name="$(basename "${prompt_file#@}" .md)"
-    prompt="$(cat "${prompt_file#@}")"
 
     if [ "$mode" = "fail" ]; then
       echo "simulated failure"
