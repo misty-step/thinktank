@@ -1,13 +1,16 @@
-name: Elixir CI
+name: Quality Checks
 
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches: [master]
 
 permissions:
   contents: read
 
 jobs:
   local-first:
-    name: Local-First CI
+    name: Quality Checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
