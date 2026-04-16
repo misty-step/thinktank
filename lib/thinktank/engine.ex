@@ -160,6 +160,11 @@ defmodule Thinktank.Engine do
 
     RunStore.set_planned_agents(output_dir, Enum.map(planned_agents, & &1.name))
 
+    RunStore.append_run_note(
+      output_dir,
+      "planned agents selected: #{Enum.map_join(planned_agents, ", ", & &1.name)}"
+    )
+
     TraceLog.record_event(output_dir, "planned_agents_selected", %{
       "bench" => bench.id,
       "agent_names" => Enum.map(planned_agents, & &1.name),
@@ -408,6 +413,11 @@ defmodule Thinktank.Engine do
   end
 
   defp record_run_started(output_dir, contract, bench, planner, synthesizer) do
+    RunStore.append_run_note(
+      output_dir,
+      "run started for #{bench.id} (planner=#{(planner && planner.name) || "none"}, synthesizer=#{(synthesizer && synthesizer.name) || "none"})"
+    )
+
     TraceLog.record_event(output_dir, "run_started", %{
       "bench" => bench.id,
       "kind" => bench.kind,
@@ -453,6 +463,8 @@ defmodule Thinktank.Engine do
          output_dir
        ) do
     if Enum.any?(results, &(&1.status == :ok and String.trim(&1.output) != "")) do
+      RunStore.append_run_note(output_dir, "synthesis started with #{synthesizer.name}")
+
       Progress.emit(opts, "synthesis_started", %{
         phase: Progress.phase_for_event("synthesis_started"),
         output_dir: output_dir,
@@ -533,15 +545,39 @@ defmodule Thinktank.Engine do
   end
 
   defp derive_status(results, synthesis) do
-    successful = Enum.count(results, &(&1.status == :ok and String.trim(&1.output) != ""))
-    degraded = Enum.any?(results, &(&1.status == :error)) or match?(%{status: :error}, synthesis)
+    successful = successful_result_count(results)
 
     cond do
+      partial_status?(results, synthesis, successful) -> "partial"
       successful == 0 -> "failed"
-      degraded -> "degraded"
+      degraded_status?(results, synthesis) -> "degraded"
       true -> "complete"
     end
   end
+
+  defp successful_result_count(results) do
+    Enum.count(results, &(&1.status == :ok and String.trim(&1.output) != ""))
+  end
+
+  defp partial_status?(results, synthesis, successful) do
+    timeout_status?(results, synthesis) or synthesis_unavailable?(synthesis, successful)
+  end
+
+  defp timeout_status?(results, synthesis) do
+    Enum.any?(results, &timeout_result?/1) or
+      match?(%{status: :error, error: %{category: :timeout}}, synthesis)
+  end
+
+  defp synthesis_unavailable?(synthesis, successful) do
+    successful > 0 and match?(%{status: :error}, synthesis)
+  end
+
+  defp degraded_status?(results, synthesis) do
+    Enum.any?(results, &(&1.status == :error)) or match?(%{status: :error}, synthesis)
+  end
+
+  defp timeout_result?(%{status: :error, error: %{category: :timeout}}), do: true
+  defp timeout_result?(_result), do: false
 
   defp normalize_input(%BenchSpec{default_task: default_task}, input) when is_map(input) do
     normalized =

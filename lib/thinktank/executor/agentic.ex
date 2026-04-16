@@ -3,7 +3,8 @@ defmodule Thinktank.Executor.Agentic do
   Pi subprocess executor for tool-using agent runs.
   """
 
-  alias Thinktank.{AgentSpec, Config, Progress, RunContract, Template, TraceLog}
+  alias Thinktank.{AgentSpec, Config, Progress, RunContract, RunStore, Template, TraceLog}
+  alias Thinktank.Executor.OutputCollector
 
   @allowed_tools MapSet.new(~w(read bash edit write grep find ls))
   @default_tools ["bash", "read", "grep", "find", "ls"]
@@ -33,6 +34,16 @@ defmodule Thinktank.Executor.Agentic do
       Keyword.get(opts, :progress_phase, Progress.phase_for_event("agents_started"))
 
     indexed_agents = Enum.with_index(agents, 1)
+
+    Enum.each(indexed_agents, fn {agent, index} ->
+      instance_id = agent_instance_id(agent, index)
+
+      RunStore.init_agent_scratchpad(contract.artifact_dir, agent.name, instance_id, %{
+        bench: contract.bench_id,
+        model: agent.model,
+        provider: agent.provider
+      })
+    end)
 
     timeout =
       Enum.max(
@@ -64,6 +75,12 @@ defmodule Thinktank.Executor.Agentic do
       {{:exit, reason}, {agent, index}} when reason in [:timeout, {:timeout, nil}] ->
         instance_id = agent_instance_id(agent, index)
 
+        RunStore.append_agent_note(
+          contract.artifact_dir,
+          instance_id,
+          "agent task timed out before the subprocess returned"
+        )
+
         TraceLog.record_event(contract.artifact_dir, "agent_finished", %{
           "bench" => contract.bench_id,
           "agent_name" => agent.name,
@@ -88,6 +105,12 @@ defmodule Thinktank.Executor.Agentic do
       {{:exit, reason}, {agent, index}} ->
         instance_id = agent_instance_id(agent, index)
         error = %{category: :crash, message: inspect(reason)}
+
+        RunStore.append_agent_note(
+          contract.artifact_dir,
+          instance_id,
+          "agent task crashed: #{inspect(reason)}"
+        )
 
         TraceLog.record_event(contract.artifact_dir, "agent_finished", %{
           "bench" => contract.bench_id,
@@ -137,6 +160,7 @@ defmodule Thinktank.Executor.Agentic do
     }
 
     TraceLog.record_event(contract.artifact_dir, "agent_started", trace_context)
+    RunStore.append_agent_note(contract.artifact_dir, instance_id, "agent started")
 
     Progress.emit(opts, "agent_started", %{
       phase: progress_phase,
@@ -178,6 +202,12 @@ defmodule Thinktank.Executor.Agentic do
         "prompt_sha256" => sha256_hex(prompt)
       })
 
+      RunStore.append_agent_note(
+        contract.artifact_dir,
+        instance_id,
+        "prompt rendered to #{relative_artifact_path(prompt_file, contract.artifact_dir)}"
+      )
+
       max_attempts = max(agent.retries + 1, 1)
 
       case attempt(max_attempts, contract.artifact_dir, trace_context, fn attempt_number ->
@@ -194,6 +224,12 @@ defmodule Thinktank.Executor.Agentic do
            end) do
         {:ok, output, attempts_run} ->
           result = timed_result(agent, instance_id, :ok, output, started_at, started_mono, nil)
+
+          RunStore.append_agent_note(
+            contract.artifact_dir,
+            instance_id,
+            "agent finished successfully after #{attempts_run} attempt(s)"
+          )
 
           TraceLog.record_event(contract.artifact_dir, "agent_finished", %{
             "bench" => contract.bench_id,
@@ -230,6 +266,12 @@ defmodule Thinktank.Executor.Agentic do
               started_mono,
               Map.delete(error, :output)
             )
+
+          RunStore.append_agent_note(
+            contract.artifact_dir,
+            instance_id,
+            "agent finished with #{error[:category]} after #{attempts_run} attempt(s)"
+          )
 
           TraceLog.record_event(contract.artifact_dir, "agent_finished", %{
             "bench" => contract.bench_id,
@@ -268,6 +310,12 @@ defmodule Thinktank.Executor.Agentic do
             started_mono,
             %{category: :crash, message: Exception.message(error)}
           )
+
+        RunStore.append_agent_note(
+          contract.artifact_dir,
+          instance_id,
+          "agent crashed: #{Exception.message(error)}"
+        )
 
         TraceLog.record_event(contract.artifact_dir, "agent_finished", %{
           "bench" => contract.bench_id,
@@ -418,6 +466,12 @@ defmodule Thinktank.Executor.Agentic do
       "max_attempts" => max_attempts
     })
 
+    RunStore.append_agent_note(
+      output_dir,
+      trace_context["instance_id"],
+      "attempt #{current}/#{max_attempts} started"
+    )
+
     started_mono = System.monotonic_time(:millisecond)
 
     case fun.(current) do
@@ -432,6 +486,12 @@ defmodule Thinktank.Executor.Agentic do
           "duration_ms" => elapsed_ms(started_mono),
           "output_bytes" => byte_size(output)
         })
+
+        RunStore.append_agent_note(
+          output_dir,
+          trace_context["instance_id"],
+          "attempt #{current}/#{max_attempts} succeeded"
+        )
 
         {:ok, output, current}
 
@@ -450,6 +510,12 @@ defmodule Thinktank.Executor.Agentic do
           "error" => trimmed_error
         })
 
+        RunStore.append_agent_note(
+          output_dir,
+          trace_context["instance_id"],
+          "attempt #{current}/#{max_attempts} failed with #{trimmed_error[:category]}"
+        )
+
         if current < max_attempts and retryable?(error) do
           next_attempt = current + 1
 
@@ -462,6 +528,12 @@ defmodule Thinktank.Executor.Agentic do
             "delay_ms" => 250,
             "error" => trimmed_error
           })
+
+          RunStore.append_agent_note(
+            output_dir,
+            trace_context["instance_id"],
+            "retrying after attempt #{current}; next attempt #{next_attempt} in 250 ms"
+          )
 
           Process.sleep(250)
           do_attempt(next_attempt, max_attempts, output_dir, trace_context, fun)
@@ -479,7 +551,7 @@ defmodule Thinktank.Executor.Agentic do
     {"sh",
      [
        "-c",
-       "exec < /dev/null; exec \"$@\"",
+       "exec < /dev/null; exec \"$@\" 2>&1",
        "sh",
        "pi",
        "--no-session",
@@ -503,6 +575,7 @@ defmodule Thinktank.Executor.Agentic do
     [
       stderr_to_stdout: true,
       timeout: agent.timeout_ms,
+      output_sink: &RunStore.append_agent_output(contract.artifact_dir, instance_id, &1),
       env:
         [
           {"PI_CODING_AGENT_DIR",
@@ -679,7 +752,10 @@ defmodule Thinktank.Executor.Agentic do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     env = Keyword.get(opts, :env, [])
     cd = Keyword.get(opts, :cd)
-    cmd_opts = [stderr_to_stdout: true, env: env] ++ if(cd, do: [cd: cd], else: [])
+    collector = %OutputCollector{sink: Keyword.get(opts, :output_sink)}
+
+    cmd_opts =
+      [stderr_to_stdout: true, env: env, into: collector] ++ if(cd, do: [cd: cd], else: [])
 
     task =
       Task.async(fn ->
@@ -704,9 +780,11 @@ defmodule Thinktank.Executor.Agentic do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     env = Keyword.get(opts, :env, [])
     cd = Keyword.get(opts, :cd)
+    collector = %OutputCollector{sink: Keyword.get(opts, :output_sink)}
 
     cmd_opts =
-      [stderr_to_stdout: true, timeout: timeout, env: env] ++ if(cd, do: [cd: cd], else: [])
+      [stderr_to_stdout: true, timeout: timeout, env: env, into: collector] ++
+        if(cd, do: [cd: cd], else: [])
 
     MuonTrap.cmd(cmd, args, cmd_opts)
   end

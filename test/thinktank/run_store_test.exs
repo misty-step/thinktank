@@ -170,6 +170,38 @@ defmodule Thinktank.RunStoreTest do
     assert envelope.synthesis == nil
   end
 
+  test "ensure_partial_summary writes a best-effort partial summary from scratchpads" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-store-partial"), "run")
+
+    contract = %RunContract{
+      bench_id: "research/default",
+      workspace_root: File.cwd!(),
+      input: %{input_text: "inspect this repo"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{
+      id: "research/default",
+      kind: :research,
+      description: "Demo",
+      agents: ["systems"]
+    }
+
+    RunStore.init_run(output_dir, contract, bench)
+
+    RunStore.init_agent_scratchpad(output_dir, "systems", "systems-eafe895e-1", %{bench: bench.id})
+
+    RunStore.append_agent_note(output_dir, "systems-eafe895e-1", "attempt 1 started")
+    RunStore.append_agent_output(output_dir, "systems-eafe895e-1", "partial finding\n")
+    RunStore.ensure_partial_summary(output_dir)
+    RunStore.complete_run(output_dir, "partial")
+
+    assert File.read!(Path.join(output_dir, "summary.md")) =~ "Partial Result"
+    assert File.read!(Path.join(output_dir, "summary.md")) =~ "partial finding"
+    assert File.exists?(Path.join(output_dir, "synthesis.md"))
+  end
+
   test "initializes trace artifacts and updates trace summary on completion" do
     output_dir = Path.join(unique_tmp_dir("thinktank-run-store-trace"), "run")
 

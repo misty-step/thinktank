@@ -20,6 +20,7 @@ defmodule Thinktank.Error do
 
   @contract_reasons %{
     degraded_run: "one or more agents failed",
+    partial_run: "the run ended before ThinkTank could produce a complete result",
     review_eval_degraded: "one or more review eval cases degraded",
     review_eval_failed: "one or more review eval cases failed"
   }

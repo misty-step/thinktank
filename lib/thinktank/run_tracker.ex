@@ -44,7 +44,7 @@ defmodule Thinktank.RunTracker do
     Enum.each(active_runs(), fn {output_dir, attrs} ->
       unregister(output_dir)
 
-      safe_complete(output_dir, "failed", %{
+      safe_complete(output_dir, "partial", %{
         "bench" => attrs["bench"],
         "phase" => "shutdown",
         "error" => shutdown_error
@@ -60,7 +60,12 @@ defmodule Thinktank.RunTracker do
       |> normalize()
       |> Map.delete("status")
 
+    if status == "partial" do
+      RunStore.ensure_partial_summary(output_dir)
+    end
+
     RunStore.complete_run(output_dir, status)
+    RunStore.append_run_note(output_dir, "run completed with status=#{status}")
 
     TraceLog.record_event(
       output_dir,

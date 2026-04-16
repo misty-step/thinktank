@@ -778,5 +778,11 @@ defmodule Thinktank.CLI do
     })
   end
 
+  defp contract_error(%{status: "partial"}) do
+    Error.from_contract(:partial_run, %{
+      status: "partial"
+    })
+  end
+
   defp contract_error(_payload), do: nil
 end

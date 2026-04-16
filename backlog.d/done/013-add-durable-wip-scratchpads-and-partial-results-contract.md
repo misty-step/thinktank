@@ -1,7 +1,7 @@
 # Add Durable WIP Scratchpads And Partial-Result Contract
 
 Priority: high
-Status: ready
+Status: done
 Estimate: M
 
 ## Goal
@@ -44,3 +44,8 @@ Long-running ThinkTank runs remain useful when stopped early: every run and ever
 This is adjacent to `011-add-live-progress-surface-for-json-runs.md` but not the same problem. `011` is about live visibility during a healthy long-running run. This item is about preserving useful bench output when the caller times out, interrupts the run, or decides the wait is no longer worth it.
 
 The operator expectation that emerged during architecture research is clear: for research and code-review benches, ThinkTank should start writing useful run-level and agent-level scratchpads early enough that an interrupted run still leaves behind actionable artifacts instead of only a trace and some rendered prompts.
+
+## What Was Built
+- Added durable run-level and per-agent scratchpads plus per-agent stream artifacts that are created early and updated throughout execution.
+- Added first-class `partial` finalization with best-effort summary synthesis for timed-out, interrupted, and synthesis-incomplete runs.
+- Extended the JSON/text run contract, shutdown finalization, README, and automated tests to treat partial results as durable operator-facing artifacts instead of generic failures.

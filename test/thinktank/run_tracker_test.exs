@@ -90,12 +90,13 @@ defmodule Thinktank.RunTrackerTest do
     summary = read_json(Path.join(output_dir, "trace/summary.json"))
     events = read_jsonl(Path.join(output_dir, "trace/events.jsonl"))
 
-    assert manifest["status"] == "failed"
+    assert manifest["status"] == "partial"
     assert is_binary(manifest["completed_at"])
-    assert summary["status"] == "failed"
+    assert summary["status"] == "partial"
+    assert File.exists?(Path.join(output_dir, "summary.md"))
 
     assert Enum.any?(events, fn event ->
-             event["event"] == "run_completed" and event["status"] == "failed" and
+             event["event"] == "run_completed" and event["status"] == "partial" and
                event["phase"] == "shutdown" and
                event["error"]["reason"] == "application_shutdown"
            end)

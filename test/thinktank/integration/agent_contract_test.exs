@@ -246,6 +246,53 @@ defmodule Thinktank.Integration.AgentContractTest do
       end)
     end
 
+    test "partial run json preserves the stdout envelope and scratchpad artifacts" do
+      FakePi.with_fake_pi("degraded", fn _env ->
+        workspace = Workspace.unique_tmp_dir("thinktank-agent-run-partial")
+
+        File.cd!(workspace, fn ->
+          assert {:ok, command} =
+                   CLI.parse_args([
+                     "research",
+                     "inspect this repo",
+                     "--json",
+                     "--agents",
+                     "systems"
+                   ])
+
+          {stdout, stderr} =
+            capture_stdout_and_stderr(fn ->
+              assert CLI.execute({:ok, command}) == @exit_codes.generic_error
+            end)
+
+          {:ok, payload} = Jason.decode(String.trim(stdout))
+          progress_events = decode_jsonl!(stderr)
+
+          assert payload["status"] == "partial"
+          assert payload["error"]["code"] == "partial_run"
+          assert Enum.any?(progress_events, &(&1["phase"] == "running_agents"))
+
+          artifact_names = Enum.map(payload["artifacts"], & &1["name"])
+          assert "run-scratchpad" in artifact_names
+          assert Enum.any?(artifact_names, &String.starts_with?(&1, "agent-scratchpad-"))
+
+          summary = File.read!(Path.join(payload["output_dir"], "summary.md"))
+          assert summary =~ "Partial Result"
+          assert summary =~ "Raw agent output"
+
+          agent_scratchpad =
+            payload["artifacts"]
+            |> Enum.find(&String.starts_with?(&1["name"], "agent-scratchpad-"))
+            |> then(& &1["file"])
+            |> then(&Path.join(payload["output_dir"], &1))
+            |> File.read!()
+
+          assert agent_scratchpad =~ "attempt 1/1 started"
+          assert agent_scratchpad =~ "agent finished successfully"
+        end)
+      end)
+    end
+
     test "review eval json exposes typed errors and aggregate artifacts" do
       FakePi.with_fake_pi("fail", fn _env ->
         workspace = Workspace.unique_tmp_dir("thinktank-agent-review-eval")

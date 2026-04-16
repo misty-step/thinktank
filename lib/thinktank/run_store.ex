@@ -7,19 +7,24 @@ defmodule Thinktank.RunStore do
   alias Thinktank.TraceLog
 
   @manifest_file "manifest.json"
+  @scratchpad_dir "scratchpads"
+  @stream_dir "artifacts/streams"
 
   @spec init_run(Path.t(), RunContract.t(), BenchSpec.t()) :: :ok
   def init_run(output_dir, %RunContract{} = contract, %BenchSpec{} = bench) do
     mkdir_private!(output_dir)
     mkdir_private!(Path.join(output_dir, "agents"))
     mkdir_private!(Path.join(output_dir, "artifacts"))
+    mkdir_private!(Path.join(output_dir, @stream_dir))
     mkdir_private!(Path.join(output_dir, "prompts"))
     mkdir_private!(Path.join(output_dir, "pi-home"))
+    mkdir_private!(Path.join(output_dir, @scratchpad_dir))
     started_at = now_iso8601()
 
     manifest = %{
       "version" => version(),
       "bench" => bench.id,
+      "kind" => Atom.to_string(bench.kind),
       "status" => "running",
       "workspace_root" => contract.workspace_root,
       "started_at" => started_at,
@@ -45,11 +50,16 @@ defmodule Thinktank.RunStore do
 
     record_artifact(output_dir, "trace-events", TraceLog.events_file(), "jsonl")
     record_artifact(output_dir, "trace-summary", TraceLog.summary_file(), "json")
+    init_run_scratchpad(output_dir, contract, bench, started_at)
   end
 
   @spec record_agent_result(Path.t(), String.t(), String.t(), map()) :: :ok
   def record_agent_result(output_dir, agent_name, output, metadata \\ %{}) do
-    metadata = normalize(metadata)
+    metadata =
+      metadata
+      |> normalize()
+      |> attach_agent_artifact_refs(agent_instance_id(agent_name, normalize(metadata)))
+
     instance_id = agent_instance_id(agent_name, metadata)
     file = Path.join(["agents", "#{instance_id}.md"])
     File.write!(Path.join(output_dir, file), output)
@@ -69,6 +79,51 @@ defmodule Thinktank.RunStore do
 
       %{manifest | "agents" => agents}
     end)
+  end
+
+  @spec init_agent_scratchpad(Path.t(), String.t(), String.t(), map()) :: :ok
+  def init_agent_scratchpad(output_dir, agent_name, instance_id, metadata \\ %{}) do
+    scratchpad = render_agent_scratchpad(agent_name, instance_id, metadata)
+
+    if manifest_exists?(output_dir) do
+      write_text_artifact(
+        output_dir,
+        "agent-scratchpad-#{instance_id}",
+        agent_scratchpad_file(instance_id),
+        scratchpad
+      )
+
+      write_text_artifact(
+        output_dir,
+        "agent-stream-#{instance_id}",
+        agent_stream_file(instance_id),
+        ""
+      )
+    else
+      write_artifact_file(output_dir, agent_scratchpad_file(instance_id), scratchpad)
+      write_artifact_file(output_dir, agent_stream_file(instance_id), "")
+    end
+  end
+
+  @spec append_run_note(Path.t(), String.t()) :: :ok
+  def append_run_note(output_dir, note) when is_binary(note) do
+    append_text(output_dir, run_scratchpad_file(), format_note(note))
+  end
+
+  @spec append_agent_note(Path.t(), String.t(), String.t()) :: :ok
+  def append_agent_note(output_dir, instance_id, note)
+      when is_binary(instance_id) and is_binary(note) do
+    append_text(output_dir, agent_scratchpad_file(instance_id), format_note(note))
+  end
+
+  @spec append_agent_output(Path.t(), String.t(), String.t()) :: :ok
+  def append_agent_output(output_dir, instance_id, chunk)
+      when is_binary(instance_id) and is_binary(chunk) do
+    if chunk != "" do
+      append_text(output_dir, agent_stream_file(instance_id), chunk)
+    else
+      :ok
+    end
   end
 
   @spec write_text_artifact(Path.t(), String.t(), String.t(), String.t()) :: :ok
@@ -104,6 +159,30 @@ defmodule Thinktank.RunStore do
     update_manifest(output_dir, fn manifest ->
       %{manifest | "planned_agents" => names}
     end)
+  end
+
+  @spec ensure_partial_summary(Path.t()) :: :ok
+  def ensure_partial_summary(output_dir) do
+    manifest = read_manifest(output_dir)
+
+    if summary_artifact(manifest["artifacts"]) == nil do
+      content = render_partial_summary(output_dir, manifest)
+
+      write_text_artifact(output_dir, "summary", "summary.md", content)
+
+      case manifest["kind"] do
+        "review" ->
+          write_text_artifact(output_dir, "review", "review.md", content)
+
+        "research" ->
+          write_text_artifact(output_dir, "synthesis", "synthesis.md", content)
+
+        _ ->
+          :ok
+      end
+    else
+      :ok
+    end
   end
 
   @spec result_envelope(Path.t()) :: map()
@@ -156,6 +235,173 @@ defmodule Thinktank.RunStore do
     if File.exists?(path), do: File.read!(path), else: nil
   end
 
+  defp init_run_scratchpad(output_dir, contract, bench, started_at) do
+    write_text_artifact(
+      output_dir,
+      "run-scratchpad",
+      run_scratchpad_file(),
+      render_run_scratchpad(contract, bench, started_at)
+    )
+  end
+
+  defp render_run_scratchpad(contract, bench, started_at) do
+    paths =
+      contract.input
+      |> Map.get("paths", [])
+      |> Enum.map_join("\n", &"- #{&1}")
+
+    """
+    # Run Scratchpad
+
+    - status: running
+    - mode: #{Atom.to_string(bench.kind)}
+    - bench: #{bench.id}
+    - started_at: #{started_at}
+    - output_dir: #{contract.artifact_dir}
+    - workspace_root: #{contract.workspace_root}
+    - planned_agents: #{Enum.join(bench.agents, ", ")}
+    - synthesizer: #{bench.synthesizer || "none"}
+    - task: #{Map.get(contract.input, "input_text", "")}
+    - paths:
+    #{if paths == "", do: "- none", else: paths}
+
+    ## Journal
+
+    #{format_note("run initialized")}
+    """
+  end
+
+  defp render_agent_scratchpad(agent_name, instance_id, metadata) do
+    model = Map.get(metadata, :model) || Map.get(metadata, "model") || "unknown"
+    provider = Map.get(metadata, :provider) || Map.get(metadata, "provider") || "unknown"
+    bench = Map.get(metadata, :bench) || Map.get(metadata, "bench") || "unknown"
+    started_at = Map.get(metadata, :started_at) || Map.get(metadata, "started_at") || "pending"
+
+    """
+    # Agent Scratchpad
+
+    - agent: #{agent_name}
+    - instance_id: #{instance_id}
+    - status: running
+    - started_at: #{started_at}
+    - bench: #{bench}
+    - model: #{model}
+    - provider: #{provider}
+    - stream: #{agent_stream_file(instance_id)}
+
+    ## Journal
+
+    #{format_note("scratchpad initialized")}
+    """
+  end
+
+  defp render_partial_summary(output_dir, manifest) do
+    task =
+      case read_file_if_present(Path.join(output_dir, "task.md")) do
+        nil -> "_No task artifact was written before the run ended._"
+        body -> body
+      end
+
+    agent_sections =
+      manifest
+      |> partial_agent_entries(output_dir)
+      |> Enum.map_join("\n\n", &render_partial_agent_section(output_dir, &1))
+
+    """
+    # Partial Result
+
+    ThinkTank finalized this run as `partial` because the bench ended before a complete result could be synthesized.
+
+    - Bench: #{manifest["bench"]}
+    - Mode: #{manifest["kind"]}
+    - Started: #{manifest["started_at"]}
+    - Completed: #{manifest["completed_at"] || "pending"}
+    - Run scratchpad: `#{run_scratchpad_file()}`
+
+    ## Task
+
+    #{task}
+
+    ## Available Artifacts
+
+    #{if agent_sections == "", do: "_No agent artifacts were captured before the run ended._", else: agent_sections}
+    """
+    |> String.trim()
+  end
+
+  defp partial_agent_entries(manifest, output_dir) do
+    manifest_entries =
+      Enum.map(manifest["agents"], fn agent ->
+        %{
+          "id" => agent["id"],
+          "name" => agent["name"],
+          "status" => get_in(agent, ["metadata", "status"]) || "unknown",
+          "result_file" => agent["file"],
+          "scratchpad_file" =>
+            get_in(agent, ["metadata", "scratchpad"]) || agent_scratchpad_file(agent["id"]),
+          "stream_file" => get_in(agent, ["metadata", "stream"]) || agent_stream_file(agent["id"])
+        }
+      end)
+
+    scratchpad_entries =
+      output_dir
+      |> Path.join(Path.join(@scratchpad_dir, "*.md"))
+      |> Path.wildcard()
+      |> Enum.reject(&(Path.basename(&1) == "run.md"))
+      |> Enum.map(fn path ->
+        instance_id = Path.basename(path, ".md")
+
+        %{
+          "id" => instance_id,
+          "name" => instance_id,
+          "status" => "incomplete",
+          "result_file" => nil,
+          "scratchpad_file" => Path.relative_to(path, output_dir),
+          "stream_file" => agent_stream_file(instance_id)
+        }
+      end)
+
+    (manifest_entries ++ scratchpad_entries)
+    |> Enum.uniq_by(& &1["id"])
+  end
+
+  defp render_partial_agent_section(output_dir, entry) do
+    excerpt =
+      entry
+      |> partial_excerpt(output_dir)
+      |> case do
+        nil -> "_No captured output yet._"
+        body -> "```text\n#{body}\n```"
+      end
+
+    """
+    ### #{entry["name"]}
+
+    - Status: #{entry["status"]}
+    - Scratchpad: `#{entry["scratchpad_file"]}`
+    - Stream: `#{entry["stream_file"]}`
+
+    #{excerpt}
+    """
+    |> String.trim()
+  end
+
+  defp partial_excerpt(entry, output_dir) do
+    [entry["stream_file"], entry["result_file"], entry["scratchpad_file"]]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.find_value(fn file ->
+      case read_file_if_present(Path.join(output_dir, file)) do
+        nil -> nil
+        "" -> nil
+        body -> excerpt(body, 1_200)
+      end
+    end)
+  end
+
+  defp read_file_if_present(path) when is_binary(path) do
+    if File.exists?(path), do: File.read!(path), else: nil
+  end
+
   defp resolve_artifact_path(output_dir, filename) do
     output_root = Path.expand(output_dir)
     path = Path.expand(filename, output_root)
@@ -189,6 +435,12 @@ defmodule Thinktank.RunStore do
     write_manifest(output_dir, fun.(manifest))
   end
 
+  defp attach_agent_artifact_refs(metadata, instance_id) do
+    metadata
+    |> Map.put_new("scratchpad", agent_scratchpad_file(instance_id))
+    |> Map.put_new("stream", agent_stream_file(instance_id))
+  end
+
   defp normalize(%{} = value) do
     value
     |> Enum.map(fn {key, entry} -> {to_string(key), normalize(entry)} end)
@@ -202,6 +454,7 @@ defmodule Thinktank.RunStore do
   defp normalize(value), do: inspect(value)
 
   defp manifest_path(output_dir), do: Path.join(output_dir, @manifest_file)
+  defp manifest_exists?(output_dir), do: File.exists?(manifest_path(output_dir))
 
   defp read_manifest(output_dir) do
     output_dir |> manifest_path() |> File.read!() |> Jason.decode!()
@@ -219,6 +472,49 @@ defmodule Thinktank.RunStore do
     File.mkdir_p!(Path.dirname(path))
     File.write!(path, Jason.encode!(normalize(data), pretty: true))
   end
+
+  defp write_artifact_file(output_dir, filename, content) do
+    path = resolve_artifact_path(output_dir, filename)
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, content)
+    File.chmod!(path, 0o600)
+    :ok
+  end
+
+  defp append_text(output_dir, filename, content) do
+    path = resolve_artifact_path(output_dir, filename)
+    ensure_private_parent!(path)
+
+    created? = not File.exists?(path)
+
+    File.open!(path, [:append, :binary], fn io ->
+      IO.binwrite(io, content)
+      :file.sync(io)
+    end)
+
+    if created? do
+      File.chmod!(path, 0o600)
+    end
+
+    :ok
+  end
+
+  defp format_note(note) do
+    "[#{now_iso8601()}] #{String.trim(note)}\n"
+  end
+
+  defp excerpt(body, max_bytes) when is_binary(body) and is_integer(max_bytes) do
+    body
+    |> String.trim()
+    |> case do
+      "" -> nil
+      trimmed -> String.slice(trimmed, 0, max_bytes)
+    end
+  end
+
+  defp run_scratchpad_file, do: Path.join(@scratchpad_dir, "run.md")
+  defp agent_scratchpad_file(instance_id), do: Path.join(@scratchpad_dir, "#{instance_id}.md")
+  defp agent_stream_file(instance_id), do: Path.join(@stream_dir, "#{instance_id}.txt")
 
   defp slugify(name) do
     name
@@ -243,6 +539,13 @@ defmodule Thinktank.RunStore do
   defp mkdir_private!(path) do
     File.mkdir_p!(path)
     File.chmod!(path, 0o700)
+  end
+
+  defp ensure_private_parent!(path) do
+    dir = Path.dirname(path)
+    File.mkdir_p!(dir)
+    File.chmod!(dir, 0o700)
+    dir
   end
 
   defp version do

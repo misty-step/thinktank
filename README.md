@@ -174,6 +174,9 @@ Each run writes:
 - `contract.json` — resolved bench contract
 - `trace/events.jsonl` — append-only run, agent, attempt, and subprocess events
 - `trace/summary.json` — run trace metadata, status, and local log location
+- `scratchpads/run.md` — durable run-level journal written from bootstrap onward
+- `scratchpads/*.md` — per-agent scratchpads with attempt/status notes
+- `artifacts/streams/*.txt` — best-effort per-agent captured output during execution
 - `task.md` — task text and pointed paths
 - `agents/*.md` — raw agent outputs
 - `prompts/*.md` — rendered prompts passed to Pi
@@ -190,6 +193,9 @@ running, stderr emits newline-delimited JSON progress events that surface the
 current phase, the selected `output_dir`, and periodic heartbeats for long
 runs. It does not write a `report.json` artifact. For research benches, the
 synthesized document lives in `synthesis.md` when a synthesizer is enabled.
+If a run times out, is interrupted, or loses synthesis after useful work has
+already been captured, ThinkTank finalizes it as `partial` and writes a
+best-effort summary from the scratchpads and available artifacts.
 
 If you need to inspect the same run from another shell, tail the trace file
 inside `output_dir`:

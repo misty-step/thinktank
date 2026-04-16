@@ -124,6 +124,26 @@ defmodule Thinktank.EngineTest do
     assert result.envelope.status == "degraded"
   end
 
+  test "marks the run as partial when an agent times out and keeps a best-effort summary" do
+    cwd = unique_tmp_dir("thinktank-engine-partial")
+    init_git_repo_with_commit!(cwd)
+
+    runner = fn _cmd, _args, _opts -> {"partial finding", :timeout} end
+
+    assert {:ok, result} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems"], no_synthesis: true},
+               cwd: cwd,
+               runner: runner
+             )
+
+    assert result.envelope.status == "partial"
+    assert File.read!(Path.join(result.output_dir, "summary.md")) =~ "Partial Result"
+    assert File.read!(Path.join(result.output_dir, "summary.md")) =~ "partial finding"
+    assert File.exists?(Path.join(result.output_dir, "scratchpads/run.md"))
+  end
+
   test "supports overriding a bench agent subset" do
     cwd = unique_tmp_dir("thinktank-engine-agents")
 

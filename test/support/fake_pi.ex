@@ -103,6 +103,7 @@ defmodule Thinktank.Test.FakePi do
     #!/bin/sh
     mode="${THINKTANK_TEST_PI_MODE:-success}"
     delay_ms="${THINKTANK_TEST_PI_DELAY_MS:-0}"
+    emit_before_delay="${THINKTANK_TEST_PI_EMIT_BEFORE_DELAY:-0}"
     prev=""
     prompt_file=""
 
@@ -116,6 +117,10 @@ defmodule Thinktank.Test.FakePi do
     done
 
     prompt_name="$(basename "${prompt_file#@}" .md)"
+
+    if [ "$emit_before_delay" = "1" ]; then
+      echo "Partial agent output"
+    fi
 
     if [ "$mode" = "fail" ]; then
       echo "simulated failure"

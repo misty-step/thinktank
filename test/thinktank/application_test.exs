@@ -67,8 +67,9 @@ defmodule Thinktank.ApplicationTest do
     assert :ok == Thinktank.Application.stop(%{})
 
     manifest = read_json(Path.join(output_dir, "manifest.json"))
-    assert manifest["status"] == "failed"
+    assert manifest["status"] == "partial"
     assert is_binary(manifest["completed_at"])
+    assert File.exists?(Path.join(output_dir, "summary.md"))
     assert RunTracker.active_runs() == []
   end
 
