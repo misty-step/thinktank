@@ -47,6 +47,15 @@ ThinkTank is a thin Pi bench launcher for research and review.
 - Precomputed review bundles: probably wrong layer
 - Extra prompt prose to compensate for weak models: probably wrong layer
 
+## Shared Skills
+
+Agent-agnostic skills live under `.agent/skills/` and are readable by both
+Claude Code and Codex. Follow a skill's `SKILL.md` when its trigger matches.
+
+- `.agent/skills/model-research/` — monthly OpenRouter-focused model scan
+  with Thinktank-fit recommendations. Trigger: "latest models",
+  "model research", "should we swap X", unfamiliar model names.
+
 ## References
 
 - `README.md`
