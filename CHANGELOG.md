@@ -1,5 +1,25 @@
 # Changelog
 
+## [6.3.0](https://github.com/misty-step/thinktank/compare/v6.2.0...v6.3.0) (2026-04-15)
+
+
+### Features
+
+* add --full flag to benches show for full agent spec rendering ([2d452cc](https://github.com/misty-step/thinktank/commit/2d452cc81e84b00a4481893280074d0183774cdc))
+* add JSON output for benches list command ([ae66ad4](https://github.com/misty-step/thinktank/commit/ae66ad4c7b4364e4bf17b3d71fa392a76811310b))
+* add structured Error type for programmatic error consumption ([51ef351](https://github.com/misty-step/thinktank/commit/51ef351cd3b4999f64a68aebd1aad6cfc02ab5e6))
+* agent integration contracts for programmatic discovery ([#283](https://github.com/misty-step/thinktank/issues/283)) ([72fe43c](https://github.com/misty-step/thinktank/commit/72fe43c6402d09ec09dee6b1a3d77aaafe27bdef))
+* **cli:** stabilize contracts and local-first quality gates ([dfa3ba2](https://github.com/misty-step/thinktank/commit/dfa3ba2198bb80175f48dcf3ec38f5d699535280))
+* enrich result envelope with content_type and inline synthesis ([e322ae2](https://github.com/misty-step/thinktank/commit/e322ae250e8500daaed0159a2a7e721a4c228aa3))
+* **runtime:** trace and harden local-first agent runs ([05d293b](https://github.com/misty-step/thinktank/commit/05d293bb425f2c4a1b007648209f1ca26c057ed0))
+* scaffold project-local /qa and /demo skills ([#286](https://github.com/misty-step/thinktank/issues/286)) ([51ff2c1](https://github.com/misty-step/thinktank/commit/51ff2c11a7a4f064cf46c77a6d29c510a5bd5d6f))
+
+
+### Bug Fixes
+
+* **ci:** harden local worktree gates ([953d233](https://github.com/misty-step/thinktank/commit/953d233b37c5879115ad6d8b4bbf36b2e16c7edc))
+* make benches show honor json flag ([de7a23c](https://github.com/misty-step/thinktank/commit/de7a23cd4fd67e32e4ca2979b5e01a313b780cd1))
+
 ## [6.2.0](https://github.com/misty-step/thinktank/compare/v6.1.0...v6.2.0) (2026-03-16)
 
 
