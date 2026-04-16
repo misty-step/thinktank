@@ -100,7 +100,7 @@ The PR comment must include screenshots or GIFs. Text tables are claims, not pro
 ## Gotchas
 
 - **Rebuild before QA.** Stale escript is the #1 false failure — always `mix escript.build` first.
-- **Full runs cost money.** Only run research/review without `--dry-run` when the PR touches agent dispatch, prompts, or synthesis.
+- **Full runs cost money — pin cheap models.** Only run research/review without `--dry-run` when the PR touches agent dispatch, prompts, or synthesis. When you do, pin the bench to cheap models: Arcee Trinity Large, Gemini 3 Flash/Flashlite, GPT-5.4 Nano, Claude Haiku, Minimax M2.7. QA verifies plumbing and artifacts, not reasoning quality — flagship tiers waste USD.
 - **Exit code 7 vs 1.** Input errors (bad args, unknown bench) exit 7. Runtime errors exit 1. Verify the distinction.
 - **JSON mode changes output shape.** `--json` wraps output in an envelope — test both human and JSON output if the PR touches formatting.
 - **Repo config is opt-in.** `.thinktank/config.yml` only loads with `--trust-repo-config`. Test both trusted and untrusted paths.
