@@ -47,6 +47,9 @@ git diff | ./thinktank research --paths ./lib
 - `input text is required`
   Use `--input`, positional text on `research`, or pipe stdin.
 - Need to explain why a run was slow, retried, or failed
+  For `--json` runs, stderr now emits newline-delimited JSON progress events
+  with `phase`, `output_dir`, and heartbeat updates while the bench is still
+  running. Stdout remains the final envelope only.
   Inspect `trace/events.jsonl` and `trace/summary.json` inside the run output
   directory first. For cross-run history, check the rotating JSONL files under
   `THINKTANK_LOG_DIR` or `~/.local/state/thinktank/logs/`.
@@ -76,6 +79,9 @@ git diff | ./thinktank research --paths ./lib
   Pass `--trust-repo-config` or set `THINKTANK_TRUST_REPO_CONFIG=1`.
 - Need deterministic artifact paths
   Pass `--output <dir>` or inspect `output_dir` from `--json`.
+  From another shell, `tail -f "$output_dir/trace/events.jsonl"` is the
+  supported fallback when you need deeper live detail than the stderr progress
+  surface provides.
 - Dagger local CI fails before it starts
   Ensure `.env` exists at repo root, Colima is running, and the machine uses a
   standalone `docker` CLI instead of Docker Desktop's bundled client.

@@ -3,7 +3,7 @@ defmodule Thinktank.CLI do
   CLI entry point for ThinkTank benches.
   """
 
-  alias Thinktank.{AgentSpec, BenchSpec, Config, Engine, Error}
+  alias Thinktank.{AgentSpec, BenchSpec, Config, Engine, Error, ProgressReporter}
   alias Thinktank.Review.Eval
 
   @exit_codes %{
@@ -373,28 +373,61 @@ defmodule Thinktank.CLI do
   defp run_bench(command) do
     agent_config_dir = agent_config_dir(command.cwd)
 
-    run_opts =
+    base_opts =
       [
         cwd: command.cwd,
-        output: command.output,
-        agent_config_dir: agent_config_dir
+        output: command.output
       ]
       |> maybe_put_opt(:trust_repo_config, command.trust_repo_config)
       |> maybe_put_opt(:config, Map.get(command, :config))
 
-    case Engine.run(command.bench_id, command.input, run_opts) do
-      {:ok, result} ->
-        emit(command, contract_payload(result.envelope))
+    run_opts = Keyword.put(base_opts, :agent_config_dir, agent_config_dir)
 
-        case result.envelope.status do
-          "complete" -> @exit_codes.success
-          _ -> @exit_codes.generic_error
+    case Engine.resolve(command.bench_id, command.input, base_opts) do
+      {:ok, resolved} ->
+        progress = maybe_start_progress(command, resolved)
+
+        result =
+          try do
+            run_opts
+            |> maybe_put_opt(:progress_callback, progress && ProgressReporter.callback(progress))
+            |> then(&Engine.run_resolved(resolved, &1))
+          after
+            ProgressReporter.stop(progress)
+          end
+
+        case result do
+          {:ok, run_result} ->
+            emit(command, contract_payload(run_result.envelope))
+
+            case run_result.envelope.status do
+              "complete" -> @exit_codes.success
+              _ -> @exit_codes.generic_error
+            end
+
+          {:error, reason, output_dir} ->
+            emit_error(command, normalize_error(reason), output_dir)
+            @exit_codes.generic_error
         end
 
       {:error, reason, output_dir} ->
         emit_error(command, normalize_error(reason), output_dir)
         @exit_codes.generic_error
     end
+  end
+
+  defp maybe_start_progress(%{json: true}, resolved) do
+    ProgressReporter.start(
+      bench: resolved.bench.id,
+      output_dir: resolved.output_dir,
+      emit: &emit_progress_event/1
+    )
+  end
+
+  defp maybe_start_progress(_command, _resolved), do: nil
+
+  defp emit_progress_event(payload) do
+    IO.puts(:stderr, Jason.encode!(payload))
   end
 
   defp dry_run(command) do
@@ -411,8 +444,8 @@ defmodule Thinktank.CLI do
         emit(command, dry_run_output(command, resolved))
         @exit_codes.success
 
-      {:error, reason, _output_dir} ->
-        emit_error(command, normalize_error(reason), nil)
+      {:error, reason, output_dir} ->
+        emit_error(command, normalize_error(reason), output_dir)
         @exit_codes.input_error
     end
   end

@@ -185,10 +185,18 @@ Each run writes:
 - `review/planner.md` when a planner agent runs
 - `manifest.json` — run metadata and artifact index
 
-`--json` prints the final run envelope to stdout after the bench completes,
-including `output_dir`, artifact metadata, and inline synthesis text when
-available. It does not write a `report.json` artifact. For research benches,
-the synthesized document lives in `synthesis.md` when a synthesizer is enabled.
+`--json` keeps stdout reserved for the final run envelope. While the bench is
+running, stderr emits newline-delimited JSON progress events that surface the
+current phase, the selected `output_dir`, and periodic heartbeats for long
+runs. It does not write a `report.json` artifact. For research benches, the
+synthesized document lives in `synthesis.md` when a synthesizer is enabled.
+
+If you need to inspect the same run from another shell, tail the trace file
+inside `output_dir`:
+
+```bash
+tail -f /path/to/run/trace/events.jsonl
+```
 
 By default, ThinkTank also mirrors the same structured events into a rotating
 daily JSONL log under `~/.local/state/thinktank/logs/`. Override that path with

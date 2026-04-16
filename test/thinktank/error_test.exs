@@ -4,6 +4,16 @@ defmodule Thinktank.ErrorTest do
   alias Thinktank.Error
 
   describe "from_reason/1" do
+    test "preserves an existing Thinktank.Error" do
+      existing = %Error{
+        code: :bootstrap_failed,
+        message: "already normalized",
+        details: %{phase: "init_run"}
+      }
+
+      assert Error.from_reason(existing) == existing
+    end
+
     test "normalizes :missing_input_text" do
       error = Error.from_reason(:missing_input_text)
 

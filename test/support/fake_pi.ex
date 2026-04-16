@@ -102,6 +102,7 @@ defmodule Thinktank.Test.FakePi do
     """
     #!/bin/sh
     mode="${THINKTANK_TEST_PI_MODE:-success}"
+    delay_ms="${THINKTANK_TEST_PI_DELAY_MS:-0}"
     prev=""
     prompt_file=""
 
@@ -119,6 +120,13 @@ defmodule Thinktank.Test.FakePi do
     if [ "$mode" = "fail" ]; then
       echo "simulated failure"
       exit 1
+    fi
+
+    if [ "$delay_ms" != "0" ]; then
+      python3 - "$delay_ms" <<'PY'
+      import sys, time
+      time.sleep(float(sys.argv[1]) / 1000.0)
+    PY
     fi
 
     if [ "$mode" = "degraded" ]; then

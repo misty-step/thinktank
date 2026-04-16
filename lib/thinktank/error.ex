@@ -25,6 +25,8 @@ defmodule Thinktank.Error do
   }
 
   @spec from_reason(term()) :: t()
+  def from_reason(%__MODULE__{} = error), do: error
+
   def from_reason(reason) when is_atom(reason) do
     %__MODULE__{
       code: reason,

@@ -126,6 +126,19 @@ class ThinktankCi:
         ).sync()
 
     @function
+    async def backlog(
+        self,
+        source: Annotated[
+            dagger.Directory,
+            DefaultPath("/"),
+            Ignore(SOURCE_IGNORE),
+            Doc("Repo source directory"),
+        ],
+    ) -> None:
+        """Enforce backlog file placement and status invariants."""
+        await _elixir_base(source).with_exec(["scripts/ci/backlog-state-gate.sh"]).sync()
+
+    @function
     async def coveralls(
         self,
         source: Annotated[
@@ -318,6 +331,7 @@ for path in paths:
                 results.append((name, False, str(error)))
 
         async with anyio.create_task_group() as tg:
+            tg.start_soon(run_gate, "backlog", self.backlog(source))
             tg.start_soon(run_gate, "gitleaks", self.gitleaks(source))
             tg.start_soon(run_gate, "models", self.models(source))
             tg.start_soon(run_gate, "shell", self.shell(source))

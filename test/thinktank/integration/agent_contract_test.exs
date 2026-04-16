@@ -119,8 +119,8 @@ defmodule Thinktank.Integration.AgentContractTest do
                      reader: fn :stdio, :eof -> "inspect this repo\n" end
                    )
 
-          output =
-            capture_io(fn ->
+          {output, _stderr} =
+            capture_stdout_and_stderr(fn ->
               assert CLI.execute({:ok, command}) == @exit_codes.success
             end)
 
@@ -147,6 +147,47 @@ defmodule Thinktank.Integration.AgentContractTest do
 
           assert is_list(payload["artifacts"])
           assert File.exists?(Path.join(payload["output_dir"], "contract.json"))
+        end)
+      end)
+    end
+
+    test "json runs emit stderr progress without corrupting stdout json" do
+      FakePi.with_fake_pi("success", fn _env ->
+        workspace = Workspace.unique_tmp_dir("thinktank-agent-run-progress")
+
+        System.put_env("THINKTANK_PROGRESS_HEARTBEAT_MS", "25")
+        System.put_env("THINKTANK_TEST_PI_DELAY_MS", "150")
+
+        on_exit(fn ->
+          System.delete_env("THINKTANK_PROGRESS_HEARTBEAT_MS")
+          System.delete_env("THINKTANK_TEST_PI_DELAY_MS")
+        end)
+
+        File.cd!(workspace, fn ->
+          assert {:ok, command} =
+                   CLI.parse_args([
+                     "research",
+                     "inspect this repo",
+                     "--json",
+                     "--no-synthesis",
+                     "--agents",
+                     "systems"
+                   ])
+
+          {stdout, stderr} =
+            capture_stdout_and_stderr(fn ->
+              assert CLI.execute({:ok, command}) == @exit_codes.success
+            end)
+
+          {:ok, payload} = Jason.decode(String.trim(stdout))
+          progress_events = decode_jsonl!(stderr)
+
+          assert payload["status"] == "complete"
+          assert is_binary(payload["output_dir"])
+          assert Enum.any?(progress_events, &(&1["phase"] == "initializing"))
+          assert Enum.any?(progress_events, &(&1["phase"] == "running_agents"))
+          assert Enum.any?(progress_events, &(&1["kind"] == "heartbeat"))
+          assert Enum.all?(progress_events, &(&1["output_dir"] == payload["output_dir"]))
         end)
       end)
     end
@@ -193,8 +234,8 @@ defmodule Thinktank.Integration.AgentContractTest do
                      "systems,dx"
                    ])
 
-          output =
-            capture_io(fn ->
+          {output, _stderr} =
+            capture_stdout_and_stderr(fn ->
               assert CLI.execute({:ok, command}) == @exit_codes.generic_error
             end)
 
@@ -339,5 +380,36 @@ defmodule Thinktank.Integration.AgentContractTest do
 
       assert stderr =~ "Error: input text is required"
     end
+  end
+
+  defp capture_stdout_and_stderr(fun) when is_function(fun, 0) do
+    test_pid = self()
+
+    stdout =
+      capture_io(fn ->
+        stderr =
+          capture_io(:stderr, fn ->
+            fun.()
+          end)
+
+        send(test_pid, {:captured_stderr, stderr})
+      end)
+
+    assert_received {:captured_stderr, stderr}
+    {stdout, stderr}
+  end
+
+  defp decode_jsonl!(text) do
+    text
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      case Jason.decode(line) do
+        {:ok, decoded} ->
+          decoded
+
+        {:error, error} ->
+          flunk("expected JSON line, got error #{inspect(error)}\nraw:\n#{line}")
+      end
+    end)
   end
 end

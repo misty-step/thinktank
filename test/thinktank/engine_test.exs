@@ -346,6 +346,262 @@ defmodule Thinktank.EngineTest do
     assert RunTracker.active_runs() == []
   end
 
+  test "run_resolved emits progress callback phases while agents execute" do
+    cwd = unique_tmp_dir("thinktank-engine-progress")
+    output_dir = Path.join(cwd, "progress-run")
+    init_git_repo_with_commit!(cwd)
+
+    runner = fn _cmd, _args, _opts ->
+      Process.sleep(40)
+      {"ok", 0}
+    end
+
+    assert {:ok, resolved} =
+             Engine.resolve(
+               "research/default",
+               %{input_text: "Research this", no_synthesis: true},
+               cwd: cwd,
+               output: output_dir
+             )
+
+    parent = self()
+    progress_callback = fn event, attrs -> send(parent, {:progress, event, attrs}) end
+
+    assert {:ok, result} =
+             Engine.run_resolved(
+               resolved,
+               runner: runner,
+               progress_callback: progress_callback
+             )
+
+    assert result.output_dir == output_dir
+
+    assert_receive {:progress, "bootstrap_started", %{"output_dir" => ^output_dir}}, 1_000
+
+    assert_receive {:progress, "agent_started",
+                    %{"agent_name" => "systems", "phase" => "running_agents"}},
+                   1_000
+
+    assert_receive {:progress, "agent_finished",
+                    %{"agent_name" => "systems", "status" => "ok", "phase" => "running_agents"}},
+                   1_000
+
+    assert_receive {:progress, "run_completed",
+                    %{
+                      "output_dir" => ^output_dir,
+                      "status" => "complete",
+                      "phase" => "finalizing"
+                    }},
+                   1_000
+  end
+
+  test "run emits progress callbacks before completion" do
+    cwd = unique_tmp_dir("thinktank-engine-progress")
+    output_dir = Path.expand(Path.join(cwd, "captured-run"))
+    init_git_repo_with_commit!(cwd)
+    parent = self()
+
+    runner = fn _cmd, _args, _opts ->
+      Process.sleep(150)
+      {"ok", 0}
+    end
+
+    task =
+      Task.async(fn ->
+        Engine.run(
+          "research/default",
+          %{input_text: "Research this", agents: ["systems"], no_synthesis: true},
+          cwd: cwd,
+          output: output_dir,
+          runner: runner,
+          progress_callback: fn event, attrs ->
+            send(parent, {:progress, event, attrs})
+          end
+        )
+      end)
+
+    assert_receive {:progress, "bootstrap_started", %{"output_dir" => ^output_dir}}, 1_000
+
+    assert_receive {:progress, "agent_started",
+                    %{"agent_name" => "systems", "phase" => "running_agents"}},
+                   1_000
+
+    assert_receive {:progress, "agent_finished",
+                    %{"agent_name" => "systems", "status" => "ok", "phase" => "running_agents"}},
+                   1_000
+
+    assert_receive {:progress, "run_completed",
+                    %{
+                      "output_dir" => ^output_dir,
+                      "status" => "complete",
+                      "phase" => "finalizing"
+                    }},
+                   1_000
+
+    assert {:ok, result} = Task.await(task)
+    assert result.output_dir == output_dir
+  end
+
+  test "review runs emit planning progress before reviewer execution" do
+    cwd = unique_tmp_dir("thinktank-engine-review-progress")
+    output_dir = Path.expand(Path.join(cwd, "captured-run"))
+    init_git_repo_with_commit!(cwd)
+    parent = self()
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Return JSON only with this shape:") do
+        {Jason.encode!(%{
+           "summary" => "Focus on correctness.",
+           "selected_agents" => [%{"name" => "trace", "brief" => "Check regressions."}],
+           "synthesis_brief" => "Use grounded evidence."
+         }), 0}
+      else
+        {"ok", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "review/default",
+               %{input_text: "Review this branch", no_synthesis: true},
+               cwd: cwd,
+               output: output_dir,
+               runner: runner,
+               progress_callback: fn event, attrs ->
+                 send(parent, {:progress, event, attrs})
+               end
+             )
+
+    assert result.envelope.status == "complete"
+
+    assert_receive {:progress, "prepare_started",
+                    %{"output_dir" => ^output_dir, "phase" => "planning"}},
+                   1_000
+
+    assert_receive {:progress, "agent_started",
+                    %{"agent_name" => "marshal", "phase" => "planning"}},
+                   1_000
+
+    assert_receive {:progress, "agents_started", %{"phase" => "running_agents"}}, 1_000
+  end
+
+  test "synthesizer progress keeps the synthesizer phase" do
+    cwd = unique_tmp_dir("thinktank-engine-synthesis-progress")
+    output_dir = Path.expand(Path.join(cwd, "captured-run"))
+    init_git_repo_with_commit!(cwd)
+    parent = self()
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Agent outputs:") do
+        {"Synthesized summary", 0}
+      else
+        {"ok", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems"]},
+               cwd: cwd,
+               output: output_dir,
+               runner: runner,
+               progress_callback: fn event, attrs ->
+                 send(parent, {:progress, event, attrs})
+               end
+             )
+
+    assert result.envelope.status == "complete"
+
+    assert_receive {:progress, "synthesis_started",
+                    %{"phase" => "synthesizing", "synthesizer" => "research-synth"}},
+                   1_000
+
+    assert_receive {:progress, "agent_started",
+                    %{"agent_name" => "research-synth", "phase" => "synthesizing"}},
+                   1_000
+  end
+
+  test "failed runs emit error progress and failed completion" do
+    cwd = unique_tmp_dir("thinktank-engine-failed-progress")
+    output_dir = Path.expand(Path.join(cwd, "captured-run"))
+    init_git_repo_with_commit!(cwd)
+    parent = self()
+
+    runner = fn _cmd, _args, _opts -> {"simulated failure", 1} end
+
+    assert {:error, %Error{code: :no_successful_agents}, ^output_dir} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems"], no_synthesis: true},
+               cwd: cwd,
+               output: output_dir,
+               runner: runner,
+               progress_callback: fn event, attrs ->
+                 send(parent, {:progress, event, attrs})
+               end
+             )
+
+    assert_receive {:progress, "agent_finished",
+                    %{"agent_name" => "systems", "phase" => "running_agents", "status" => "error"}},
+                   1_000
+
+    assert_receive {:progress, "run_completed",
+                    %{"output_dir" => ^output_dir, "phase" => "finalizing", "status" => "failed"}},
+                   1_000
+  end
+
+  test "degraded runs emit degraded completion progress" do
+    cwd = unique_tmp_dir("thinktank-engine-degraded-progress")
+    output_dir = Path.expand(Path.join(cwd, "captured-run"))
+    init_git_repo_with_commit!(cwd)
+    parent = self()
+
+    runner = fn _cmd, args, _opts ->
+      prompt_file = Path.basename(prompt_path(args))
+
+      if String.starts_with?(prompt_file, "systems-") do
+        {"ok", 0}
+      else
+        {"simulated failure", 1}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems", "dx"], no_synthesis: true},
+               cwd: cwd,
+               output: output_dir,
+               runner: runner,
+               progress_callback: fn event, attrs ->
+                 send(parent, {:progress, event, attrs})
+               end
+             )
+
+    assert result.envelope.status == "degraded"
+
+    assert_receive {:progress, "agent_finished",
+                    %{"agent_name" => "systems", "phase" => "running_agents", "status" => "ok"}},
+                   1_000
+
+    assert_receive {:progress, "agent_finished",
+                    %{"agent_name" => "dx", "phase" => "running_agents", "status" => "error"}},
+                   1_000
+
+    assert_receive {:progress, "run_completed",
+                    %{
+                      "output_dir" => ^output_dir,
+                      "phase" => "finalizing",
+                      "status" => "degraded"
+                    }},
+                   1_000
+  end
+
   test "bootstrap failures before run initialization are recorded in the global log" do
     cwd = unique_tmp_dir("thinktank-engine-bootstrap")
     log_dir = unique_tmp_dir("thinktank-engine-bootstrap-logs")

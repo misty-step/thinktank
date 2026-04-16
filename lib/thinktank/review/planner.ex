@@ -37,6 +37,8 @@ defmodule Thinktank.Review.Planner do
       Agentic.run([planner], contract, context, config,
         concurrency: 1,
         agent_config_dir: opts[:agent_config_dir],
+        progress_callback: opts[:progress_callback],
+        progress_phase: opts[:progress_phase],
         runner: opts[:runner]
       )
 

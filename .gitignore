@@ -51,6 +51,7 @@ agent_config/logs/
 .cache/
 .flywheel/
 .pi/state/
+.spellbook/
 
 # Claude settings
 **/.claude/settings.local.json

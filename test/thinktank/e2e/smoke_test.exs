@@ -70,6 +70,12 @@ defmodule Thinktank.E2E.SmokeTest do
         contract_path = Path.join(output_dir, "contract.json")
         manifest_path = Path.join(output_dir, "manifest.json")
 
+        refute stdout =~ "\"type\":\"progress\""
+        assert stderr =~ "\"type\":\"progress\""
+        assert stderr =~ "\"phase\":\"initializing\""
+        assert stderr =~ "\"phase\":\"running_agents\""
+        assert stderr =~ "\"output_dir\":\"#{output_dir}\""
+
         assert File.exists?(contract_path), "missing contract.json at #{contract_path}"
         assert File.exists?(manifest_path), "missing manifest.json at #{manifest_path}"
 

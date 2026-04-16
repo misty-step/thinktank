@@ -3,7 +3,7 @@ defmodule Thinktank.Executor.Agentic do
   Pi subprocess executor for tool-using agent runs.
   """
 
-  alias Thinktank.{AgentSpec, Config, RunContract, Template, TraceLog}
+  alias Thinktank.{AgentSpec, Config, Progress, RunContract, Template, TraceLog}
 
   @allowed_tools MapSet.new(~w(read bash edit write grep find ls))
   @default_tools ["bash", "read", "grep", "find", "ls"]
@@ -28,6 +28,10 @@ defmodule Thinktank.Executor.Agentic do
 
   def run(agents, %RunContract{} = contract, context, %Config{} = config, opts) do
     runner = Keyword.get(opts, :runner) || default_runner()
+
+    progress_phase =
+      Keyword.get(opts, :progress_phase, Progress.phase_for_event("agents_started"))
+
     indexed_agents = Enum.with_index(agents, 1)
 
     timeout =
@@ -45,7 +49,7 @@ defmodule Thinktank.Executor.Agentic do
     indexed_agents
     |> Task.async_stream(
       fn {agent, index} ->
-        run_agent(agent, index, contract, context, config, runner, opts)
+        run_agent(agent, index, contract, context, config, runner, progress_phase, opts)
       end,
       max_concurrency: concurrency,
       timeout: timeout + 5_000,
@@ -71,6 +75,14 @@ defmodule Thinktank.Executor.Agentic do
           "error" => %{category: :timeout}
         })
 
+        Progress.emit(opts, "agent_finished", %{
+          phase: progress_phase,
+          output_dir: contract.artifact_dir,
+          agent_name: agent.name,
+          instance_id: instance_id,
+          status: "error"
+        })
+
         untimed_result(agent, instance_id, :error, "", %{category: :timeout})
 
       {{:exit, reason}, {agent, index}} ->
@@ -88,6 +100,14 @@ defmodule Thinktank.Executor.Agentic do
           "error" => error
         })
 
+        Progress.emit(opts, "agent_finished", %{
+          phase: progress_phase,
+          output_dir: contract.artifact_dir,
+          agent_name: agent.name,
+          instance_id: instance_id,
+          status: "error"
+        })
+
         untimed_result(
           agent,
           instance_id,
@@ -98,7 +118,7 @@ defmodule Thinktank.Executor.Agentic do
     end)
   end
 
-  defp run_agent(agent, index, contract, context, config, runner, opts) do
+  defp run_agent(agent, index, contract, context, config, runner, progress_phase, opts) do
     instance_id = agent_instance_id(agent, index)
     started_at = DateTime.utc_now() |> DateTime.to_iso8601()
     started_mono = System.monotonic_time(:millisecond)
@@ -117,6 +137,14 @@ defmodule Thinktank.Executor.Agentic do
     }
 
     TraceLog.record_event(contract.artifact_dir, "agent_started", trace_context)
+
+    Progress.emit(opts, "agent_started", %{
+      phase: progress_phase,
+      output_dir: contract.artifact_dir,
+      agent_name: agent.name,
+      instance_id: instance_id,
+      status: "running"
+    })
 
     try do
       rendered_prompt =
@@ -181,6 +209,14 @@ defmodule Thinktank.Executor.Agentic do
             "output_bytes" => byte_size(output)
           })
 
+          Progress.emit(opts, "agent_finished", %{
+            phase: progress_phase,
+            output_dir: contract.artifact_dir,
+            agent_name: agent.name,
+            instance_id: instance_id,
+            status: "ok"
+          })
+
           result
 
         {:error, %{output: output} = error, attempts_run} ->
@@ -210,6 +246,14 @@ defmodule Thinktank.Executor.Agentic do
             "error" => Map.delete(error, :output)
           })
 
+          Progress.emit(opts, "agent_finished", %{
+            phase: progress_phase,
+            output_dir: contract.artifact_dir,
+            agent_name: agent.name,
+            instance_id: instance_id,
+            status: "error"
+          })
+
           result
       end
     rescue
@@ -237,6 +281,14 @@ defmodule Thinktank.Executor.Agentic do
           "completed_at" => result.completed_at,
           "duration_ms" => result.duration_ms,
           "error" => %{category: :crash, message: Exception.message(error)}
+        })
+
+        Progress.emit(opts, "agent_finished", %{
+          phase: progress_phase,
+          output_dir: contract.artifact_dir,
+          agent_name: agent.name,
+          instance_id: instance_id,
+          status: "error"
         })
 
         result

@@ -6,13 +6,16 @@ cd "$REPO_ROOT"
 
 git diff --cached --check
 
+mapfile -t staged_backlog < <(
+  git diff --cached --name-only --diff-filter=ACMR | grep -E '^backlog\.d/.*\.md$' || true
+)
+
 if command -v pre-commit >/dev/null 2>&1; then
   exec pre-commit run --config .pre-commit-config.yaml --hook-stage pre-commit
 fi
 
-if ! command -v mix >/dev/null 2>&1; then
-  echo "pre-commit: install pre-commit or ensure mix is available." >&2
-  exit 1
+if [ "${#staged_backlog[@]}" -gt 0 ]; then
+  scripts/ci/backlog-state-gate.sh "${staged_backlog[@]}"
 fi
 
 mapfile -t staged_elixir < <(
@@ -21,6 +24,11 @@ mapfile -t staged_elixir < <(
 
 if [ "${#staged_elixir[@]}" -eq 0 ]; then
   exit 0
+fi
+
+if ! command -v mix >/dev/null 2>&1; then
+  echo "pre-commit: install pre-commit or ensure mix is available." >&2
+  exit 1
 fi
 
 mix format "${staged_elixir[@]}"

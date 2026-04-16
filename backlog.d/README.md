@@ -18,7 +18,6 @@ _None._
 
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
-| [011](011-add-live-progress-surface-for-json-runs.md) | Add Live Progress Surface For JSON Runs | high | M |
 | [013](013-add-durable-wip-scratchpads-and-partial-results-contract.md) | Add Durable WIP Scratchpads And Partial-Result Contract | high | M |
 | [008](008-enforce-command-plane-architecture-gates.md) | Enforce Command-Plane Architecture Gates | medium | L |
 | [009](009-add-security-gating-workflow.md) | Add Security Gating Workflow | medium | M |
@@ -38,11 +37,14 @@ See [done/](done/) for full write-ups including "What Was Built" notes.
 | [006](done/006-stabilize-cli-run-contract.md) | Stabilize CLI Run Contract |
 | [007](done/007-add-cli-e2e-smoke-suite.md) | Add CLI E2E Smoke Suite |
 | [010](done/010-add-agent-run-tracing-and-local-logs.md) | Add Agent Run Tracing And Local Logs |
+| [011](done/011-add-live-progress-surface-for-json-runs.md) | Add Live Progress Surface For JSON Runs |
 
 ## Workflow
 
 - When starting work on an item, change its `Status:` to `in-progress` and move
   it to the **In Progress** row above (delete the `_None._` placeholder).
+- Top-level items must never be `Status: done`; that state only belongs under
+  `backlog.d/done/`.
 - When merged, change `Status:` to `done`, fill in a `## What Was Built`
   section, `git mv` the file into `done/`, and update this index.
 - New items are shaped via `/shape` or `/groom` and land here with

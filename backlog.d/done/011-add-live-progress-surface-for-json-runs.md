@@ -1,7 +1,7 @@
 # Add Live Progress Surface For JSON Runs
 
 Priority: high
-Status: ready
+Status: done
 Estimate: M
 
 ## Goal
@@ -27,10 +27,15 @@ Long-running `thinktank run ... --json` executions remain machine-safe on stdout
 - `docs/runbook.md`
 
 ## Oracle
-- [ ] A long-running `--json` run emits progress or heartbeat updates on stderr without corrupting stdout JSON
-- [ ] Operators can see the selected output directory and current phase before completion
-- [ ] A documented fallback exists for checking progress from another shell (`trace/events.jsonl` or equivalent)
-- [ ] Integration coverage protects the stdout/stderr contract for `--json`
+- [x] A long-running `--json` run emits progress or heartbeat updates on stderr without corrupting stdout JSON
+- [x] Operators can see the selected output directory and current phase before completion
+- [x] A documented fallback exists for checking progress from another shell (`trace/events.jsonl` or equivalent)
+- [x] Integration coverage protects the stdout/stderr contract for `--json`
 
 ## Notes
 During portfolio research on 2026-04-10, a repo-aware `research/quick` run looked hung because `--json --no-synthesis` stayed silent until final completion. The run was healthy and trace-backed, but the operator had to inspect local artifacts manually to prove that. The issue is not run finalization; it is the lack of a first-class live progress surface for agent-first callers and human operators.
+
+## What Was Built
+- Added a stderr-only JSON progress surface for `thinktank ... --json` runs, with phase transitions, immediate and periodic heartbeats, output directory disclosure, and per-agent completion events while stdout stays reserved for the final envelope.
+- Centralized progress event normalization in `Thinktank.Progress`, threaded progress callbacks through the review planner, executor, and engine lifecycle, and kept the CLI responsible for the actual stderr emission boundary.
+- Documented the operator workflow in `README.md` and `docs/runbook.md`, expanded unit/integration/e2e coverage for the progress contract, and added a backlog-state gate in hooks plus Dagger so top-level items cannot be marked `done` before merge.

@@ -8,6 +8,7 @@ defmodule Thinktank.Engine do
     BenchSpec,
     Config,
     Error,
+    Progress,
     RunContract,
     RunStore,
     RunTracker,
@@ -103,6 +104,48 @@ defmodule Thinktank.Engine do
     Path.join(System.tmp_dir!(), "thinktank-#{bench_slug}-#{timestamp}-#{suffix}")
   end
 
+  @spec run_resolved(resolved_run(), keyword()) ::
+          {:ok, run_result()} | {:error, Error.t(), String.t() | nil}
+  def run_resolved(
+        %{
+          config: config,
+          bench: bench,
+          contract: contract,
+          output_dir: output_dir,
+          agents: agents,
+          planner: planner,
+          synthesizer: synthesizer
+        },
+        opts \\ []
+      ) do
+    Progress.emit(opts, "bootstrap_started", %{
+      phase: Progress.phase_for_event("bootstrap_started"),
+      output_dir: output_dir,
+      trace_events: Progress.trace_events_path(output_dir),
+      planned_agents: Enum.map(agents, & &1.name),
+      total_agents: length(agents),
+      planner: planner && planner.name,
+      synthesizer: synthesizer && synthesizer.name
+    })
+
+    with :ok <- init_run(output_dir, contract, bench),
+         :ok <- write_bootstrap_artifacts(output_dir, contract.input, bench, contract) do
+      record_run_started(output_dir, contract, bench, planner, synthesizer)
+
+      prepare_and_execute(bench, agents, planner, contract, config, opts, output_dir, synthesizer)
+    else
+      {:error, reason} ->
+        Progress.emit(opts, "run_completed", %{
+          phase: Progress.phase_for_event("run_completed"),
+          output_dir: output_dir,
+          status: "failed",
+          error: Error.from_reason(reason)
+        })
+
+        {:error, reason, output_dir}
+    end
+  end
+
   defp execute_bench(
          planned_agents,
          context,
@@ -123,10 +166,19 @@ defmodule Thinktank.Engine do
       "agent_count" => length(planned_agents)
     })
 
+    Progress.emit(opts, "agents_started", %{
+      phase: Progress.phase_for_event("agents_started"),
+      output_dir: output_dir,
+      planned_agents: Enum.map(planned_agents, & &1.name),
+      total_agents: length(planned_agents)
+    })
+
     results =
       Agentic.run(planned_agents, contract, context, config,
         concurrency: bench.concurrency || length(planned_agents),
         agent_config_dir: opts[:agent_config_dir],
+        progress_phase: Progress.phase_for_event("agents_started"),
+        progress_callback: opts[:progress_callback],
         runner: opts[:runner]
       )
 
@@ -153,6 +205,12 @@ defmodule Thinktank.Engine do
       "synthesis_status" => synthesis && synthesis.status
     })
 
+    Progress.emit(opts, "run_completed", %{
+      phase: Progress.phase_for_event("run_completed"),
+      output_dir: output_dir,
+      status: status
+    })
+
     run_result = %{
       contract: contract,
       bench: bench,
@@ -171,29 +229,6 @@ defmodule Thinktank.Engine do
     end
   end
 
-  defp run_resolved(
-         %{
-           config: config,
-           bench: bench,
-           contract: contract,
-           output_dir: output_dir,
-           agents: agents,
-           planner: planner,
-           synthesizer: synthesizer
-         },
-         opts
-       ) do
-    with :ok <- init_run(output_dir, contract, bench),
-         :ok <- write_bootstrap_artifacts(output_dir, contract.input, bench, contract) do
-      record_run_started(output_dir, contract, bench, planner, synthesizer)
-
-      prepare_and_execute(bench, agents, planner, contract, config, opts, output_dir, synthesizer)
-    else
-      {:error, reason} ->
-        {:error, reason, output_dir}
-    end
-  end
-
   defp prepare_and_execute(
          bench,
          agents,
@@ -204,7 +239,23 @@ defmodule Thinktank.Engine do
          output_dir,
          synthesizer
        ) do
-    case prepare_execution(bench, agents, planner, contract, config, opts, output_dir) do
+    phase = preparation_phase(bench, planner)
+
+    Progress.emit(opts, "prepare_started", %{
+      phase: phase,
+      output_dir: output_dir,
+      planner: planner && planner.name
+    })
+
+    case prepare_execution(
+           bench,
+           agents,
+           planner,
+           contract,
+           config,
+           Keyword.put(opts, :progress_phase, phase),
+           output_dir
+         ) do
       {:ok, planned_agents, context} ->
         execute_bench(
           planned_agents,
@@ -222,6 +273,13 @@ defmodule Thinktank.Engine do
           "bench" => bench.id,
           "phase" => "prepare_execution",
           "error" => Error.from_reason(reason)
+        })
+
+        Progress.emit(opts, "run_completed", %{
+          phase: Progress.phase_for_event("run_completed"),
+          output_dir: output_dir,
+          status: "failed",
+          error: Error.from_reason(reason)
         })
 
         {:error, Error.from_reason(reason), output_dir}
@@ -395,6 +453,12 @@ defmodule Thinktank.Engine do
          output_dir
        ) do
     if Enum.any?(results, &(&1.status == :ok and String.trim(&1.output) != "")) do
+      Progress.emit(opts, "synthesis_started", %{
+        phase: Progress.phase_for_event("synthesis_started"),
+        output_dir: output_dir,
+        synthesizer: synthesizer.name
+      })
+
       synth_context =
         Map.merge(context, %{
           "agent_outputs" => render_agent_outputs(results)
@@ -404,6 +468,8 @@ defmodule Thinktank.Engine do
         Agentic.run([synthesizer], contract, synth_context, config,
           concurrency: 1,
           agent_config_dir: opts[:agent_config_dir],
+          progress_phase: Progress.phase_for_event("synthesis_started"),
+          progress_callback: opts[:progress_callback],
           runner: opts[:runner]
         )
 
@@ -540,6 +606,8 @@ defmodule Thinktank.Engine do
     else
       Planner.create(planner, agents, contract, review_context, config,
         agent_config_dir: opts[:agent_config_dir],
+        progress_callback: opts[:progress_callback],
+        progress_phase: opts[:progress_phase],
         runner: opts[:runner]
       )
     end
@@ -678,6 +746,12 @@ defmodule Thinktank.Engine do
 
   defp maybe_put_opt(opts, _key, nil), do: opts
   defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
+
+  defp preparation_phase(%BenchSpec{kind: :review}, planner) when not is_nil(planner),
+    do: "planning"
+
+  defp preparation_phase(%BenchSpec{kind: :review}, _planner), do: "preparing_review"
+  defp preparation_phase(_bench, _planner), do: "preparing_run"
 
   defp resolve_config(%Config{} = config, _opts), do: {:ok, config}
   defp resolve_config(nil, opts), do: Config.load(opts)
