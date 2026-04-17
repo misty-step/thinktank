@@ -254,8 +254,8 @@ same command the native pre-push hook runs. `./scripts/with-colima.sh dagger
 functions` lists the individual Dagger gates when you need a targeted rerun.
 The helper exports Colima's docker socket and rejects Docker Desktop's CLI so
 the local runtime stays on one path. The default gate now includes the
-repo-specific architecture gate, live OpenRouter model-ID validation, and an
-`87%` coverage threshold.
+repo-specific security gate, the architecture gate, live OpenRouter model-ID
+validation, and an `87%` coverage threshold.
 For host-native coverage debugging, use `MIX_ENV=test mix coveralls`; the
 threshold is enforced through [`coveralls.json`](coveralls.json).
 

@@ -36,7 +36,7 @@ ThinkTank is a thin Pi bench launcher for research and review.
 ## Local Gates
 
 - Use `./scripts/with-colima.sh dagger call check` as the canonical local merge-readiness gate.
-- `./scripts/with-colima.sh dagger call check` now enforces formatting, compile warnings, `credo --strict`, Dialyzer, shell/YAML hygiene, gitleaks, live model-ID validation, the architecture gate, escript smoke, and an `87%` coverage floor.
+- `./scripts/with-colima.sh dagger call check` now enforces formatting, compile warnings, `credo --strict`, Dialyzer, shell/YAML hygiene, gitleaks, the repo-owned security gate, live model-ID validation, the architecture gate, escript smoke, and an `87%` coverage floor.
 - Use `mix test` and `mix compile --warnings-as-errors` as targeted fallback or debugging gates when you need a host-native Elixir check.
 - Native Git hooks live in `.githooks/` and are installed by `./scripts/setup.sh`.
 

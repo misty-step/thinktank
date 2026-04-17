@@ -19,7 +19,6 @@ _None._
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
 | [008](008-enforce-command-plane-architecture-gates.md) | Enforce Command-Plane Architecture Gates | medium | L |
-| [009](009-add-security-gating-workflow.md) | Add Security Gating Workflow | medium | M |
 
 ## Done
 
@@ -34,6 +33,7 @@ See [done/](done/) for full write-ups including "What Was Built" notes.
 | [005](done/005-make-benches-show-honor-json-flag.md) | Make Benches Show Honor JSON Flag |
 | [006](done/006-stabilize-cli-run-contract.md) | Stabilize CLI Run Contract |
 | [007](done/007-add-cli-e2e-smoke-suite.md) | Add CLI E2E Smoke Suite |
+| [009](done/009-add-security-gating-workflow.md) | Add Security Gating Workflow |
 | [010](done/010-add-agent-run-tracing-and-local-logs.md) | Add Agent Run Tracing And Local Logs |
 | [011](done/011-add-live-progress-surface-for-json-runs.md) | Add Live Progress Surface For JSON Runs |
 | [012](done/012-align-project-docs-with-thin-launcher-architecture.md) | Align Project Docs With Thin Launcher Architecture |

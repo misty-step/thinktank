@@ -278,6 +278,19 @@ for path in paths:
         ).sync()
 
     @function
+    async def security(
+        self,
+        source: Annotated[
+            dagger.Directory,
+            DefaultPath("/"),
+            Ignore(SOURCE_IGNORE),
+            Doc("Repo source directory"),
+        ],
+    ) -> None:
+        """Run repo-owned static security checks."""
+        await _elixir_base(source).with_exec(["scripts/ci/security-gate.sh"]).sync()
+
+    @function
     async def gitleaks(
         self,
         source: Annotated[
@@ -334,6 +347,7 @@ for path in paths:
             tg.start_soon(run_gate, "backlog", self.backlog(source))
             tg.start_soon(run_gate, "gitleaks", self.gitleaks(source))
             tg.start_soon(run_gate, "models", self.models(source))
+            tg.start_soon(run_gate, "security", self.security(source))
             tg.start_soon(run_gate, "shell", self.shell(source))
             tg.start_soon(run_gate, "yaml", self.yaml(source))
             await run_gate("elixir-quality", self.elixir_quality(source))

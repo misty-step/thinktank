@@ -1,7 +1,7 @@
 # Add Security Gating Workflow
 
 Priority: medium
-Status: ready
+Status: done
 Estimate: M
 
 ## Goal
@@ -20,3 +20,8 @@ Security regressions are blocked automatically before merge, with ownership and 
 
 ## Notes
 This repo now has baseline ownership and reporting docs. The next step is enforceable automated security gating.
+
+## What Was Built
+- Added a repo-owned `scripts/ci/security-gate.sh` static-analysis gate plus ExUnit coverage for the expected runtime boundary violations.
+- Extended the Dagger module with `security` and included that gate in the canonical `check` pipeline.
+- Added a dedicated `Security Checks` GitHub Actions job and documented merge-readiness security checks plus the verified `required_signatures=false` note for `master` in `SECURITY.md`.
