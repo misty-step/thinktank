@@ -12,7 +12,7 @@ Status conventions:
 
 ## In Progress
 
-- [014](014-track-per-run-usd-cost.md) | Track Per-Run USD Cost | medium | S
+_None._
 
 ## Active (ready to pick)
 
@@ -20,7 +20,6 @@ Status conventions:
 |---|-------|----------|----------|
 | [008](008-enforce-command-plane-architecture-gates.md) | Enforce Command-Plane Architecture Gates | medium | L |
 | [009](009-add-security-gating-workflow.md) | Add Security Gating Workflow | medium | M |
-| [012](012-align-project-docs-with-thin-launcher-architecture.md) | Align Project Docs With Thin Launcher Architecture | medium | S |
 
 ## Done
 
@@ -37,7 +36,9 @@ See [done/](done/) for full write-ups including "What Was Built" notes.
 | [007](done/007-add-cli-e2e-smoke-suite.md) | Add CLI E2E Smoke Suite |
 | [010](done/010-add-agent-run-tracing-and-local-logs.md) | Add Agent Run Tracing And Local Logs |
 | [011](done/011-add-live-progress-surface-for-json-runs.md) | Add Live Progress Surface For JSON Runs |
+| [012](done/012-align-project-docs-with-thin-launcher-architecture.md) | Align Project Docs With Thin Launcher Architecture |
 | [013](done/013-add-durable-wip-scratchpads-and-partial-results-contract.md) | Add Durable WIP Scratchpads And Partial-Result Contract |
+| [014](done/014-track-per-run-usd-cost.md) | Track Per-Run USD Cost |
 
 ## Workflow
 

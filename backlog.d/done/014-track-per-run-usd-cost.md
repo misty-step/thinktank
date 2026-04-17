@@ -1,7 +1,7 @@
 # Track Per-Run USD Cost
 
 Priority: medium
-Status: in-progress
+Status: done
 Estimate: S
 
 ## Goal
@@ -33,3 +33,8 @@ Every ThinkTank run records the USD cost of the model calls it made, so operator
 
 ## Motivation
 `/flywheel` (the orchestrator) runs under a Claude Max / OpenAI Pro subscription — no per-token billing at the cycle level. ThinkTank is the opposite: every bench run hits paid APIs. Cost belongs where the money is actually spent, not in the orchestrator. This item moves USD tracking to its correct home.
+
+## What Was Built
+- Added a code-owned pricing table for the builtin model roster and tests that fail when a builtin model has no configured price.
+- Extended agent execution and run manifests to normalize Pi-reported token usage into per-agent cost records, aggregate `usd_cost_total` and `usd_cost_by_model`, and surface `pricing_gaps` instead of guessing.
+- Updated the human-readable and JSON run inspection surfaces plus partial summaries to show the recorded cost information.
