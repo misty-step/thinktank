@@ -1,7 +1,7 @@
 # Track Per-Run USD Cost
 
 Priority: medium
-Status: ready
+Status: in-progress
 Estimate: S
 
 ## Goal

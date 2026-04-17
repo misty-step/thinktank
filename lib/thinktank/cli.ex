@@ -596,17 +596,7 @@ defmodule Thinktank.CLI do
   end
 
   defp emit(_command, payload) do
-    IO.puts("""
-    Bench: #{payload.bench}
-    Status: #{payload.status}
-    Output: #{payload.output_dir}
-
-    Agents:
-    #{render_agent_lines(payload.agents)}
-
-    Artifacts:
-    #{render_artifact_lines(payload.artifacts)}
-    """)
+    IO.puts(render_run_payload(payload))
   end
 
   defp emit_eval(%{json: true}, payload), do: IO.puts(Jason.encode!(payload))
@@ -633,6 +623,22 @@ defmodule Thinktank.CLI do
     Enum.map_join(artifacts, "\n", fn artifact ->
       "- #{artifact["name"]}: #{artifact["file"]}"
     end)
+  end
+
+  @doc false
+  def render_run_payload(payload) do
+    """
+    Bench: #{payload.bench}
+    Status: #{payload.status}
+    Output: #{payload.output_dir}
+    Cost: #{render_usd_cost(payload[:usd_cost_total], payload[:pricing_gaps] || [])}
+
+    Agents:
+    #{render_agent_lines(payload.agents)}
+
+    Artifacts:
+    #{render_artifact_lines(payload.artifacts)}
+    """
   end
 
   defp render_eval_case_lines(cases) do
@@ -769,6 +775,15 @@ defmodule Thinktank.CLI do
   defp contract_payload(payload) do
     Map.put(payload, :error, contract_error(payload))
   end
+
+  defp render_usd_cost(total, []), do: "$" <> format_usd(total)
+
+  defp render_usd_cost(_total, pricing_gaps) do
+    "unavailable (pricing gap: #{Enum.join(pricing_gaps, ", ")})"
+  end
+
+  defp format_usd(total) when is_number(total), do: :erlang.float_to_binary(total, decimals: 6)
+  defp format_usd(_total), do: "0.000000"
 
   defp contract_error(%{status: "complete"}), do: nil
 

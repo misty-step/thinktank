@@ -12,7 +12,7 @@ Status conventions:
 
 ## In Progress
 
-_None._
+- [014](014-track-per-run-usd-cost.md) | Track Per-Run USD Cost | medium | S
 
 ## Active (ready to pick)
 
@@ -21,7 +21,6 @@ _None._
 | [008](008-enforce-command-plane-architecture-gates.md) | Enforce Command-Plane Architecture Gates | medium | L |
 | [009](009-add-security-gating-workflow.md) | Add Security Gating Workflow | medium | M |
 | [012](012-align-project-docs-with-thin-launcher-architecture.md) | Align Project Docs With Thin Launcher Architecture | medium | S |
-| [014](014-track-per-run-usd-cost.md) | Track Per-Run USD Cost | medium | S |
 
 ## Done
 

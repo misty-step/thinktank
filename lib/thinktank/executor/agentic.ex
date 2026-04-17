@@ -18,7 +18,7 @@ defmodule Thinktank.Executor.Agentic do
           started_at: String.t() | nil,
           completed_at: String.t() | nil,
           duration_ms: non_neg_integer() | nil,
-          usage: nil,
+          usage: map() | nil,
           error: map() | nil
         }
 
@@ -74,6 +74,7 @@ defmodule Thinktank.Executor.Agentic do
 
       {{:exit, reason}, {agent, index}} when reason in [:timeout, {:timeout, nil}] ->
         instance_id = agent_instance_id(agent, index)
+        usage = session_usage(agent_home_path(contract, instance_id), agent.model)
 
         RunStore.append_agent_note(
           contract.artifact_dir,
@@ -100,11 +101,12 @@ defmodule Thinktank.Executor.Agentic do
           status: "error"
         })
 
-        untimed_result(agent, instance_id, :error, "", %{category: :timeout})
+        untimed_result(agent, instance_id, :error, "", %{category: :timeout}, usage)
 
       {{:exit, reason}, {agent, index}} ->
         instance_id = agent_instance_id(agent, index)
         error = %{category: :crash, message: inspect(reason)}
+        usage = session_usage(agent_home_path(contract, instance_id), agent.model)
 
         RunStore.append_agent_note(
           contract.artifact_dir,
@@ -136,7 +138,8 @@ defmodule Thinktank.Executor.Agentic do
           instance_id,
           :error,
           "",
-          error
+          error,
+          usage
         )
     end)
   end
@@ -145,6 +148,7 @@ defmodule Thinktank.Executor.Agentic do
     instance_id = agent_instance_id(agent, index)
     started_at = DateTime.utc_now() |> DateTime.to_iso8601()
     started_mono = System.monotonic_time(:millisecond)
+    agent_home = agent_home_path(contract, instance_id)
     tools = tool_list(agent)
 
     trace_context = %{
@@ -188,10 +192,11 @@ defmodule Thinktank.Executor.Agentic do
       prompt = "#{agent.system_prompt}\n\n#{rendered_prompt}"
       prompt_file = write_prompt_file(contract, instance_id, prompt)
       provider = config.providers[agent.provider]
+      agent_home = build_agent_home(contract, instance_id, opts[:agent_config_dir])
       {cmd, args} = build_command(agent, prompt_file, tools, provider)
 
       cmd_opts =
-        build_cmd_opts(agent, instance_id, contract, config.providers[agent.provider], opts)
+        build_cmd_opts(agent, agent_home, instance_id, contract, provider)
 
       TraceLog.record_event(contract.artifact_dir, "prompt_written", %{
         "bench" => contract.bench_id,
@@ -223,7 +228,10 @@ defmodule Thinktank.Executor.Agentic do
              )
            end) do
         {:ok, output, attempts_run} ->
-          result = timed_result(agent, instance_id, :ok, output, started_at, started_mono, nil)
+          usage = session_usage(agent_home, agent.model)
+
+          result =
+            timed_result(agent, instance_id, :ok, output, started_at, started_mono, nil, usage)
 
           RunStore.append_agent_note(
             contract.artifact_dir,
@@ -256,6 +264,8 @@ defmodule Thinktank.Executor.Agentic do
           result
 
         {:error, %{output: output} = error, attempts_run} ->
+          usage = session_usage(agent_home, agent.model)
+
           result =
             timed_result(
               agent,
@@ -264,7 +274,8 @@ defmodule Thinktank.Executor.Agentic do
               output,
               started_at,
               started_mono,
-              Map.delete(error, :output)
+              Map.delete(error, :output),
+              usage
             )
 
           RunStore.append_agent_note(
@@ -300,6 +311,8 @@ defmodule Thinktank.Executor.Agentic do
       end
     rescue
       error ->
+        usage = session_usage(agent_home, agent.model)
+
         result =
           timed_result(
             agent,
@@ -308,7 +321,8 @@ defmodule Thinktank.Executor.Agentic do
             "",
             started_at,
             started_mono,
-            %{category: :crash, message: Exception.message(error)}
+            %{category: :crash, message: Exception.message(error)},
+            usage
           )
 
         RunStore.append_agent_note(
@@ -405,16 +419,21 @@ defmodule Thinktank.Executor.Agentic do
     end
   end
 
-  defp timed_result(agent, instance_id, status, output, started_at, started_mono, error) do
+  defp timed_result(agent, instance_id, status, output, started_at, started_mono, error, usage) do
+    runtime = %{
+      started_at: started_at,
+      completed_at: completed_at_iso8601(),
+      duration_ms: elapsed_ms(started_mono),
+      error: error,
+      usage: usage
+    }
+
     build_result(
       agent,
       instance_id,
       status,
       output,
-      started_at,
-      completed_at_iso8601(),
-      elapsed_ms(started_mono),
-      error
+      runtime
     )
   end
 
@@ -426,30 +445,27 @@ defmodule Thinktank.Executor.Agentic do
     System.monotonic_time(:millisecond) - started_mono
   end
 
-  defp untimed_result(agent, instance_id, status, output, error) do
-    build_result(agent, instance_id, status, output, nil, nil, nil, error)
+  defp untimed_result(agent, instance_id, status, output, error, usage) do
+    build_result(agent, instance_id, status, output, %{
+      started_at: nil,
+      completed_at: nil,
+      duration_ms: nil,
+      error: error,
+      usage: usage
+    })
   end
 
-  defp build_result(
-         agent,
-         instance_id,
-         status,
-         output,
-         started_at,
-         completed_at,
-         duration_ms,
-         error
-       ) do
+  defp build_result(agent, instance_id, status, output, runtime) do
     %{
       agent: agent,
       instance_id: instance_id,
       status: status,
       output: output,
-      started_at: started_at,
-      completed_at: completed_at,
-      duration_ms: duration_ms,
-      usage: nil,
-      error: error
+      started_at: runtime.started_at,
+      completed_at: runtime.completed_at,
+      duration_ms: runtime.duration_ms,
+      usage: runtime.usage,
+      error: runtime.error
     }
   end
 
@@ -554,7 +570,6 @@ defmodule Thinktank.Executor.Agentic do
        "exec < /dev/null; exec \"$@\" 2>&1",
        "sh",
        "pi",
-       "--no-session",
        "--no-skills",
        "--provider",
        to_string(provider.adapter),
@@ -569,7 +584,7 @@ defmodule Thinktank.Executor.Agentic do
      ]}
   end
 
-  defp build_cmd_opts(agent, instance_id, contract, provider, opts) do
+  defp build_cmd_opts(agent, agent_home, instance_id, contract, provider) do
     provider_env = provider_env(provider)
 
     [
@@ -578,8 +593,7 @@ defmodule Thinktank.Executor.Agentic do
       output_sink: &RunStore.append_agent_output(contract.artifact_dir, instance_id, &1),
       env:
         [
-          {"PI_CODING_AGENT_DIR",
-           build_agent_home(contract, instance_id, opts[:agent_config_dir])}
+          {"PI_CODING_AGENT_DIR", agent_home}
         ] ++
           provider_env,
       cd: contract.workspace_root
@@ -631,14 +645,18 @@ defmodule Thinktank.Executor.Agentic do
     path
   end
 
+  defp agent_home_path(contract, instance_id) do
+    Path.join([contract.artifact_dir, "pi-home", instance_id])
+  end
+
   defp build_agent_home(contract, instance_id, nil) do
-    dir = Path.join([contract.artifact_dir, "pi-home", instance_id])
+    dir = agent_home_path(contract, instance_id)
     File.mkdir_p!(dir)
     dir
   end
 
   defp build_agent_home(contract, instance_id, base_dir) do
-    dir = Path.join([contract.artifact_dir, "pi-home", instance_id])
+    dir = agent_home_path(contract, instance_id)
 
     unless File.exists?(dir) do
       validate_agent_config_dir!(base_dir)
@@ -717,6 +735,67 @@ defmodule Thinktank.Executor.Agentic do
   end
 
   defp runner_name(_), do: "custom"
+
+  defp session_usage(agent_home, model) do
+    agent_home
+    |> session_files()
+    |> Enum.flat_map(&assistant_usages_from_session/1)
+    |> aggregate_session_usage(model)
+  end
+
+  defp session_files(agent_home) do
+    Path.wildcard(Path.join([agent_home, "sessions", "**", "*.jsonl"]))
+  end
+
+  defp assistant_usages_from_session(path) do
+    path
+    |> File.stream!(:line, [])
+    |> Enum.flat_map(fn line ->
+      case Jason.decode(line) do
+        {:ok, %{"type" => "message", "message" => %{"role" => "assistant", "usage" => usage}}} ->
+          [usage]
+
+        _ ->
+          []
+      end
+    end)
+  rescue
+    _ -> []
+  end
+
+  defp aggregate_session_usage([], _model), do: nil
+
+  defp aggregate_session_usage(usages, model) do
+    aggregate =
+      Enum.reduce(
+        usages,
+        %{"input" => 0, "output" => 0, "cacheRead" => 0, "cacheWrite" => 0},
+        fn usage, acc ->
+          %{
+            "input" => acc["input"] + usage_value(usage, "input"),
+            "output" => acc["output"] + usage_value(usage, "output"),
+            "cacheRead" => acc["cacheRead"] + usage_value(usage, "cacheRead"),
+            "cacheWrite" => acc["cacheWrite"] + usage_value(usage, "cacheWrite")
+          }
+        end
+      )
+
+    total =
+      aggregate["input"] +
+        aggregate["output"] +
+        aggregate["cacheRead"] +
+        aggregate["cacheWrite"]
+
+    Thinktank.Pricing.normalize_usage(model, Map.put(aggregate, "totalTokens", total))
+  end
+
+  defp usage_value(usage, key) do
+    case Map.get(usage, key) do
+      value when is_integer(value) and value >= 0 -> value
+      value when is_float(value) and value >= 0 -> trunc(value)
+      _ -> 0
+    end
+  end
 
   defp relative_artifact_path(path, output_dir) do
     Path.relative_to(path, output_dir)

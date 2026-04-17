@@ -459,6 +459,36 @@ defmodule Thinktank.CLITest do
     assert output =~ "Task text can come from --input, positional text, or piped stdin."
   end
 
+  test "renders a cost line in the human-readable run payload" do
+    output =
+      CLI.render_run_payload(%{
+        bench: "research/default",
+        status: "complete",
+        output_dir: "/tmp/thinktank-run",
+        agents: [%{"name" => "systems", "metadata" => %{"status" => "ok"}}],
+        artifacts: [%{"name" => "summary", "file" => "summary.md"}],
+        usd_cost_total: 0.0006625,
+        pricing_gaps: []
+      })
+
+    assert output =~ "Cost: $0.000663"
+  end
+
+  test "renders pricing gaps in the human-readable run payload" do
+    output =
+      CLI.render_run_payload(%{
+        bench: "research/default",
+        status: "partial",
+        output_dir: "/tmp/thinktank-run",
+        agents: [],
+        artifacts: [],
+        usd_cost_total: nil,
+        pricing_gaps: ["unknown/model"]
+      })
+
+    assert output =~ "Cost: unavailable (pricing gap: unknown/model)"
+  end
+
   test "benches list --json emits a JSON array with id, description, kind, agent_count" do
     {:ok, command} = CLI.parse_args(["benches", "list", "--json"])
     assert command.action == :benches_list

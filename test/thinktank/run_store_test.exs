@@ -125,6 +125,84 @@ defmodule Thinktank.RunStoreTest do
     assert json_artifact["content_type"] == "application/json"
   end
 
+  test "aggregates usd cost totals and per-model usage into the result envelope" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-store-pricing"), "run")
+
+    contract = %RunContract{
+      bench_id: "research/default",
+      workspace_root: File.cwd!(),
+      input: %{input_text: "hello"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{id: "research/default", description: "Demo", agents: ["systems", "proof"]}
+
+    RunStore.init_run(output_dir, contract, bench)
+
+    RunStore.record_agent_result(output_dir, "systems", "first", %{
+      instance_id: "systems-1",
+      model: "openai/gpt-5.4-mini",
+      status: :ok,
+      usage: %{"input" => 100, "output" => 20, "cacheRead" => 40}
+    })
+
+    RunStore.record_agent_result(output_dir, "proof", "second", %{
+      instance_id: "proof-1",
+      model: "openai/gpt-5.4-mini",
+      status: :ok,
+      usage: %{"input" => 30, "output" => 10}
+    })
+
+    envelope = RunStore.result_envelope(output_dir)
+    model = envelope.usd_cost_by_model["openai/gpt-5.4-mini"]
+
+    assert envelope.pricing_gaps == []
+    assert_in_delta envelope.usd_cost_total, 0.0004675, 1.0e-12
+    assert model["input_tokens"] == 130
+    assert model["output_tokens"] == 30
+    assert model["cache_read_tokens"] == 40
+    assert model["cache_write_tokens"] == 0
+    assert model["total_tokens"] == 200
+    assert_in_delta model["usd_cost"], 0.0004675, 1.0e-12
+    assert model["pricing_gap"] == nil
+  end
+
+  test "marks run totals unavailable and logs a warning when pricing is unknown" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-store-pricing-gap"), "run")
+
+    contract = %RunContract{
+      bench_id: "research/default",
+      workspace_root: File.cwd!(),
+      input: %{input_text: "hello"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{id: "research/default", description: "Demo", agents: ["systems"]}
+
+    RunStore.init_run(output_dir, contract, bench)
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        RunStore.record_agent_result(output_dir, "systems", "first", %{
+          instance_id: "systems-1",
+          model: "unknown/model",
+          status: :ok,
+          usage: %{"input" => 10, "output" => 5}
+        })
+      end)
+
+    envelope = RunStore.result_envelope(output_dir)
+    model = envelope.usd_cost_by_model["unknown/model"]
+
+    assert log =~ "pricing unavailable for unknown/model"
+    assert envelope.usd_cost_total == nil
+    assert envelope.pricing_gaps == ["unknown/model"]
+    assert model["usd_cost"] == nil
+    assert model["pricing_gap"] == "no price table entry for unknown/model"
+  end
+
   test "result_envelope inlines review summaries for review benches" do
     output_dir = Path.join(unique_tmp_dir("thinktank-run-store-review-envelope"), "run")
 

@@ -134,9 +134,12 @@ defmodule Thinktank.Integration.AgentContractTest do
                    "duration_ms",
                    "error",
                    "output_dir",
+                   "pricing_gaps",
                    "started_at",
                    "status",
-                   "synthesis"
+                   "synthesis",
+                   "usd_cost_by_model",
+                   "usd_cost_total"
                  ]
 
           assert Map.take(payload, ["status", "output_dir", "error"]) == %{
@@ -146,6 +149,9 @@ defmodule Thinktank.Integration.AgentContractTest do
                  }
 
           assert is_list(payload["artifacts"])
+          assert payload["usd_cost_total"] == 0.0
+          assert payload["usd_cost_by_model"] == %{}
+          assert payload["pricing_gaps"] == []
           assert File.exists?(Path.join(payload["output_dir"], "contract.json"))
         end)
       end)

@@ -19,6 +19,19 @@ defmodule Thinktank.Executor.AgenticTest do
     |> Enum.map(&Jason.decode!/1)
   end
 
+  defp write_session_usage(pi_home, session_name, usage) do
+    path = Path.join([pi_home, "sessions", "2026", "#{session_name}.jsonl"])
+    File.mkdir_p!(Path.dirname(path))
+
+    File.write!(
+      path,
+      Jason.encode!(%{
+        "type" => "message",
+        "message" => %{"role" => "assistant", "usage" => usage}
+      }) <> "\n"
+    )
+  end
+
   defp config do
     %Config{
       providers: %{
@@ -424,6 +437,50 @@ defmodule Thinktank.Executor.AgenticTest do
 
     assert Enum.any?(global_events, &(&1["run_id"] == Path.basename(contract.artifact_dir)))
     refute File.read!(global_log) =~ "super-secret-value"
+  end
+
+  test "aggregates session usage across retries into the final result" do
+    tmp = unique_tmp_dir("thinktank-agentic-usage")
+    counter = :atomics.new(1, [])
+
+    agent = %AgentSpec{
+      name: "trace",
+      provider: "openrouter",
+      model: "openai/gpt-5.4-mini",
+      system_prompt: "You are a reviewer.",
+      task_prompt: "{{input_text}}",
+      timeout_ms: 5_000,
+      retries: 1
+    }
+
+    runner = fn _cmd, _args, opts ->
+      env = opts |> Keyword.fetch!(:env) |> Enum.into(%{})
+      pi_home = Map.fetch!(env, "PI_CODING_AGENT_DIR")
+      attempt = :atomics.add_get(counter, 1, 1)
+
+      write_session_usage(pi_home, "attempt-#{attempt}", %{
+        "input" => 100 * attempt,
+        "output" => 10 * attempt,
+        "cacheRead" => 20 * attempt
+      })
+
+      case attempt do
+        1 -> {"first attempt failed", 1}
+        _ -> {"second attempt ok", 0}
+      end
+    end
+
+    [result] = Agentic.run([agent], contract(tmp), %{}, config(), runner: runner)
+
+    assert result.status == :ok
+    assert result.usage["model"] == "openai/gpt-5.4-mini"
+    assert result.usage["input_tokens"] == 300
+    assert result.usage["output_tokens"] == 30
+    assert result.usage["cache_read_tokens"] == 60
+    assert result.usage["cache_write_tokens"] == 0
+    assert result.usage["total_tokens"] == 390
+    assert result.usage["pricing_gap"] == nil
+    assert_in_delta result.usage["usd_cost"], 0.0006825, 1.0e-12
   end
 
   test "timeout subprocess traces use a nil exit_code" do

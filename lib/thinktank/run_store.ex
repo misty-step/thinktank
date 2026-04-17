@@ -3,7 +3,10 @@ defmodule Thinktank.RunStore do
   Artifact store for bench executions.
   """
 
+  require Logger
+
   alias Thinktank.{BenchSpec, RunContract}
+  alias Thinktank.Pricing
   alias Thinktank.TraceLog
 
   @manifest_file "manifest.json"
@@ -34,7 +37,10 @@ defmodule Thinktank.RunStore do
       "planned_agents" => bench.agents,
       "synthesizer" => bench.synthesizer,
       "agents" => [],
-      "artifacts" => []
+      "artifacts" => [],
+      "usd_cost_total" => 0.0,
+      "usd_cost_by_model" => %{},
+      "pricing_gaps" => []
     }
 
     write_manifest(output_dir, manifest)
@@ -58,9 +64,10 @@ defmodule Thinktank.RunStore do
     metadata =
       metadata
       |> normalize()
-      |> attach_agent_artifact_refs(agent_instance_id(agent_name, normalize(metadata)))
+      |> normalize_usage()
 
     instance_id = agent_instance_id(agent_name, metadata)
+    metadata = attach_agent_artifact_refs(metadata, instance_id)
     file = Path.join(["agents", "#{instance_id}.md"])
     File.write!(Path.join(output_dir, file), output)
 
@@ -77,7 +84,9 @@ defmodule Thinktank.RunStore do
           }
         ])
 
-      %{manifest | "agents" => agents}
+      manifest
+      |> Map.put("agents", agents)
+      |> Map.merge(pricing_summary(agents))
     end)
   end
 
@@ -203,6 +212,9 @@ defmodule Thinktank.RunStore do
       duration_ms: duration_ms(manifest["started_at"], manifest["completed_at"]),
       agents: manifest["agents"],
       artifacts: artifacts,
+      usd_cost_total: manifest["usd_cost_total"],
+      usd_cost_by_model: manifest["usd_cost_by_model"],
+      pricing_gaps: manifest["pricing_gaps"],
       synthesis: read_synthesis(output_dir, artifacts)
     }
   end
@@ -316,6 +328,7 @@ defmodule Thinktank.RunStore do
     - Mode: #{manifest["kind"]}
     - Started: #{manifest["started_at"]}
     - Completed: #{manifest["completed_at"] || "pending"}
+    - USD Cost: #{render_usd_cost(manifest["usd_cost_total"], manifest["pricing_gaps"])}
     - Run scratchpad: `#{run_scratchpad_file()}`
 
     ## Task
@@ -441,6 +454,102 @@ defmodule Thinktank.RunStore do
     |> Map.put_new("stream", agent_stream_file(instance_id))
   end
 
+  defp normalize_usage(metadata) do
+    model = Map.get(metadata, "model")
+
+    case Pricing.normalize_usage(model, Map.get(metadata, "usage")) do
+      nil ->
+        metadata
+
+      usage ->
+        maybe_warn_pricing_gap(model, usage["pricing_gap"])
+        Map.put(metadata, "usage", usage)
+    end
+  end
+
+  defp maybe_warn_pricing_gap(_model, nil), do: :ok
+
+  defp maybe_warn_pricing_gap(model, gap) when is_binary(gap) do
+    Logger.warning("pricing unavailable for #{model}: #{gap}")
+  end
+
+  defp pricing_summary(agents) do
+    initial = %{models: %{}, pricing_gaps: MapSet.new(), usd_cost_total: 0.0}
+
+    summary =
+      Enum.reduce(agents, initial, fn agent, acc ->
+        case get_in(agent, ["metadata", "usage"]) do
+          %{} = usage ->
+            merge_usage_summary(acc, usage)
+
+          _ ->
+            acc
+        end
+      end)
+
+    %{
+      "usd_cost_total" =>
+        if(MapSet.size(summary.pricing_gaps) == 0,
+          do: round_usd(summary.usd_cost_total),
+          else: nil
+        ),
+      "usd_cost_by_model" => summary.models,
+      "pricing_gaps" => summary.pricing_gaps |> MapSet.to_list() |> Enum.sort()
+    }
+  end
+
+  defp merge_usage_summary(acc, usage) do
+    model = usage["model"] || "unknown"
+    entry = Map.get(acc.models, model, empty_model_summary(model))
+
+    merged_entry =
+      entry
+      |> Map.update!("input_tokens", &(&1 + usage["input_tokens"]))
+      |> Map.update!("output_tokens", &(&1 + usage["output_tokens"]))
+      |> Map.update!("cache_read_tokens", &(&1 + usage["cache_read_tokens"]))
+      |> Map.update!("cache_write_tokens", &(&1 + usage["cache_write_tokens"]))
+      |> Map.update!("total_tokens", &(&1 + usage["total_tokens"]))
+      |> merge_model_cost(usage["usd_cost"])
+      |> merge_model_gap(usage["pricing_gap"])
+
+    %{
+      acc
+      | models: Map.put(acc.models, model, merged_entry),
+        pricing_gaps: maybe_put_gap(acc.pricing_gaps, usage["pricing_gap"], model),
+        usd_cost_total:
+          if(is_number(usage["usd_cost"]),
+            do: acc.usd_cost_total + usage["usd_cost"],
+            else: acc.usd_cost_total
+          )
+    }
+  end
+
+  defp merge_model_cost(entry, nil), do: Map.put(entry, "usd_cost", nil)
+  defp merge_model_cost(%{"usd_cost" => nil} = entry, _usd_cost), do: entry
+
+  defp merge_model_cost(entry, usd_cost) when is_number(usd_cost) do
+    Map.update!(entry, "usd_cost", &round_usd(&1 + usd_cost))
+  end
+
+  defp merge_model_gap(entry, nil), do: entry
+  defp merge_model_gap(entry, gap), do: Map.put(entry, "pricing_gap", gap)
+
+  defp maybe_put_gap(gaps, nil, _model), do: gaps
+  defp maybe_put_gap(gaps, _gap, model), do: MapSet.put(gaps, model)
+
+  defp empty_model_summary(model) do
+    %{
+      "model" => model,
+      "input_tokens" => 0,
+      "output_tokens" => 0,
+      "cache_read_tokens" => 0,
+      "cache_write_tokens" => 0,
+      "total_tokens" => 0,
+      "usd_cost" => 0.0,
+      "pricing_gap" => nil
+    }
+  end
+
   defp normalize(%{} = value) do
     value
     |> Enum.map(fn {key, entry} -> {to_string(key), normalize(entry)} end)
@@ -515,6 +624,17 @@ defmodule Thinktank.RunStore do
   defp run_scratchpad_file, do: Path.join(@scratchpad_dir, "run.md")
   defp agent_scratchpad_file(instance_id), do: Path.join(@scratchpad_dir, "#{instance_id}.md")
   defp agent_stream_file(instance_id), do: Path.join(@stream_dir, "#{instance_id}.txt")
+
+  defp render_usd_cost(total, []), do: "$" <> format_usd(total)
+
+  defp render_usd_cost(_total, pricing_gaps) do
+    "unavailable (pricing gap: #{Enum.join(pricing_gaps, ", ")})"
+  end
+
+  defp format_usd(total) when is_number(total), do: :erlang.float_to_binary(total, decimals: 6)
+  defp format_usd(_total), do: "0.000000"
+
+  defp round_usd(value) when is_number(value), do: Float.round(value, 12)
 
   defp slugify(name) do
     name
