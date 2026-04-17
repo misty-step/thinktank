@@ -1,79 +1,93 @@
 # Project: thinktank
 
-## Vision
+## Current Boundary
 
-Agent-first research tool that gets multiple AI perspectives on a question or problem. Sends context + instructions to multiple LLMs via OpenRouter and synthesizes their responses — turning model diversity into deeper understanding.
+ThinkTank is a thin Pi bench launcher for research and code review.
 
-**North Star:** The research backbone for AI agents and engineers who need multiple perspectives, not just one model's opinion.
-**Target User:** AI agents orchestrating research workflows; engineers who want diverse model perspectives on code, architecture, and design decisions.
-**Key Differentiators:** Agent-composable CLI; single-key OpenRouter access to many models; synthesis that extracts signal from model disagreement; context-grounded analysis.
+It defines named Pi agents in config, groups them into benches, launches them
+against the current workspace, and records raw artifacts plus run metadata. It
+does not own semantic workflow logic, direct multi-LLM dispatch, or post-hoc
+parsing of agent prose.
+
+## North Star
+
+Be the dependable command-plane that other agents and engineers can call when
+they need a repeatable research or review bench with inspectable artifacts.
+
+## What ThinkTank Is
+
+- A CLI and JSON contract for launching named Pi benches.
+- A thin runtime that owns resolution, isolation, concurrency, retries,
+  timeouts, and artifact persistence.
+- A durable artifact writer for prompts, raw outputs, traces, scratchpads,
+  partial results, and per-run cost metadata.
+- A local-first tool: workspace context comes from `cwd` plus light orientation
+  flags like `--paths`, `--base`, `--head`, `--repo`, and `--pr`.
+
+## What ThinkTank Is Not
+
+- Not a router that invents perspectives on the fly.
+- Not a quick/deep dispatch split with a parallel non-Pi execution path.
+- Not a semantic workflow engine or stage graph DSL.
+- Not a prose parser that recovers structure from agent output after the fact.
 
 ## Principles
 
-- **Agent-first.** Thinktank is a tool for agents to call, not primarily a human-interactive CLI. Design for machine consumption, human readability is a bonus.
-- **Perspective diversity is the product.** The value isn't any single model's output — it's the disagreement, convergence, and synthesis across models.
-- **Grounded analysis only.** Models always see the actual context — no hallucination-prone "describe your problem" workflows.
-- **One key, many minds.** OpenRouter as the single gateway means zero vendor lock-in and instant access to new models as they ship.
-- **CLI-native composability.** Pipes, scripts, automation. A building block in larger agent workflows, not an island.
-- **Minimal moving parts.** Single binary, single env var. Complexity in the model layer, simplicity in the tool layer.
+- **Workspace is context.** Run ThinkTank in the repo you want agents to inspect.
+- **Thin launcher boundary.** ThinkTank owns launch and artifacts; Pi owns
+  exploration, reasoning, and git inspection.
+- **Artifact contract over orchestration.** Durable files and stable envelopes
+  matter more than adding semantic harness layers.
+- **Local resilience.** Traces, scratchpads, partial summaries, and cost
+  accounting should survive timeout, interruption, and retry.
+- **Convention over bespoke logic.** Prefer benches, prompts, and config over
+  new execution concepts.
 
-## Philosophy
+## Architecture Map
 
-- Model diversity is a research methodology, not a feature. Different models catch different things.
-- Synthesis > aggregation. Combining outputs into coherent insight is harder and more valuable than concatenation.
-- Resilience over speed. Retry transient failures, degrade gracefully, never lose results.
-- Ship what matters. Model registry freshness and output quality outweigh feature count.
-- Elixir idioms: pattern matching, `with` chains for multi-step errors, deep modules with small public APIs.
+| Surface | Module | Responsibility |
+|---|---|---|
+| CLI | `lib/thinktank/cli.ex` | Commands, dry-run, text/JSON output |
+| Engine | `lib/thinktank/engine.ex` | Bench resolution and launch orchestration |
+| Builtins | `lib/thinktank/builtin.ex` | Built-in agents and benches |
+| Config | `lib/thinktank/config.ex` | Built-in, user, and repo config loading |
+| Executor | `lib/thinktank/executor/agentic.ex` | Pi subprocess execution and retry |
+| Store | `lib/thinktank/run_store.ex` | Manifest, artifacts, scratchpads, partial summaries |
+| Contract | `lib/thinktank/run_contract.ex` | Persisted run contract |
+| Trace | `lib/thinktank/trace_log.ex` | Structured per-run and global trace logs |
+| Review context | `lib/thinktank/review/context.ex` | Lightweight review context artifacts |
+| Review planner | `lib/thinktank/review/planner.ex` | Optional reviewer subset planning |
+| Pricing | `lib/thinktank/pricing.ex` | Code-owned per-model USD pricing table |
 
 ## Domain Glossary
 
 | Term | Definition |
-|------|-----------|
-| Perspective | A `{role, model, prompt}` struct assigned by the router |
-| Router | `lib/thinktank/router.ex` — LLM-powered perspective generation |
-| Quick mode | `lib/thinktank/dispatch/quick.ex` — parallel OpenRouter API calls |
-| Deep mode | `lib/thinktank/dispatch/deep.ex` — Pi subprocess orchestration via MuonTrap |
-| Synthesis | `lib/thinktank/synthesis.ex` — combines multiple model outputs into one response |
-| Output | `lib/thinktank/output.ex` — kill-safe artifact writer with atomic manifest |
-| OpenRouter | Single API gateway used for all model access (one key, unified interface) |
-| Dry-run | Preview mode: shows plan without making API calls |
+|---|---|
+| Agent | A named Pi configuration with provider, model, prompts, and tools |
+| Bench | A named set of agents plus optional planner and synthesizer |
+| Planner | Optional agent that selects or narrows reviewers before execution |
+| Synthesizer | Optional agent that writes a final research or review artifact |
+| Run contract | Persisted input and execution context for one run |
+| Manifest | Artifact index and run metadata for one run |
+| Scratchpad | Durable append-only run or agent journal written during execution |
+| Pricing gap | A model or token class whose USD rate is intentionally unknown |
 
 ## Quality Bar
 
-- [ ] `mix test` passes
-- [ ] `mix format --check-formatted` clean
-- [ ] `mix compile --warnings-as-errors` clean
-- [ ] Conventional commit messages (`feat:`, `fix:`, `docs:`, `chore:`)
+- `mix test`
+- `mix compile --warnings-as-errors`
+- `./scripts/with-colima.sh dagger call check`
+- Conventional commit messages
 
-## Patterns to Follow
+## Historical Note
 
-### Pattern Matching over Conditionals
-```elixir
-def handle({:ok, result}), do: process(result)
-def handle({:error, reason}), do: {:error, reason}
-```
+Earlier project language referred to router/dispatch/quick/deep/output modules
+as the active system. Treat that as historical context from a different design
+direction, not as the current architecture.
 
-### With Chains for Multi-step Errors
-```elixir
-with {:ok, perspectives} <- Router.generate_perspectives(instruction, paths),
-     {:ok, results} <- Quick.dispatch(perspectives, instruction),
-     {:ok, synthesis} <- Synthesis.synthesize(results, instruction) do
-  {:ok, synthesis}
-end
-```
-
-### Explicit Error Handling
-```elixir
-# Never suppress errors — handle every {:error, _} explicitly
-case OpenRouter.chat(messages, model) do
-  {:ok, response} -> {:ok, response}
-  {:error, reason} -> {:error, "model #{model} failed: #{reason}"}
-end
-```
-
-## History
-
-Go v4 codebase archived on the [`v4-archive`](https://github.com/misty-step/thinktank/tree/v4-archive) branch (tag: `v4.0.0`).
+Go v4 code lives on the
+[`v4-archive`](https://github.com/misty-step/thinktank/tree/v4-archive) branch
+(`v4.0.0`).
 
 ---
-*Last updated: 2026-03-15*
+*Last updated: 2026-04-17*

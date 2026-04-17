@@ -186,12 +186,14 @@ Each run writes:
 - `review/context.json` and `review/context.md` for review benches
 - `review/plan.json` and `review/plan.md` for review benches
 - `review/planner.md` when a planner agent runs
-- `manifest.json` — run metadata and artifact index
+- `manifest.json` — run metadata, artifact index, per-run USD totals, and pricing gaps
 
 `--json` keeps stdout reserved for the final run envelope. While the bench is
 running, stderr emits newline-delimited JSON progress events that surface the
 current phase, the selected `output_dir`, and periodic heartbeats for long
-runs. It does not write a `report.json` artifact. For research benches, the
+runs. The final envelope includes `usd_cost_total`, `usd_cost_by_model`, and
+`pricing_gaps`, and the human-readable text output shows the same cost line.
+It does not write a `report.json` artifact. For research benches, the
 synthesized document lives in `synthesis.md` when a synthesizer is enabled.
 If a run times out, is interrupted, or loses synthesis after useful work has
 already been captured, ThinkTank finalizes it as `partial` and writes a
