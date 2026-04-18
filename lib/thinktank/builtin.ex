@@ -92,9 +92,14 @@ defmodule Thinktank.Builtin do
   end
 
   defp review_agents do
+    # Reviewer models MUST advertise `tools` in their OpenRouter
+    # supported_parameters. xAI's `*-multi-agent` variants orchestrate their
+    # own tool fabric internally and do NOT accept a user-supplied tool
+    # schema over OpenRouter, so they 404 against any bench that declares
+    # @agent_tools. Keep those variants out of this roster.
     reviewers = [
       {"trace", "x-ai/grok-4.20", Review.trace(), "correctness"},
-      {"guard", "x-ai/grok-4.20-multi-agent", Review.guard(), "security"},
+      {"guard", "x-ai/grok-4.20", Review.guard(), "security"},
       {"atlas", "openai/gpt-5.4-mini", Review.atlas(), "architecture"},
       {"proof", "openai/gpt-5.4-mini", Review.proof(), "tests"},
       {"vector", "z-ai/glm-5-turbo", Review.vector(), "interfaces"},

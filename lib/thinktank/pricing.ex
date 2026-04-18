@@ -13,7 +13,6 @@ defmodule Thinktank.Pricing do
     "x-ai/grok-4.1-fast" => %{input: 0.2, output: 0.5, cache_read: 0.05},
     "google/gemini-3-flash-preview" => %{input: 0.5, output: 3.0},
     "x-ai/grok-4.20" => %{input: 1.25, output: 10.0, cache_read: 0.125},
-    "x-ai/grok-4.20-multi-agent" => %{input: 1.25, output: 10.0, cache_read: 0.125},
     "openai/gpt-5.4-mini" => %{input: 1.25, output: 10.0, cache_read: 0.125},
     "z-ai/glm-5-turbo" => %{input: 1.25, output: 10.0, cache_read: 0.125},
     "minimax/minimax-m2.7" => %{input: 1.25, output: 10.0},

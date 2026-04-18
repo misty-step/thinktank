@@ -44,6 +44,7 @@ See [done/](done/) for full write-ups including "What Was Built" notes.
 | [012](done/012-align-project-docs-with-thin-launcher-architecture.md) | Align Project Docs With Thin Launcher Architecture |
 | [013](done/013-add-durable-wip-scratchpads-and-partial-results-contract.md) | Add Durable WIP Scratchpads And Partial-Result Contract |
 | [014](done/014-track-per-run-usd-cost.md) | Track Per-Run USD Cost |
+| [019](done/019-fix-default-review-bench-guard-agent-incompatibility.md) | Fix Default Review Bench Guard Agent Incompatibility |
 
 ## Workflow
 
