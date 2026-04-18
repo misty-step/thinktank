@@ -5,5 +5,5 @@ System.put_env(
   Path.join(System.tmp_dir!(), "thinktank-test-logs-#{System.unique_integer([:positive])}")
 )
 
-ExUnit.configure(exclude: [:e2e])
+ExUnit.configure(exclude: [:e2e, :integration])
 ExUnit.start()
