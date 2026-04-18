@@ -1,7 +1,7 @@
 defmodule Thinktank.Review.Eval do
   @moduledoc false
 
-  alias Thinktank.{Config, Engine, Error, RunContract}
+  alias Thinktank.{ArtifactLayout, Config, Engine, Error, RunContract}
 
   @type result :: %{
           target: String.t(),
@@ -85,8 +85,10 @@ defmodule Thinktank.Review.Eval do
         {:ok, [expanded]}
 
       File.dir?(expanded) ->
-        case Path.wildcard(Path.join(expanded, "**/contract.json")) |> Enum.sort() do
-          [] -> {:error, "no contract.json files found under #{expanded}"}
+        contract_file = ArtifactLayout.contract_file()
+
+        case Path.wildcard(Path.join(expanded, "**/" <> contract_file)) |> Enum.sort() do
+          [] -> {:error, "no #{contract_file} files found under #{expanded}"}
           paths -> {:ok, paths}
         end
 

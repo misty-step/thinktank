@@ -10,3 +10,4 @@
 {"date":"2026-04-14","pr":289,"correctness":9,"depth":9,"simplicity":9,"craft":9,"verdict":"ship","providers":["codex","thinktank"]}
 {"date":"2026-04-16","pr":null,"correctness":9,"depth":8,"simplicity":9,"craft":9,"verdict":"ship","providers":["codex"]}
 {"date":"2026-04-16","pr":null,"correctness":9,"depth":9,"simplicity":9,"craft":9,"verdict":"ship","providers":["codex"]}
+{"date":"2026-04-18","pr":292,"correctness":8,"depth":7,"simplicity":8,"craft":8,"verdict":"ship","providers":["claude","thinktank","codex","gemini"]}

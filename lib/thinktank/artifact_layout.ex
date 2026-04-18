@@ -30,15 +30,6 @@ defmodule Thinktank.ArtifactLayout do
   @spec task_file() :: String.t()
   def task_file, do: @task_file
 
-  @spec summary_file() :: String.t()
-  def summary_file, do: @summary_file
-
-  @spec review_file() :: String.t()
-  def review_file, do: @review_file
-
-  @spec synthesis_file() :: String.t()
-  def synthesis_file, do: @synthesis_file
-
   @spec review_context_json_file() :: String.t()
   def review_context_json_file, do: @review_context_json_file
 
@@ -54,65 +45,39 @@ defmodule Thinktank.ArtifactLayout do
   @spec review_planner_file() :: String.t()
   def review_planner_file, do: @review_planner_file
 
-  @spec agents_dir() :: String.t()
-  def agents_dir, do: @agents_dir
-
-  @spec artifacts_dir() :: String.t()
-  def artifacts_dir, do: @artifacts_dir
-
-  @spec prompts_dir() :: String.t()
-  def prompts_dir, do: @prompts_dir
-
-  @spec pi_home_dir() :: String.t()
-  def pi_home_dir, do: @pi_home_dir
-
   @spec scratchpads_dir() :: String.t()
   def scratchpads_dir, do: @scratchpads_dir
 
-  @spec streams_dir() :: String.t()
-  def streams_dir, do: @streams_dir
-
   @spec run_directories() :: [String.t()]
   def run_directories do
-    [
-      agents_dir(),
-      artifacts_dir(),
-      streams_dir(),
-      prompts_dir(),
-      pi_home_dir(),
-      scratchpads_dir()
-    ]
+    [@agents_dir, @artifacts_dir, @streams_dir, @prompts_dir, @pi_home_dir, @scratchpads_dir]
   end
 
   @spec agent_result_file(String.t()) :: String.t()
-  def agent_result_file(instance_id), do: Path.join(agents_dir(), "#{instance_id}.md")
+  def agent_result_file(instance_id), do: Path.join(@agents_dir, "#{instance_id}.md")
 
   @spec run_scratchpad_file() :: String.t()
-  def run_scratchpad_file, do: Path.join(scratchpads_dir(), "run.md")
+  def run_scratchpad_file, do: Path.join(@scratchpads_dir, "run.md")
 
   @spec agent_scratchpad_file(String.t()) :: String.t()
-  def agent_scratchpad_file(instance_id), do: Path.join(scratchpads_dir(), "#{instance_id}.md")
+  def agent_scratchpad_file(instance_id), do: Path.join(@scratchpads_dir, "#{instance_id}.md")
 
   @spec agent_stream_file(String.t()) :: String.t()
-  def agent_stream_file(instance_id), do: Path.join(streams_dir(), "#{instance_id}.txt")
+  def agent_stream_file(instance_id), do: Path.join(@streams_dir, "#{instance_id}.txt")
 
   @spec summary_artifacts(atom() | String.t() | nil) :: [{String.t(), String.t()}]
-  def summary_artifacts(kind) do
-    kind =
-      if is_binary(kind) do
-        try do
-          String.to_existing_atom(kind)
-        rescue
-          ArgumentError -> nil
-        end
-      else
-        kind
-      end
+  def summary_artifacts(:review), do: [{"summary", @summary_file}, {"review", @review_file}]
 
-    [{"summary", summary_file()} | kind_summary_artifacts(kind)]
+  def summary_artifacts(:research),
+    do: [{"summary", @summary_file}, {"synthesis", @synthesis_file}]
+
+  def summary_artifacts(kind) when is_binary(kind) do
+    case kind do
+      "review" -> summary_artifacts(:review)
+      "research" -> summary_artifacts(:research)
+      _ -> [{"summary", @summary_file}]
+    end
   end
 
-  defp kind_summary_artifacts(:review), do: [{"review", review_file()}]
-  defp kind_summary_artifacts(:research), do: [{"synthesis", synthesis_file()}]
-  defp kind_summary_artifacts(_kind), do: []
+  def summary_artifacts(_kind), do: [{"summary", @summary_file}]
 end
