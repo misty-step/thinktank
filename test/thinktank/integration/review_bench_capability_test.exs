@@ -1,13 +1,17 @@
 defmodule Thinktank.Integration.ReviewBenchCapabilityTest do
   @moduledoc """
-  Probes the live OpenRouter catalog to assert every reviewer in the built-in
-  `review/default` bench is wired to a model whose endpoints advertise
-  `tools` in `supported_parameters`. Catches the class of regression filed
-  as backlog 019: silent tool-capability drift between the bench's declared
-  @agent_tools and a reviewer's configured model.
+  Probes the live OpenRouter catalog to assert every tool-using agent in the
+  built-in `review/default` bench (reviewers, planner, synthesizer) is wired
+  to a model whose endpoints advertise `tools` in `supported_parameters`.
+  Catches the class of regression filed as backlog 019: silent tool-capability
+  drift between the bench's declared `@agent_tools`/`@summary_tools` and a
+  configured model.
 
   Tagged `:integration` because it hits `openrouter.ai`. Gated on
-  `OPENROUTER_API_KEY` — absent, the test skips.
+  `OPENROUTER_API_KEY`: absent, the test emits a loud stderr notice and
+  passes as a no-op (the `:integration` tag excludes it from the default
+  `mix test` run, so the no-op path only triggers when a caller opts in
+  without providing a key).
   """
 
   use ExUnit.Case, async: false
@@ -18,24 +22,30 @@ defmodule Thinktank.Integration.ReviewBenchCapabilityTest do
 
   @endpoints_url "https://openrouter.ai/api/v1/models"
 
-  test "every review/default reviewer uses a tool-capable OpenRouter model" do
+  test "every tool-using review/default agent uses a tool-capable OpenRouter model" do
     api_key =
       System.get_env("OPENROUTER_API_KEY") || System.get_env("THINKTANK_OPENROUTER_API_KEY")
 
     if is_nil(api_key) or api_key == "" do
-      # Oracle (backlog 019): test is gated on OPENROUTER_API_KEY.
-      IO.puts(:stderr, "skipping: OPENROUTER_API_KEY not set")
+      IO.warn(
+        "integration test skipped: OPENROUTER_API_KEY not set (nothing was probed)",
+        []
+      )
+
       :ok
     else
-      bench = Builtin.raw_config() |> get_in(["benches", "review/default"])
-      agents_map = Builtin.raw_config() |> Map.fetch!("agents")
+      config = Builtin.raw_config()
+      bench = get_in(config, ["benches", "review/default"])
+      agents_map = Map.fetch!(config, "agents")
 
-      reviewer_models =
-        bench["agents"]
-        |> Enum.map(fn name -> {name, agents_map |> Map.fetch!(name) |> Map.fetch!("model")} end)
+      agent_names =
+        ([bench["planner"] | bench["agents"]] ++ [bench["synthesizer"]])
+        |> Enum.reject(&is_nil/1)
+        |> Enum.uniq()
 
       results =
-        Enum.map(reviewer_models, fn {name, model} ->
+        Enum.map(agent_names, fn name ->
+          model = agents_map |> Map.fetch!(name) |> Map.fetch!("model")
           {name, model, tool_capable?(model, api_key)}
         end)
 
