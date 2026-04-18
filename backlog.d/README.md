@@ -24,6 +24,8 @@ Status conventions:
 | [016](016-add-run-session-and-single-lifecycle-owner.md) | Add Run Session And Single Lifecycle Owner | high | L |
 | [017](017-reduce-review-control-plane-to-structured-contracts.md) | Reduce Review Control Plane To Structured Contracts | high | M |
 | [018](018-centralize-gate-policy-sources-and-remove-overlap.md) | Centralize Gate Policy Sources And Remove Overlap | medium | M |
+| [020](020-capability-aware-benches-validate.md) | Capability-Aware Benches Validate | medium | M |
+| [021](021-domain-tagged-degrade-policy.md) | Domain-Tagged Degrade Policy | medium | L |
 
 ## Done
 
