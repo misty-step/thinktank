@@ -29,6 +29,23 @@ search_repo() {
   fi
 }
 
+line_count() {
+  wc -l <"$1" | tr -d ' '
+}
+
+check_max_lines() {
+  local path="$1"
+  local limit="$2"
+  local count
+
+  count="$(line_count "$path")"
+
+  if [[ "$count" -gt "$limit" ]]; then
+    echo "FAIL: ${path} exceeds ${limit} LOC (${count})" >&2
+    exit 1
+  fi
+}
+
 echo "architecture-gate: checking compile-connected cycles"
 mix xref graph --format cycles --label compile-connected --fail-above 0 >/dev/null
 
@@ -69,5 +86,23 @@ if [[ -n "$file_cd_matches" ]]; then
   printf '%s\n' "$file_cd_matches" >&2
   exit 1
 fi
+
+echo "architecture-gate: checking artifact layout ownership"
+artifact_layout_matches="$(
+  search_repo '"(manifest\.json|contract\.json|task\.md|summary\.md|review/context\.(json|md)|review/plan\.(json|md)|review/planner\.md|review\.md|synthesis\.md|scratchpads|artifacts/streams|agents/)"' lib \
+    lib/thinktank/artifact_layout.ex \
+    lib/thinktank/trace_log.ex
+)"
+if [[ -n "$artifact_layout_matches" ]]; then
+  echo "FAIL: artifact layout constants must live in Thinktank.ArtifactLayout" >&2
+  printf '%s\n' "$artifact_layout_matches" >&2
+  exit 1
+fi
+
+echo "architecture-gate: checking module line budgets"
+check_max_lines lib/thinktank/cli.ex 400
+check_max_lines lib/thinktank/engine.ex 400
+check_max_lines lib/thinktank/executor/agentic.ex 900
+check_max_lines lib/thinktank/run_store.ex 700
 
 echo "PASS: architecture gate passed."

@@ -1,7 +1,7 @@
 defmodule Thinktank.Review.Eval do
   @moduledoc false
 
-  alias Thinktank.{Config, Engine, Error, RunContract}
+  alias Thinktank.{ArtifactLayout, Config, Engine, Error, RunContract}
 
   @type result :: %{
           target: String.t(),
@@ -44,15 +44,15 @@ defmodule Thinktank.Review.Eval do
     case_id = "case-#{String.pad_leading(Integer.to_string(index), 3, "0")}"
     case_output = Path.join(output_dir, case_id)
 
-    run_opts =
-      [cwd: contract.workspace_root, output: case_output]
-      |> Keyword.put(:adapter_context, contract.adapter_context)
-      |> maybe_put_opt(:trust_repo_config, Keyword.get(opts, :trust_repo_config))
-      |> maybe_put_opt(
-        :agent_config_dir,
-        Keyword.get(opts, :agent_config_dir) || agent_config_dir(contract.workspace_root)
-      )
-      |> maybe_put_opt(:runner, Keyword.get(opts, :runner))
+    run_opts = [
+      cwd: contract.workspace_root,
+      output: case_output,
+      adapter_context: contract.adapter_context,
+      trust_repo_config: Keyword.get(opts, :trust_repo_config),
+      agent_config_dir:
+        Keyword.get(opts, :agent_config_dir) || agent_config_dir(contract.workspace_root),
+      runner: Keyword.get(opts, :runner)
+    ]
 
     case Engine.run(bench_id, contract.input, run_opts) do
       {:ok, result} ->
@@ -85,8 +85,10 @@ defmodule Thinktank.Review.Eval do
         {:ok, [expanded]}
 
       File.dir?(expanded) ->
-        case Path.wildcard(Path.join(expanded, "**/contract.json")) |> Enum.sort() do
-          [] -> {:error, "no contract.json files found under #{expanded}"}
+        contract_file = ArtifactLayout.contract_file()
+
+        case Path.wildcard(Path.join(expanded, "**/" <> contract_file)) |> Enum.sort() do
+          [] -> {:error, "no #{contract_file} files found under #{expanded}"}
           paths -> {:ok, paths}
         end
 
@@ -111,9 +113,6 @@ defmodule Thinktank.Review.Eval do
       error -> error
     end
   end
-
-  defp maybe_put_opt(opts, _key, nil), do: opts
-  defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp summarize_cases(cases, output_dir) do
     summary =

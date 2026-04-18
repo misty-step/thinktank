@@ -5,23 +5,14 @@ defmodule Thinktank.RunStore do
 
   require Logger
 
-  alias Thinktank.{BenchSpec, RunContract}
+  alias Thinktank.{ArtifactLayout, BenchSpec, RunContract}
   alias Thinktank.Pricing
   alias Thinktank.TraceLog
-
-  @manifest_file "manifest.json"
-  @scratchpad_dir "scratchpads"
-  @stream_dir "artifacts/streams"
 
   @spec init_run(Path.t(), RunContract.t(), BenchSpec.t()) :: :ok
   def init_run(output_dir, %RunContract{} = contract, %BenchSpec{} = bench) do
     mkdir_private!(output_dir)
-    mkdir_private!(Path.join(output_dir, "agents"))
-    mkdir_private!(Path.join(output_dir, "artifacts"))
-    mkdir_private!(Path.join(output_dir, @stream_dir))
-    mkdir_private!(Path.join(output_dir, "prompts"))
-    mkdir_private!(Path.join(output_dir, "pi-home"))
-    mkdir_private!(Path.join(output_dir, @scratchpad_dir))
+    Enum.each(ArtifactLayout.run_directories(), &mkdir_private!(Path.join(output_dir, &1)))
     started_at = now_iso8601()
 
     manifest = %{
@@ -44,8 +35,13 @@ defmodule Thinktank.RunStore do
     }
 
     write_manifest(output_dir, manifest)
-    write_json(Path.join(output_dir, "contract.json"), RunContract.to_map(contract))
-    record_artifact(output_dir, "contract", "contract.json", "json")
+
+    write_json(
+      Path.join(output_dir, ArtifactLayout.contract_file()),
+      RunContract.to_map(contract)
+    )
+
+    record_artifact(output_dir, "contract", ArtifactLayout.contract_file(), "json")
 
     TraceLog.init_run(output_dir, %{
       "bench" => bench.id,
@@ -68,7 +64,7 @@ defmodule Thinktank.RunStore do
 
     instance_id = agent_instance_id(agent_name, metadata)
     metadata = attach_agent_artifact_refs(metadata, instance_id)
-    file = Path.join(["agents", "#{instance_id}.md"])
+    file = ArtifactLayout.agent_result_file(instance_id)
     File.write!(Path.join(output_dir, file), output)
 
     update_manifest(output_dir, fn manifest ->
@@ -98,38 +94,43 @@ defmodule Thinktank.RunStore do
       write_text_artifact(
         output_dir,
         "agent-scratchpad-#{instance_id}",
-        agent_scratchpad_file(instance_id),
+        ArtifactLayout.agent_scratchpad_file(instance_id),
         scratchpad
       )
 
       write_text_artifact(
         output_dir,
         "agent-stream-#{instance_id}",
-        agent_stream_file(instance_id),
+        ArtifactLayout.agent_stream_file(instance_id),
         ""
       )
     else
-      write_artifact_file(output_dir, agent_scratchpad_file(instance_id), scratchpad)
-      write_artifact_file(output_dir, agent_stream_file(instance_id), "")
+      write_artifact_file(
+        output_dir,
+        ArtifactLayout.agent_scratchpad_file(instance_id),
+        scratchpad
+      )
+
+      write_artifact_file(output_dir, ArtifactLayout.agent_stream_file(instance_id), "")
     end
   end
 
   @spec append_run_note(Path.t(), String.t()) :: :ok
   def append_run_note(output_dir, note) when is_binary(note) do
-    append_text(output_dir, run_scratchpad_file(), format_note(note))
+    append_text(output_dir, ArtifactLayout.run_scratchpad_file(), format_note(note))
   end
 
   @spec append_agent_note(Path.t(), String.t(), String.t()) :: :ok
   def append_agent_note(output_dir, instance_id, note)
       when is_binary(instance_id) and is_binary(note) do
-    append_text(output_dir, agent_scratchpad_file(instance_id), format_note(note))
+    append_text(output_dir, ArtifactLayout.agent_scratchpad_file(instance_id), format_note(note))
   end
 
   @spec append_agent_output(Path.t(), String.t(), String.t()) :: :ok
   def append_agent_output(output_dir, instance_id, chunk)
       when is_binary(instance_id) and is_binary(chunk) do
     if chunk != "" do
-      append_text(output_dir, agent_stream_file(instance_id), chunk)
+      append_text(output_dir, ArtifactLayout.agent_stream_file(instance_id), chunk)
     else
       :ok
     end
@@ -177,18 +178,9 @@ defmodule Thinktank.RunStore do
     if summary_artifact(manifest["artifacts"]) == nil do
       content = render_partial_summary(output_dir, manifest)
 
-      write_text_artifact(output_dir, "summary", "summary.md", content)
-
-      case manifest["kind"] do
-        "review" ->
-          write_text_artifact(output_dir, "review", "review.md", content)
-
-        "research" ->
-          write_text_artifact(output_dir, "synthesis", "synthesis.md", content)
-
-        _ ->
-          :ok
-      end
+      Enum.each(ArtifactLayout.summary_artifacts(manifest["kind"]), fn {name, file} ->
+        write_text_artifact(output_dir, name, file, content)
+      end)
     else
       :ok
     end
@@ -251,7 +243,7 @@ defmodule Thinktank.RunStore do
     write_text_artifact(
       output_dir,
       "run-scratchpad",
-      run_scratchpad_file(),
+      ArtifactLayout.run_scratchpad_file(),
       render_run_scratchpad(contract, bench, started_at)
     )
   end
@@ -299,7 +291,7 @@ defmodule Thinktank.RunStore do
     - bench: #{bench}
     - model: #{model}
     - provider: #{provider}
-    - stream: #{agent_stream_file(instance_id)}
+    - stream: #{ArtifactLayout.agent_stream_file(instance_id)}
 
     ## Journal
 
@@ -309,7 +301,7 @@ defmodule Thinktank.RunStore do
 
   defp render_partial_summary(output_dir, manifest) do
     task =
-      case read_file_if_present(Path.join(output_dir, "task.md")) do
+      case read_file_if_present(Path.join(output_dir, ArtifactLayout.task_file())) do
         nil -> "_No task artifact was written before the run ended._"
         body -> body
       end
@@ -329,7 +321,7 @@ defmodule Thinktank.RunStore do
     - Started: #{manifest["started_at"]}
     - Completed: #{manifest["completed_at"] || "pending"}
     - USD Cost: #{render_usd_cost(manifest["usd_cost_total"], manifest["pricing_gaps"])}
-    - Run scratchpad: `#{run_scratchpad_file()}`
+    - Run scratchpad: `#{ArtifactLayout.run_scratchpad_file()}`
 
     ## Task
 
@@ -351,14 +343,16 @@ defmodule Thinktank.RunStore do
           "status" => get_in(agent, ["metadata", "status"]) || "unknown",
           "result_file" => agent["file"],
           "scratchpad_file" =>
-            get_in(agent, ["metadata", "scratchpad"]) || agent_scratchpad_file(agent["id"]),
-          "stream_file" => get_in(agent, ["metadata", "stream"]) || agent_stream_file(agent["id"])
+            get_in(agent, ["metadata", "scratchpad"]) ||
+              ArtifactLayout.agent_scratchpad_file(agent["id"]),
+          "stream_file" =>
+            get_in(agent, ["metadata", "stream"]) || ArtifactLayout.agent_stream_file(agent["id"])
         }
       end)
 
     scratchpad_entries =
       output_dir
-      |> Path.join(Path.join(@scratchpad_dir, "*.md"))
+      |> Path.join(Path.join(ArtifactLayout.scratchpads_dir(), "*.md"))
       |> Path.wildcard()
       |> Enum.reject(&(Path.basename(&1) == "run.md"))
       |> Enum.map(fn path ->
@@ -370,7 +364,7 @@ defmodule Thinktank.RunStore do
           "status" => "incomplete",
           "result_file" => nil,
           "scratchpad_file" => Path.relative_to(path, output_dir),
-          "stream_file" => agent_stream_file(instance_id)
+          "stream_file" => ArtifactLayout.agent_stream_file(instance_id)
         }
       end)
 
@@ -450,8 +444,8 @@ defmodule Thinktank.RunStore do
 
   defp attach_agent_artifact_refs(metadata, instance_id) do
     metadata
-    |> Map.put_new("scratchpad", agent_scratchpad_file(instance_id))
-    |> Map.put_new("stream", agent_stream_file(instance_id))
+    |> Map.put_new("scratchpad", ArtifactLayout.agent_scratchpad_file(instance_id))
+    |> Map.put_new("stream", ArtifactLayout.agent_stream_file(instance_id))
   end
 
   defp normalize_usage(metadata) do
@@ -562,7 +556,7 @@ defmodule Thinktank.RunStore do
   defp normalize(value) when is_atom(value), do: Atom.to_string(value)
   defp normalize(value), do: inspect(value)
 
-  defp manifest_path(output_dir), do: Path.join(output_dir, @manifest_file)
+  defp manifest_path(output_dir), do: Path.join(output_dir, ArtifactLayout.manifest_file())
   defp manifest_exists?(output_dir), do: File.exists?(manifest_path(output_dir))
 
   defp read_manifest(output_dir) do
@@ -620,10 +614,6 @@ defmodule Thinktank.RunStore do
       trimmed -> String.slice(trimmed, 0, max_bytes)
     end
   end
-
-  defp run_scratchpad_file, do: Path.join(@scratchpad_dir, "run.md")
-  defp agent_scratchpad_file(instance_id), do: Path.join(@scratchpad_dir, "#{instance_id}.md")
-  defp agent_stream_file(instance_id), do: Path.join(@stream_dir, "#{instance_id}.txt")
 
   defp render_usd_cost(total, []), do: "$" <> format_usd(total)
 

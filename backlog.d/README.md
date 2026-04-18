@@ -12,13 +12,18 @@ Status conventions:
 
 ## In Progress
 
-_None._
+| # | Title | Priority | Estimate |
+|---|-------|----------|----------|
+| [008](008-enforce-command-plane-architecture-gates.md) | Enforce Command-Plane Architecture Gates | medium | L |
 
 ## Active (ready to pick)
 
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
-| [008](008-enforce-command-plane-architecture-gates.md) | Enforce Command-Plane Architecture Gates | medium | L |
+| [015](015-fix-review-eval-and-finished-review-contract.md) | Fix Review Eval And Finished Review Contract | high | M |
+| [016](016-add-run-session-and-single-lifecycle-owner.md) | Add Run Session And Single Lifecycle Owner | high | L |
+| [017](017-reduce-review-control-plane-to-structured-contracts.md) | Reduce Review Control Plane To Structured Contracts | high | M |
+| [018](018-centralize-gate-policy-sources-and-remove-overlap.md) | Centralize Gate Policy Sources And Remove Overlap | medium | M |
 
 ## Done
 

@@ -11,8 +11,14 @@ workflow DSL, a prose-parsing layer, or a second non-agentic execution path.
 ## Architecture Map
 
 ```text
-lib/thinktank/cli.ex                → CLI, aliases, dry-run, bench commands
-lib/thinktank/engine.ex             → bench resolution and launch orchestration
+lib/thinktank/cli.ex                → CLI dispatch and exit-code translation
+lib/thinktank/cli/parser.ex         → argv parsing and command shaping
+lib/thinktank/cli/render.ex         → human + JSON output rendering
+lib/thinktank/engine.ex             → bench resolution and launch entrypoint
+lib/thinktank/engine/preparation.ex → config / agent / planner / synthesizer resolution
+lib/thinktank/engine/bootstrap.ex   → run initialization and start-of-run recording
+lib/thinktank/engine/runtime.ex     → agent execution and synthesis orchestration
+lib/thinktank/artifact_layout.ex    → canonical artifact path constants
 lib/thinktank/builtin.ex            → built-in agents and benches
 lib/thinktank/config.ex             → built-in + user + repo config loading
 lib/thinktank/bench_spec.ex         → typed bench config
