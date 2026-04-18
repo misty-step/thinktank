@@ -17,7 +17,12 @@ defmodule Thinktank.Config do
   @spec load(keyword()) :: {:ok, t()} | {:error, String.t()}
   def load(opts \\ []) do
     cwd = Keyword.get(opts, :cwd, File.cwd!())
-    trust_repo_config = Keyword.get(opts, :trust_repo_config, trust_repo_config?())
+
+    trust_repo_config =
+      case Keyword.get(opts, :trust_repo_config) do
+        nil -> trust_repo_config?()
+        value -> value
+      end
 
     user_path =
       Keyword.get(opts, :user_config_path, Path.join(user_config_dir(opts), "config.yml"))

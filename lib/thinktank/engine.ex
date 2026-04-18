@@ -35,9 +35,7 @@ defmodule Thinktank.Engine do
     cwd = Keyword.get(opts, :cwd, File.cwd!())
     provided_config = Keyword.get(opts, :config)
 
-    config_opts =
-      [cwd: cwd]
-      |> maybe_put_opt(:trust_repo_config, Keyword.get(opts, :trust_repo_config))
+    config_opts = [cwd: cwd, trust_repo_config: Keyword.get(opts, :trust_repo_config)]
 
     with {:ok, config} <- Preparation.resolve_config(provided_config, config_opts),
          {:ok, bench} <- Config.bench(config, bench_id),
@@ -137,9 +135,6 @@ defmodule Thinktank.Engine do
         {:error, error, output_dir}
     end
   end
-
-  defp maybe_put_opt(opts, _key, nil), do: opts
-  defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp normalize_error(%Error{} = error), do: error
   defp normalize_error(reason), do: Error.from_reason(reason)

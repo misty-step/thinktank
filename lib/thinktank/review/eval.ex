@@ -44,15 +44,15 @@ defmodule Thinktank.Review.Eval do
     case_id = "case-#{String.pad_leading(Integer.to_string(index), 3, "0")}"
     case_output = Path.join(output_dir, case_id)
 
-    run_opts =
-      [cwd: contract.workspace_root, output: case_output]
-      |> Keyword.put(:adapter_context, contract.adapter_context)
-      |> maybe_put_opt(:trust_repo_config, Keyword.get(opts, :trust_repo_config))
-      |> maybe_put_opt(
-        :agent_config_dir,
-        Keyword.get(opts, :agent_config_dir) || agent_config_dir(contract.workspace_root)
-      )
-      |> maybe_put_opt(:runner, Keyword.get(opts, :runner))
+    run_opts = [
+      cwd: contract.workspace_root,
+      output: case_output,
+      adapter_context: contract.adapter_context,
+      trust_repo_config: Keyword.get(opts, :trust_repo_config),
+      agent_config_dir:
+        Keyword.get(opts, :agent_config_dir) || agent_config_dir(contract.workspace_root),
+      runner: Keyword.get(opts, :runner)
+    ]
 
     case Engine.run(bench_id, contract.input, run_opts) do
       {:ok, result} ->
@@ -111,9 +111,6 @@ defmodule Thinktank.Review.Eval do
       error -> error
     end
   end
-
-  defp maybe_put_opt(opts, _key, nil), do: opts
-  defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp summarize_cases(cases, output_dir) do
     summary =

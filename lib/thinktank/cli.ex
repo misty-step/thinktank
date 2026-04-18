@@ -280,9 +280,7 @@ defmodule Thinktank.CLI do
   end
 
   defp load_config(command) do
-    [cwd: command.cwd]
-    |> maybe_put_opt(:trust_repo_config, Map.get(command, :trust_repo_config))
-    |> Config.load()
+    Config.load(cwd: command.cwd, trust_repo_config: Map.get(command, :trust_repo_config))
   end
 
   defp maybe_put_opt(opts, _key, nil), do: opts

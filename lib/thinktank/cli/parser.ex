@@ -236,18 +236,12 @@ defmodule Thinktank.CLI.Parser do
 
   defp resolve_bench(bench_id, parsed) do
     with {:ok, config} <-
-           load_config(%{cwd: File.cwd!(), trust_repo_config: parsed[:trust_repo_config]}) do
+           Config.load(cwd: File.cwd!(), trust_repo_config: parsed[:trust_repo_config]) do
       case Config.bench(config, bench_id) do
         {:ok, bench} -> {:ok, config, bench}
         {:error, reason} -> {:error, reason}
       end
     end
-  end
-
-  defp load_config(command) do
-    [cwd: command.cwd]
-    |> maybe_put_opt(:trust_repo_config, Map.get(command, :trust_repo_config))
-    |> Config.load()
   end
 
   defp needs_stdin?(%BenchSpec{default_task: default_task}), do: is_nil(default_task)
@@ -274,8 +268,6 @@ defmodule Thinktank.CLI.Parser do
 
   defp maybe_put_value(map, _key, nil), do: map
   defp maybe_put_value(map, key, value), do: Map.put(map, key, value)
-  defp maybe_put_opt(opts, _key, nil), do: opts
-  defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp stdin_piped?(opts) do
     case Keyword.get(opts, :stdin_piped?, &stdin_piped?/0) do
