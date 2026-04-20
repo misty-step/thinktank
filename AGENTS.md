@@ -56,6 +56,47 @@ Claude Code and Codex. Follow a skill's `SKILL.md` when its trigger matches.
   with Thinktank-fit recommendations. Trigger: "latest models",
   "model research", "should we swap X", unfamiliar model names.
 
+## Claude Code Harness
+
+Claude-specific skills and agents live under `.claude/`. Installed via
+`/tailor`. Slash commands map to `.claude/skills/<name>/SKILL.md`;
+named subagents to `.claude/agents/<name>.md`.
+
+Workflow skills that touch the gate have repo-specialized notes under
+their `references/` directory. The load-bearing command everywhere is:
+
+```
+./scripts/with-colima.sh dagger call check
+```
+
+See the following per-skill notes for concrete, this-repo-only guidance:
+
+- `.claude/skills/ci/references/thinktank-gate.md`
+- `.claude/skills/deliver/references/thinktank-gate.md`
+- `.claude/skills/settle/references/thinktank-settle.md`
+- `.claude/skills/yeet/references/thinktank-yeet.md`
+- `.claude/skills/deps/references/thinktank-deps.md`
+
+Tailored (repo-specific) skills already present:
+
+- `.claude/skills/demo/` — CLI-focused demo capture for thinktank
+- `.claude/skills/qa/` — CLI behavior verifier (not browser QA)
+- `.claude/skills/model-research/` → symlink to `.agent/skills/model-research/`
+
+Universal and workflow skills installed from spellbook:
+
+- Universal: research, groom, reflect, shape, diagnose
+- Workflow: ci, deliver, implement, refactor, settle, yeet, deps,
+  flywheel, code-review
+
+Agents installed (philosophy bench + build roles): beck, builder,
+carmack, critic, grug, ousterhout, planner.
+
+Permissions allowlist lives at `.claude/settings.local.json` and is
+**git-ignored** — not shared between clones. It denies `--no-verify` and
+force-push by default, consistent with this repo's red-line that the
+Dagger gate is load-bearing.
+
 ## References
 
 - `README.md`
