@@ -10,8 +10,10 @@ model accessed via API.
 codex review --base $BASE
 ```
 
-Native review command. Runs GPT-5-codex with Codex's harness context (config.toml,
-AGENTS.md, sandbox tools). Returns structured review output.
+Native review command. Runs Codex with Codex's harness context (`config.toml`,
+`AGENTS.md`, sandbox tools). Returns structured review output.
+Do not assume a specific model generation; use whatever the Codex runtime is
+configured to use.
 
 Options:
 - `--base BRANCH` — review changes against this branch
@@ -29,8 +31,8 @@ own harness context (~/.gemini/GEMINI.md, skills, settings).
 
 ## Harness Detection
 
-Skip whichever CLI you ARE — you already have that model's perspective as the
-marshal. The model knows which harness it's running in.
+Skip whichever CLI you ARE — you already have that runtime's perspective as the
+marshal. The runtime knows which harness it's running in.
 
 ## Consuming Output
 

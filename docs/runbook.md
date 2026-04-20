@@ -16,8 +16,8 @@ For live model runs, export `THINKTANK_OPENROUTER_API_KEY` or add it to `.env`.
 ```
 
 `./scripts/with-colima.sh dagger call check` is authoritative. It includes the
-repo-specific security gate, the architecture gate, live model-ID validation,
-and an `87%` coverage floor.
+repo-specific security gate, the architecture gate, the harness-agent gate for
+`.claude/agents/*.md`, live model-ID validation, and an `87%` coverage floor.
 
 For targeted host-native debugging, the underlying Elixir gates are still:
 
@@ -27,6 +27,7 @@ mix compile --warnings-as-errors
 mix credo --strict
 scripts/ci/security-gate.sh
 scripts/ci/architecture-gate.sh
+scripts/ci/harness-agent-gate.sh
 ./scripts/validate-elixir-models.sh
 mix test
 MIX_ENV=test mix coveralls

@@ -139,6 +139,19 @@ class ThinktankCi:
         await _elixir_base(source).with_exec(["scripts/ci/backlog-state-gate.sh"]).sync()
 
     @function
+    async def harness_agents(
+        self,
+        source: Annotated[
+            dagger.Directory,
+            DefaultPath("/"),
+            Ignore(SOURCE_IGNORE),
+            Doc("Repo source directory"),
+        ],
+    ) -> None:
+        """Ensure repo-local harness agent personas do not hardcode models."""
+        await _elixir_base(source).with_exec(["scripts/ci/harness-agent-gate.sh"]).sync()
+
+    @function
     async def coveralls(
         self,
         source: Annotated[
@@ -346,6 +359,7 @@ for path in paths:
         async with anyio.create_task_group() as tg:
             tg.start_soon(run_gate, "backlog", self.backlog(source))
             tg.start_soon(run_gate, "gitleaks", self.gitleaks(source))
+            tg.start_soon(run_gate, "harness-agents", self.harness_agents(source))
             tg.start_soon(run_gate, "models", self.models(source))
             tg.start_soon(run_gate, "security", self.security(source))
             tg.start_soon(run_gate, "shell", self.shell(source))

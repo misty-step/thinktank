@@ -18,6 +18,14 @@ if [ "${#staged_backlog[@]}" -gt 0 ]; then
   scripts/ci/backlog-state-gate.sh "${staged_backlog[@]}"
 fi
 
+mapfile -t staged_harness_agents < <(
+  git diff --cached --name-only --diff-filter=ACMR | grep -E '^\.claude/agents/.*\.md$' || true
+)
+
+if [ "${#staged_harness_agents[@]}" -gt 0 ]; then
+  scripts/ci/harness-agent-gate.sh
+fi
+
 mapfile -t staged_elixir < <(
   git diff --cached --name-only --diff-filter=ACMR | grep -E '\.exs?$' || true
 )

@@ -53,6 +53,16 @@ repos:
         files: \.exs?$
         pass_filenames: false
 
+# Harness agent gate — repo-local personas define lenses, not models
+-   repo: local
+    hooks:
+    -   id: harness-agent-gate
+        name: harness-agent-gate
+        entry: scripts/ci/harness-agent-gate.sh
+        language: script
+        files: ^\.claude/agents/.*\.md$
+        pass_filenames: false
+
 # Elixir model ID validation — prevents stale/deprecated model IDs
 -   repo: local
     hooks:

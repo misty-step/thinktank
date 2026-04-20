@@ -22,8 +22,9 @@ Run the canonical local gate before opening a PR:
 
 `./scripts/with-colima.sh dagger call check` enforces the repo's full local
 policy: formatting, compile warnings as errors, `credo --strict`, Dialyzer,
-shell/YAML hygiene, gitleaks, the repo-owned security gate, live model-ID
-validation, the architecture gate, escript smoke, and an `87%` coverage floor.
+shell/YAML hygiene, gitleaks, the repo-owned security gate, the harness-agent
+gate for `.claude/agents/*.md`, live model-ID validation, the architecture
+gate, escript smoke, and an `87%` coverage floor.
 
 For targeted debugging, the underlying host-native checks are:
 
@@ -33,6 +34,7 @@ mix compile --warnings-as-errors
 mix credo --strict
 scripts/ci/security-gate.sh
 scripts/ci/architecture-gate.sh
+scripts/ci/harness-agent-gate.sh
 ./scripts/validate-elixir-models.sh
 mix test
 MIX_ENV=test mix coveralls

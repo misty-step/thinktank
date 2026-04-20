@@ -1,8 +1,10 @@
 # Internal Review Bench
 
-Philosophy agents running on the same model as the marshal. Different lenses,
-same model — useful for depth, not diversity. The marshal selects 3-5 based
-on the diff and crafts tailored prompts for each.
+Philosophy agents are lens-only personas. The caller/runtime chooses the
+actual model; the agent files themselves do not bind one. In many runs they
+may share the marshal's runtime-selected model, which is useful for depth more
+than diversity. The marshal selects 3-5 based on the diff and crafts tailored
+prompts for each.
 
 All reviewers run as **Explore type** (read-only).
 

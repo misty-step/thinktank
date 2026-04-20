@@ -62,6 +62,10 @@ Claude-specific skills and agents live under `.claude/`. Installed via
 `/tailor`. Slash commands map to `.claude/skills/<name>/SKILL.md`;
 named subagents to `.claude/agents/<name>.md`.
 
+Repo-local agent files under `.claude/agents/*.md` define lenses only.
+They must not hardcode model IDs, model families, or reasoning tiers; the
+caller/runtime chooses the model.
+
 Workflow skills that touch the gate have repo-specialized notes under
 their `references/` directory. The load-bearing command everywhere is:
 
