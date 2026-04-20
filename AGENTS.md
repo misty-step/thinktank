@@ -55,11 +55,15 @@ Claude Code and Codex. Follow a skill's `SKILL.md` when its trigger matches.
 - `.agent/skills/model-research/` — monthly OpenRouter-focused model scan
   with Thinktank-fit recommendations. Trigger: "latest models",
   "model research", "should we swap X", unfamiliar model names.
+- Spellbook-managed universal and workflow skills also live under
+  `.agent/skills/`. `.claude/skills/<name>` is a symlink bridge back to
+  the shared copy so Claude slash commands and Codex read the same skill body.
 
 ## Claude Code Harness
 
-Claude-specific skills and agents live under `.claude/`. Installed via
-`/tailor`. Slash commands map to `.claude/skills/<name>/SKILL.md`;
+Claude-specific agents live under `.claude/`. Shared spellbook skills bridge
+through `.claude/skills/`. Installed via `/tailor`. Slash commands map to
+`.claude/skills/<name>/SKILL.md`;
 named subagents to `.claude/agents/<name>.md`.
 
 Repo-local agent files under `.claude/agents/*.md` define lenses only.
@@ -75,23 +79,25 @@ their `references/` directory. The load-bearing command everywhere is:
 
 See the following per-skill notes for concrete, this-repo-only guidance:
 
-- `.claude/skills/ci/references/thinktank-gate.md`
-- `.claude/skills/deliver/references/thinktank-gate.md`
-- `.claude/skills/settle/references/thinktank-settle.md`
-- `.claude/skills/yeet/references/thinktank-yeet.md`
-- `.claude/skills/deps/references/thinktank-deps.md`
+- `.agent/skills/ci/references/thinktank-gate.md`
+- `.agent/skills/deliver/references/thinktank-gate.md`
+- `.agent/skills/settle/references/thinktank-settle.md`
+- `.agent/skills/yeet/references/thinktank-yeet.md`
+- `.agent/skills/deps/references/thinktank-deps.md`
 
 Tailored (repo-specific) skills already present:
 
 - `.claude/skills/demo/` — CLI-focused demo capture for thinktank
 - `.claude/skills/qa/` — CLI behavior verifier (not browser QA)
-- `.claude/skills/model-research/` → symlink to `.agent/skills/model-research/`
 
 Universal and workflow skills installed from spellbook:
 
-- Universal: research, groom, reflect, shape, diagnose
+- Shared root: `.agent/skills/`
+- Universal: research, groom, reflect, shape, diagnose, model-research
 - Workflow: ci, deliver, implement, refactor, settle, yeet, deps,
   flywheel, code-review
+- Claude bridge: corresponding `.claude/skills/<name>` entries symlink to
+  the shared root
 
 Agents installed (philosophy bench + build roles): beck, builder,
 carmack, critic, grug, ousterhout, planner.
