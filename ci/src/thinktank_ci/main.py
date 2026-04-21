@@ -19,7 +19,7 @@ SOURCE_IGNORE = [
     ".elixir_ls",
     ".env",
     ".flywheel",
-    ".pi",
+    ".pi/state",
     "_build",
     "ci/.pytest_cache",
     "ci/sdk",

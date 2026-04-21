@@ -31,7 +31,7 @@ repos:
         entry: mix format
         language: system
         files: \.exs?$
-        pass_filenames: false
+        pass_filenames: true
 
 # Elixir linting — catches style/complexity issues before commit
 -   repo: local
