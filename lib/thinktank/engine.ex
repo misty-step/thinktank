@@ -3,8 +3,8 @@ defmodule Thinktank.Engine do
   Bench launcher for Pi agents.
   """
 
-  alias Thinktank.{AgentSpec, BenchSpec, Config, Error, Progress, RunContract}
-  alias Thinktank.Engine.{Bootstrap, Preparation, Runtime}
+  alias Thinktank.{AgentSpec, BenchSpec, Config, Error, RunContract, RunSession}
+  alias Thinktank.Engine.Preparation
   alias Thinktank.Executor.Agentic
 
   @type run_result :: %{
@@ -95,47 +95,7 @@ defmodule Thinktank.Engine do
 
   @spec run_resolved(resolved_run(), keyword()) ::
           {:ok, run_result()} | {:error, Error.t(), String.t() | nil}
-  def run_resolved(
-        %{
-          config: config,
-          bench: bench,
-          contract: contract,
-          output_dir: output_dir,
-          agents: agents,
-          planner: planner,
-          synthesizer: synthesizer
-        },
-        opts \\ []
-      ) do
-    Progress.emit(opts, "bootstrap_started", %{
-      phase: Progress.phase_for_event("bootstrap_started"),
-      output_dir: output_dir,
-      trace_events: Progress.trace_events_path(output_dir),
-      planned_agents: Enum.map(agents, & &1.name),
-      total_agents: length(agents),
-      planner: planner && planner.name,
-      synthesizer: synthesizer && synthesizer.name
-    })
+  def run_resolved(%{} = resolved, opts \\ []), do: RunSession.execute(resolved, opts)
 
-    case Bootstrap.initialize_run(output_dir, contract, bench) do
-      :ok ->
-        Bootstrap.record_run_started(output_dir, contract, bench, planner, synthesizer)
-        Runtime.run(bench, agents, planner, contract, config, opts, synthesizer)
-
-      {:error, reason} ->
-        error = normalize_error(reason)
-
-        Progress.emit(opts, "run_completed", %{
-          phase: Progress.phase_for_event("run_completed"),
-          output_dir: output_dir,
-          status: "failed",
-          error: error
-        })
-
-        {:error, error, output_dir}
-    end
-  end
-
-  defp normalize_error(%Error{} = error), do: error
   defp normalize_error(reason), do: Error.from_reason(reason)
 end

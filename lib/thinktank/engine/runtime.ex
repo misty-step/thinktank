@@ -1,3 +1,106 @@
+defmodule Thinktank.RunSession do
+  @moduledoc false
+
+  alias Thinktank.{ArtifactLayout, Error, Progress, RunStore, RunTracker}
+  alias Thinktank.Engine.{Bootstrap, Runtime}
+
+  @spec execute(Thinktank.Engine.resolved_run(), keyword()) ::
+          {:ok, Thinktank.Engine.run_result()} | {:error, Error.t(), String.t() | nil}
+  def execute(
+        %{
+          config: config,
+          bench: bench,
+          contract: contract,
+          output_dir: output_dir,
+          agents: agents,
+          planner: planner,
+          synthesizer: synthesizer
+        },
+        opts \\ []
+      ) do
+    Progress.emit(opts, "bootstrap_started", %{
+      phase: Progress.phase_for_event("bootstrap_started"),
+      output_dir: output_dir,
+      trace_events: Progress.trace_events_path(output_dir),
+      planned_agents: Enum.map(agents, & &1.name),
+      total_agents: length(agents),
+      planner: planner && planner.name,
+      synthesizer: synthesizer && synthesizer.name
+    })
+
+    case Bootstrap.initialize_run(output_dir, contract, bench) do
+      :ok ->
+        Bootstrap.record_run_started(output_dir, contract, bench, planner, synthesizer)
+
+        case Runtime.run(bench, agents, planner, contract, config, opts, synthesizer) do
+          {:ok, run_result, status, terminal_attrs} ->
+            finalize_success(output_dir, status, terminal_attrs, opts, run_result)
+
+          {:error, error, _runtime_output_dir, status, terminal_attrs} ->
+            finalize_error(output_dir, status, terminal_attrs, error, opts)
+        end
+
+      {:error, %Error{} = error} ->
+        finalize_error(
+          output_dir,
+          "failed",
+          bootstrap_terminal_attrs(bench.id, error),
+          error,
+          opts
+        )
+    end
+  end
+
+  defp finalize_success(output_dir, status, terminal_attrs, opts, run_result) do
+    finalize_run(output_dir, status, terminal_attrs)
+
+    finalized_result = Map.put(run_result, :envelope, RunStore.result_envelope(output_dir))
+
+    Progress.emit(opts, "run_completed", %{
+      phase: Progress.phase_for_event("run_completed"),
+      output_dir: output_dir,
+      status: status
+    })
+
+    {:ok, finalized_result}
+  end
+
+  defp finalize_error(output_dir, status, terminal_attrs, error, opts) do
+    finalize_run(output_dir, status, terminal_attrs)
+
+    Progress.emit(opts, "run_completed", %{
+      phase: Progress.phase_for_event("run_completed"),
+      output_dir: output_dir,
+      status: status,
+      error: error
+    })
+
+    {:error, error, output_dir}
+  end
+
+  defp finalize_run(output_dir, status, terminal_attrs) do
+    if File.exists?(Path.join(output_dir, ArtifactLayout.manifest_file())) do
+      RunTracker.finish(output_dir, status, terminal_attrs)
+    else
+      :ok
+    end
+  end
+
+  defp bootstrap_terminal_attrs(bench_id, %Error{} = error) do
+    phase =
+      case error.details[:phase] do
+        value when is_binary(value) -> value
+        _ -> "bootstrap"
+      end
+
+    %{
+      "bench" => bench_id,
+      "phase" => phase,
+      "error" => error
+    }
+  end
+end
+
 defmodule Thinktank.Engine.Runtime do
   @moduledoc false
 
@@ -7,15 +110,17 @@ defmodule Thinktank.Engine.Runtime do
     Error,
     Progress,
     RunStore,
-    RunTracker,
     TraceLog
   }
 
   alias Thinktank.Engine.Preparation
   alias Thinktank.Executor.Agentic
 
+  @type terminal_attrs :: map()
+
   @spec run(BenchSpec.t(), [map()], map() | nil, map(), map(), keyword(), map() | nil) ::
-          {:ok, map()} | {:error, Error.t(), String.t()}
+          {:ok, map(), String.t(), terminal_attrs()}
+          | {:error, Error.t(), String.t(), String.t(), terminal_attrs()}
   def run(bench, agents, planner, contract, config, opts, synthesizer) do
     output_dir = contract.artifact_dir
     phase = Preparation.preparation_phase(bench, planner)
@@ -48,20 +153,9 @@ defmodule Thinktank.Engine.Runtime do
         )
 
       {:error, reason} ->
-        RunTracker.finish(output_dir, "failed", %{
-          "bench" => bench.id,
-          "phase" => "prepare_execution",
-          "error" => Error.from_reason(reason)
-        })
-
-        Progress.emit(opts, "run_completed", %{
-          phase: Progress.phase_for_event("run_completed"),
-          output_dir: output_dir,
-          status: "failed",
-          error: Error.from_reason(reason)
-        })
-
-        {:error, Error.from_reason(reason), output_dir}
+        error = Error.from_reason(reason)
+        terminal_attrs = %{"bench" => bench.id, "phase" => "prepare_execution", "error" => error}
+        {:error, error, output_dir, "failed", terminal_attrs}
     end
   end
 
@@ -122,18 +216,12 @@ defmodule Thinktank.Engine.Runtime do
 
     status = derive_status(results, synthesis)
 
-    RunTracker.finish(output_dir, status, %{
+    terminal_attrs = %{
       "bench" => bench.id,
       "successful_agents" => Enum.count(results, &(&1.status == :ok)),
       "failed_agents" => Enum.count(results, &(&1.status == :error)),
       "synthesis_status" => synthesis && synthesis.status
-    })
-
-    Progress.emit(opts, "run_completed", %{
-      phase: Progress.phase_for_event("run_completed"),
-      output_dir: output_dir,
-      status: status
-    })
+    }
 
     run_result = %{
       contract: contract,
@@ -148,8 +236,11 @@ defmodule Thinktank.Engine.Runtime do
     }
 
     case status do
-      "failed" -> {:error, Error.from_reason(:no_successful_agents), output_dir}
-      _ -> {:ok, run_result}
+      "failed" ->
+        {:error, Error.from_reason(:no_successful_agents), output_dir, status, terminal_attrs}
+
+      _ ->
+        {:ok, run_result, status, terminal_attrs}
     end
   end
 

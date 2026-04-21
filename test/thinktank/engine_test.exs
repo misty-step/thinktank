@@ -17,6 +17,8 @@ defmodule Thinktank.EngineTest do
     |> Enum.map(&Jason.decode!/1)
   end
 
+  defp run_completed_events(events), do: Enum.filter(events, &(&1["event"] == "run_completed"))
+
   defp prompt_path(args) do
     index = Enum.find_index(args, &(&1 == "-p"))
     args |> Enum.at(index + 1) |> String.trim_leading("@")
@@ -450,9 +452,77 @@ defmodule Thinktank.EngineTest do
                event["agent_names"] == Enum.map(result.agents, & &1.name)
            end)
 
-    assert Enum.any?(events, fn event ->
-             event["event"] == "run_completed" and event["status"] == "complete"
-           end)
+    [run_completed] = run_completed_events(events)
+    assert run_completed["status"] == "complete"
+
+    assert RunTracker.active_runs() == []
+  end
+
+  test "lifecycle owner writes exactly one terminal run_completed event per run" do
+    cwd = unique_tmp_dir("thinktank-engine-terminal-events")
+    init_git_repo_with_commit!(cwd)
+
+    scenarios = [
+      %{
+        name: "complete",
+        input: %{input_text: "Research this", agents: ["systems"], no_synthesis: true},
+        runner: fn _cmd, _args, _opts -> {"ok", 0} end,
+        status: "complete",
+        expect_error?: false
+      },
+      %{
+        name: "degraded",
+        input: %{input_text: "Research this", agents: ["systems", "dx"], no_synthesis: true},
+        runner: fn _cmd, args, _opts ->
+          prompt_file = Path.basename(prompt_path(args))
+
+          if String.starts_with?(prompt_file, "systems-") do
+            {"ok", 0}
+          else
+            {"simulated failure", 1}
+          end
+        end,
+        status: "degraded",
+        expect_error?: false
+      },
+      %{
+        name: "partial",
+        input: %{input_text: "Research this", agents: ["systems"], no_synthesis: true},
+        runner: fn _cmd, _args, _opts -> {"partial finding", :timeout} end,
+        status: "partial",
+        expect_error?: false
+      },
+      %{
+        name: "failed",
+        input: %{input_text: "Research this", agents: ["systems"], no_synthesis: true},
+        runner: fn _cmd, _args, _opts -> {"simulated failure", 1} end,
+        status: "failed",
+        expect_error?: true
+      }
+    ]
+
+    Enum.each(scenarios, fn scenario ->
+      output_dir = Path.join(cwd, "run-#{scenario.name}")
+
+      case Engine.run("research/default", scenario.input,
+             cwd: cwd,
+             output: output_dir,
+             runner: scenario.runner
+           ) do
+        {:ok, _result} ->
+          refute scenario.expect_error?
+
+        {:error, %Error{code: :no_successful_agents}, ^output_dir} ->
+          assert scenario.expect_error?
+      end
+
+      events = read_jsonl(Path.join(output_dir, "trace/events.jsonl"))
+      [run_completed] = run_completed_events(events)
+      assert run_completed["status"] == scenario.status
+
+      manifest = output_dir |> Path.join("manifest.json") |> File.read!() |> Jason.decode!()
+      assert manifest["status"] == scenario.status
+    end)
 
     assert RunTracker.active_runs() == []
   end

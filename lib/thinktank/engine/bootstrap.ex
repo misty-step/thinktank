@@ -66,21 +66,7 @@ defmodule Thinktank.Engine.Bootstrap do
   defp bootstrap_failure(phase, bench, contract, failure) do
     details = bootstrap_error_details(phase, bench, contract, failure)
 
-    if File.exists?(Path.join(contract.artifact_dir, ArtifactLayout.manifest_file())) do
-      try do
-        RunTracker.finish(contract.artifact_dir, "failed", %{
-          "bench" => bench.id,
-          "phase" => phase,
-          "error" => details
-        })
-      rescue
-        _ ->
-          TraceLog.record_global_event("bootstrap_failed", details)
-      catch
-        _, _ ->
-          TraceLog.record_global_event("bootstrap_failed", details)
-      end
-    else
+    unless File.exists?(Path.join(contract.artifact_dir, ArtifactLayout.manifest_file())) do
       TraceLog.record_global_event("bootstrap_failed", details)
     end
 
