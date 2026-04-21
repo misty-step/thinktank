@@ -1,7 +1,7 @@
 defmodule Thinktank.Review.EvalTest do
   use ExUnit.Case, async: false
 
-  alias Thinktank.{Error, Review.Eval, RunContract}
+  alias Thinktank.{BenchSpec, Error, Review.Eval, RunContract, RunStore}
   alias Thinktank.Test.Workspace
 
   test "replays one or more frozen contract files" do
@@ -139,6 +139,83 @@ defmodule Thinktank.Review.EvalTest do
     assert result.status == "complete"
     assert result.error == nil
     assert Enum.all?(result.cases, &(&1.bench == "review/default"))
+  end
+
+  test "replays a direct contract.json path" do
+    workspace = Workspace.unique_tmp_dir("thinktank-review-eval-direct-path")
+    Workspace.init_git_repo!(workspace)
+    fixture_root = Workspace.unique_tmp_dir("thinktank-review-eval-direct-path-fixtures")
+
+    output_root =
+      Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-direct-path-output"), "runs")
+
+    contract_path = Path.join([fixture_root, "single", "contract.json"])
+    contract = review_contract(workspace, Path.join(fixture_root, "source-run"))
+    write_contract(contract_path, contract)
+
+    assert {:ok, result} =
+             Eval.run(contract_path,
+               output: output_root,
+               runner: successful_runner()
+             )
+
+    assert result.status == "complete"
+    assert [%{contract: ^contract_path, status: "complete"}] = result.cases
+  end
+
+  test "replays a finished review run directory through its root contract" do
+    workspace = Workspace.unique_tmp_dir("thinktank-review-eval-finished-workspace")
+    Workspace.init_git_repo!(workspace)
+
+    source_run =
+      Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-finished-source"), "run")
+
+    output_root =
+      Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-finished-output"), "runs")
+
+    contract = review_contract(workspace, source_run, %{"source" => "finished-run"})
+    RunStore.init_run(source_run, contract, review_bench())
+    RunStore.complete_run(source_run, "complete")
+
+    assert {:ok, result} =
+             Eval.run(source_run,
+               output: output_root,
+               runner: successful_runner()
+             )
+
+    contract_path = Path.join(source_run, "contract.json")
+
+    assert result.status == "complete"
+    assert [%{contract: ^contract_path, status: "complete"}] = result.cases
+
+    replayed_contract =
+      output_root
+      |> Path.join("case-001/contract.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert replayed_contract["adapter_context"] == %{"source" => "finished-run"}
+  end
+
+  test "returns a typed error for an in-progress review run directory" do
+    workspace = Workspace.unique_tmp_dir("thinktank-review-eval-live-workspace")
+    Workspace.init_git_repo!(workspace)
+    source_run = Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-live-source"), "run")
+
+    contract = review_contract(workspace, source_run)
+    RunStore.init_run(source_run, contract, review_bench())
+
+    assert {:error,
+            %Error{
+              code: :review_eval_in_progress,
+              details: %{
+                path: resolved_path,
+                manifest_status: "running",
+                trace_status: "running"
+              }
+            }} = Eval.run(source_run)
+
+    assert resolved_path == Path.expand(source_run)
   end
 
   test "returns typed case and top-level errors when replay cases fail" do
@@ -297,5 +374,52 @@ defmodule Thinktank.Review.EvalTest do
     assert result.status == "degraded"
     assert %Error{code: :review_eval_degraded} = result.error
     assert Enum.map(result.cases, & &1.status) == ["complete", "failed"]
+  end
+
+  defp review_contract(workspace_root, artifact_dir, adapter_context \\ %{}) do
+    %RunContract{
+      bench_id: "review/default",
+      workspace_root: workspace_root,
+      input: %{"input_text" => "Review the current change"},
+      artifact_dir: artifact_dir,
+      adapter_context: adapter_context
+    }
+  end
+
+  defp review_bench do
+    %BenchSpec{id: "review/default", kind: :review, description: "Review", agents: ["trace"]}
+  end
+
+  defp write_contract(path, %RunContract{} = contract) do
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, Jason.encode!(RunContract.to_map(contract)))
+  end
+
+  defp successful_runner do
+    fn _cmd, args, _opts ->
+      prompt =
+        args
+        |> Enum.drop_while(&(&1 != "-p"))
+        |> Enum.at(1)
+        |> String.trim_leading("@")
+        |> File.read!()
+
+      cond do
+        String.contains?(prompt, "Return JSON only with this shape:") ->
+          {Jason.encode!(%{
+             "summary" => "Replay succeeded.",
+             "selected_agents" => [
+               %{"name" => "trace", "brief" => "Check correctness risks."}
+             ],
+             "synthesis_brief" => "Prefer grounded findings."
+           }), 0}
+
+        String.contains?(prompt, "Agent outputs:") ->
+          {"Synthesized summary", 0}
+
+        true ->
+          {"Raw reviewer output", 0}
+      end
+    end
   end
 end

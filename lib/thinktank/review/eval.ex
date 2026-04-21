@@ -1,7 +1,9 @@
 defmodule Thinktank.Review.Eval do
   @moduledoc false
 
-  alias Thinktank.{ArtifactLayout, Config, Engine, Error, RunContract}
+  alias Thinktank.{ArtifactLayout, Config, Engine, Error, RunContract, TraceLog}
+
+  @terminal_run_statuses ~w(complete degraded partial failed)
 
   @type result :: %{
           target: String.t(),
@@ -85,22 +87,118 @@ defmodule Thinktank.Review.Eval do
         {:ok, [expanded]}
 
       File.dir?(expanded) ->
-        contract_file = ArtifactLayout.contract_file()
-
-        case Path.wildcard(Path.join(expanded, "**/" <> contract_file)) |> Enum.sort() do
-          [] -> {:error, "no #{contract_file} files found under #{expanded}"}
-          paths -> {:ok, paths}
-        end
+        contract_paths_from_directory(expanded)
 
       true ->
         {:error, "path does not exist: #{expanded}"}
     end
   end
 
+  defp contract_paths_from_directory(directory) do
+    case run_contract_path(directory) do
+      {:ok, nil} -> wildcard_contract_paths(directory)
+      {:ok, contract_path} -> {:ok, [contract_path]}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp run_contract_path(directory) do
+    contract_path = Path.join(directory, ArtifactLayout.contract_file())
+    manifest_path = Path.join(directory, ArtifactLayout.manifest_file())
+    trace_summary_path = Path.join(directory, TraceLog.summary_file())
+
+    if File.regular?(contract_path) and
+         (File.regular?(manifest_path) or File.regular?(trace_summary_path)) do
+      normalize_run_directory(directory, contract_path, manifest_path, trace_summary_path)
+    else
+      {:ok, nil}
+    end
+  end
+
+  defp normalize_run_directory(directory, contract_path, manifest_path, trace_summary_path) do
+    with {:ok, run_state} <- read_run_state(directory, manifest_path, trace_summary_path) do
+      if terminal_run_state?(run_state) do
+        {:ok, contract_path}
+      else
+        {:error, in_progress_error(run_state)}
+      end
+    end
+  end
+
+  defp read_run_state(directory, manifest_path, trace_summary_path) do
+    with {:ok, manifest_status} <- read_status(manifest_path, "manifest"),
+         {:ok, trace_status} <- read_status(trace_summary_path, "trace summary") do
+      {:ok,
+       %{
+         path: directory,
+         manifest_status: manifest_status,
+         trace_status: trace_status
+       }}
+    end
+  end
+
+  defp read_status(path, label) do
+    cond do
+      not is_binary(path) ->
+        {:ok, nil}
+
+      not File.regular?(path) ->
+        {:ok, nil}
+
+      true ->
+        case load_json_map(path) do
+          {:ok, decoded} ->
+            {:ok, normalize_status(Map.get(decoded, "status"))}
+
+          {:error, reason} ->
+            {:error, "failed to load #{label} at #{path}: #{reason}"}
+        end
+    end
+  end
+
+  defp load_json_map(path) do
+    with {:ok, raw} <- File.read(path),
+         {:ok, decoded} <- Jason.decode(raw),
+         true <- is_map(decoded) do
+      {:ok, decoded}
+    else
+      false -> {:error, "expected a JSON object"}
+      {:error, reason} -> {:error, inspect(reason)}
+    end
+  end
+
+  defp normalize_status(status) when is_binary(status), do: String.trim(status)
+  defp normalize_status(_status), do: nil
+
+  defp terminal_run_state?(run_state) do
+    terminal_status?(run_state.manifest_status) or terminal_status?(run_state.trace_status)
+  end
+
+  defp terminal_status?(status) when is_binary(status), do: status in @terminal_run_statuses
+  defp terminal_status?(_status), do: false
+
+  defp in_progress_error(run_state) do
+    Error.from_reason(%{
+      category: :review_eval_in_progress,
+      message: "review run is still in progress; wait for terminal run state before replaying",
+      path: run_state.path,
+      manifest_status: run_state.manifest_status,
+      trace_status: run_state.trace_status
+    })
+  end
+
+  defp wildcard_contract_paths(directory) do
+    contract_file = ArtifactLayout.contract_file()
+
+    case Path.wildcard(Path.join(directory, "**/" <> contract_file)) |> Enum.sort() do
+      [] -> {:error, "no #{contract_file} files found under #{directory}"}
+      paths -> {:ok, paths}
+    end
+  end
+
   defp load_contracts(paths) do
     Enum.reduce_while(paths, {:ok, []}, fn path, {:ok, acc} ->
-      with {:ok, raw} <- File.read(path),
-           {:ok, decoded} <- Jason.decode(raw),
+      with {:ok, decoded} <- load_json_map(path),
            {:ok, contract} <- RunContract.from_map(decoded) do
         {:cont, {:ok, [{path, contract} | acc]}}
       else
