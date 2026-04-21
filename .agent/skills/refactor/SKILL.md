@@ -18,6 +18,21 @@ Reduce complexity without reducing correctness. Favor fewer states, clearer
 names, stronger invariants, better tests, and current docs. Deletion first,
 then consolidation, then abstraction, then mechanical cleanup.
 
+## Repo-specific (thinktank)
+
+Primary branch is `master`. The first refactor targets in this repo are the
+open structural debts in `backlog.d/015`, `016`, `017`, `018`, `020`, and
+`021`: review-eval replay contracts, lifecycle ownership, planner control
+contracts, gate-policy duplication, capability-aware validate, and domain-tagged
+review degrade handling.
+
+Hot files for simplification are `lib/thinktank/review/eval.ex`,
+`lib/thinktank/engine.ex`, `lib/thinktank/review/planner.ex`,
+`lib/thinktank/executor/agentic.ex`, `lib/thinktank/run_store.ex`,
+`lib/thinktank/trace_log.ex`, and `lib/thinktank/builtin.ex`. Refactors that
+add semantic workflow DSLs, regex recovery, or extra prompt-heavy orchestration
+are regressions even if they reduce local code noise.
+
 ## Branch-Aware Routing
 
 Detect the current branch and primary branch first:

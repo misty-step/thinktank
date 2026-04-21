@@ -14,6 +14,21 @@ argument-hint: "[idea|issue|backlog-item] [--spec-only] [--design-only]"
 Shape a raw idea into something buildable. Output is a **context packet** —
 the unit of specification that precedes implementation.
 
+## Repo-specific (thinktank)
+
+ThinkTank shapes against a thin-launcher architecture. Any proposed design that
+adds a semantic workflow engine, stage graph DSL, regex recovery over agent
+prose, or a second direct-API path around Pi is out of bounds by default.
+
+Good repo anchors here are usually `lib/thinktank/engine.ex`,
+`lib/thinktank/executor/agentic.ex`, `lib/thinktank/run_store.ex`,
+`lib/thinktank/review/planner.ex`, `lib/thinktank/review/eval.ex`, `ci/`, and
+`.github/workflows/`. Use bench terminology (`research/default`,
+`review/default`, planner, synthesizer, run contract) consistently. Primary
+branch is `master`, and merge-readiness oracles should prefer
+`./scripts/with-colima.sh dagger call check` over a hand-written checklist when
+the shaped work changes the shipping contract.
+
 ## Workflow
 
 ### Phase 1: Understand

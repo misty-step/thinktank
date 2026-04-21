@@ -14,6 +14,22 @@ argument-hint: "[explore|rethink|moonshot|scaffold|tidy] [context]"
 
 Strategic backlog management. Parallel investigation, synthesis, themed recommendations.
 
+## Repo-specific (thinktank)
+
+In this repo, backlog truth is `backlog.d/`. The active debt queue is centered
+on `015`, `016`, `017`, `018`, `020`, and `021`: review-eval contract
+normalization, a single lifecycle owner, structured review control contracts,
+gate policy deduplication, capability-aware validate, and domain-tagged review
+degrade policy. Prioritize those thin-launcher debts over new orchestration
+surface area.
+
+The product lens here is command-plane integrity, not workflow novelty. Reject
+items that add semantic workflow DSLs, prose parsers, or second execution
+paths around Pi. Durable repo docs are `README.md`, `CONTRIBUTING.md`,
+`CLAUDE.md`, and `AGENTS.md`; ephemeral sprint notes do not belong there.
+When grooming execution work, keep the load-bearing gate spelled exactly as
+`./scripts/with-colima.sh dagger call check`.
+
 ## Execution Stance
 
 You are the executive orchestrator.

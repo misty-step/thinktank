@@ -15,6 +15,21 @@ argument-hint: <symptoms or domain> e.g. "error in auth" or "audit stripe"
 
 Find root cause. Fix it. Prove it works.
 
+## Repo-specific (thinktank)
+
+ThinkTank's first-line evidence is almost always in run artifacts, not in
+prompts. Read `trace/events.jsonl`, `trace/summary.json`, `scratchpads/run.md`,
+`artifacts/streams/*.txt`, and the latest `/tmp/thinktank-*` output directory
+before changing launcher code. Cross-run operator logs live under
+`~/.local/state/thinktank/logs/` when global mirroring is enabled.
+
+Common failure domains here are stale OpenRouter model IDs, `review eval`
+contract mismatches, lifecycle/finalization ordering, planner JSON recovery,
+muontrap subprocess behavior, and review-domain degrade gaps. Config-before-code
+means checking `.env`, `THINKTANK_OPENROUTER_API_KEY`, Colima through
+`./scripts/with-colima.sh`, and `THINKTANK_DISABLE_MUONTRAP=1` for local-only
+executor debugging before rewriting business logic.
+
 ## Execution Stance
 
 You are the executive orchestrator.

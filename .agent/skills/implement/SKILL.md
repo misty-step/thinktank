@@ -14,6 +14,19 @@ argument-hint: "[context-packet-path|ticket-id]"
 
 Spec in, green tests out. One packet, one feature branch, one concern.
 
+## Repo-specific (thinktank)
+
+Implementation here usually means Elixir modules under `lib/thinktank/` with
+behavior verified in `test/`. Tight inner-loop commands are `mix test`,
+targeted `mix test <path>`, and `mix compile --warnings-as-errors`; the
+merge-readiness backstop is still `./scripts/with-colima.sh dagger call check`.
+
+Feature branches target `master`. Release Please owns versioning, so
+`@version` in `mix.exs`, `CHANGELOG.md`, and release manifests are not
+implementation scratch space. If a context packet implies a semantic workflow
+layer, prose parser, or second Pi-bypass path, stop and send it back to
+`/shape` instead of implementing the wrong architecture cleanly.
+
 ## Invariants
 
 - Trust the context packet. Do not reshape. Do not re-plan.

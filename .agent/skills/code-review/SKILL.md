@@ -15,6 +15,24 @@ Multi-provider, multi-harness code review. You are the marshal — read the diff
 select reviewers, craft prompts, dispatch everything in parallel, synthesize
 results, fix blockers, loop until clean.
 
+## Repo-specific (thinktank)
+
+Default comparison base is `master`, not `main`. The built-in ThinkTank review
+bench is `review/default` in `lib/thinktank/builtin.ex`; the planner lives in
+`lib/thinktank/review/planner.ex`, and reviewer domain tags such as
+`security`, `correctness`, `tests`, and `operability` are encoded in agent
+metadata there.
+
+High-signal review hotspots in this repo are `lib/thinktank/review/eval.ex`,
+`lib/thinktank/review/planner.ex`, `lib/thinktank/engine.ex`,
+`lib/thinktank/executor/agentic.ex`, `lib/thinktank/run_store.ex`,
+`lib/thinktank/trace_log.ex`, and `lib/thinktank/builtin.ex`. Block on
+launcher-boundary regressions, stale model-ID assumptions, and anything that
+reintroduces regex salvage or a second execution path. For the ThinkTank tier,
+wait for final stdout JSON or `trace/summary.json` terminal state before
+consuming artifacts; backlog `015` exists because live and finished review
+contracts still drift.
+
 ## Marshal Protocol
 
 1. **Read the diff.** `git diff $BASE...HEAD` (default base: `main` or `master`).

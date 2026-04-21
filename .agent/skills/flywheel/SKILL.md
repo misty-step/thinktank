@@ -18,6 +18,18 @@ Compose cycles of: pick a backlog item → `/deliver` → land → `/deploy` →
 You already know how to do each of these. This skill exists only to
 encode the invariants that aren't inferable from the leaf names.
 
+## Repo-specific (thinktank)
+
+The shipping queue lives in `backlog.d/`, with active structural debt in
+`015`, `016`, `017`, `018`, `020`, and `021`. `/deliver` closes against
+`./scripts/with-colima.sh dagger call check`, `/settle` lands to `master`, and
+Release Please owns the actual release PR and version bump after merge.
+
+ThinkTank is usually a library/CLI repo, so deploy and monitor are often
+no-ops. That does not justify inventing cycle state, event enums, or extra
+orchestration machinery. Reflect outputs should mutate backlog and harness
+files, not add a second control plane around the existing benches.
+
 ## Invariants
 
 - Flywheel composes. Phase logic lives in the leaf skill.
