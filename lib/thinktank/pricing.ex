@@ -8,18 +8,28 @@ defmodule Thinktank.Pricing do
   # Rates are USD per million tokens. They are derived from Pi's OpenRouter
   # session accounting for the builtin ThinkTank model roster.
   @rates %{
-    "anthropic/claude-sonnet-4.6" => %{input: 3.0, output: 15.0, cache_read: 0.0},
-    "mistralai/mistral-large-2512" => %{input: 0.5, output: 1.5},
+    "anthropic/claude-sonnet-4.6" => %{
+      input: 3.0,
+      output: 15.0,
+      cache_read: 0.3,
+      cache_write: 3.75
+    },
+    "arcee-ai/trinity-large-thinking" => %{input: 0.22, output: 0.85, cache_read: 0.06},
     "x-ai/grok-4.1-fast" => %{input: 0.2, output: 0.5, cache_read: 0.05},
-    "google/gemini-3-flash-preview" => %{input: 0.5, output: 3.0},
-    "x-ai/grok-4.20" => %{input: 1.25, output: 10.0, cache_read: 0.125},
-    "openai/gpt-5.4-mini" => %{input: 1.25, output: 10.0, cache_read: 0.125},
-    "z-ai/glm-5-turbo" => %{input: 1.25, output: 10.0, cache_read: 0.125},
-    "minimax/minimax-m2.7" => %{input: 1.25, output: 10.0},
+    "google/gemini-3-flash-preview" => %{
+      input: 0.5,
+      output: 3.0,
+      cache_read: 0.05,
+      cache_write: 0.083333333333
+    },
+    "x-ai/grok-4.20" => %{input: 2.0, output: 6.0, cache_read: 0.2},
+    "openai/gpt-5.4-mini" => %{input: 0.75, output: 4.5, cache_read: 0.075},
+    "z-ai/glm-5.1" => %{input: 1.05, output: 3.5, cache_read: 0.525},
+    "minimax/minimax-m2.7" => %{input: 0.3, output: 1.2, cache_read: 0.059},
     "inception/mercury-2" => %{input: 0.25, output: 0.75, cache_read: 0.025},
-    "moonshotai/kimi-k2.5" => %{input: 0.41, output: 2.06, cache_read: 0.07},
-    "xiaomi/mimo-v2-pro" => %{input: 1.25, output: 10.0},
-    "openai/gpt-5.4" => %{input: 2.5, output: 15.0}
+    "moonshotai/kimi-k2.6" => %{input: 0.6, output: 2.8, cache_read: 0.2},
+    "xiaomi/mimo-v2-pro" => %{input: 1.0, output: 3.0, cache_read: 0.2},
+    "openai/gpt-5.4" => %{input: 2.5, output: 15.0, cache_read: 0.25}
   }
 
   @spec rate_for(String.t()) :: map() | nil

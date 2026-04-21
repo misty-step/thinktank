@@ -20,7 +20,7 @@ defmodule Thinktank.PricingTest do
     assert usage["cache_write_tokens"] == 0
     assert usage["total_tokens"] == 1483
     assert usage["pricing_gap"] == nil
-    assert_in_delta usage["usd_cost"], 0.00080675, 1.0e-12
+    assert_in_delta usage["usd_cost"], 0.00046605, 1.0e-12
   end
 
   test "returns a pricing gap when the model is unknown" do

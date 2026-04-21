@@ -73,7 +73,7 @@ defmodule Thinktank.Builtin do
       "verification" =>
         agent(
           "verification",
-          "mistralai/mistral-large-2512",
+          "arcee-ai/trinity-large-thinking",
           Research.verification(),
           Research.task(),
           @agent_tools
@@ -102,11 +102,11 @@ defmodule Thinktank.Builtin do
       {"guard", "x-ai/grok-4.20", Review.guard(), "security"},
       {"atlas", "openai/gpt-5.4-mini", Review.atlas(), "architecture"},
       {"proof", "openai/gpt-5.4-mini", Review.proof(), "tests"},
-      {"vector", "z-ai/glm-5-turbo", Review.vector(), "interfaces"},
+      {"vector", "z-ai/glm-5.1", Review.vector(), "interfaces"},
       {"pulse", "minimax/minimax-m2.7", Review.pulse(), "runtime-risk"},
       {"scout", "google/gemini-3-flash-preview", Review.scout(), "integration"},
       {"forge", "inception/mercury-2", Review.forge(), "implementation"},
-      {"orbit", "moonshotai/kimi-k2.5", Review.orbit(), "compatibility"},
+      {"orbit", "moonshotai/kimi-k2.6", Review.orbit(), "compatibility"},
       {"sentry", "xiaomi/mimo-v2-pro", Review.sentry(), "operability"}
     ]
 

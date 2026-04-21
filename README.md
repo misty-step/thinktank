@@ -125,7 +125,7 @@ providers:
 agents:
   trace:
     provider: openrouter
-    model: x-ai/grok-4.1-fast
+    model: x-ai/grok-4.20
     system_prompt: |
       You are trace, a correctness reviewer.
     task_prompt: |

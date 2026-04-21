@@ -480,7 +480,7 @@ defmodule Thinktank.Executor.AgenticTest do
     assert result.usage["cache_write_tokens"] == 0
     assert result.usage["total_tokens"] == 390
     assert result.usage["pricing_gap"] == nil
-    assert_in_delta result.usage["usd_cost"], 0.0006825, 1.0e-12
+    assert_in_delta result.usage["usd_cost"], 0.0003645, 1.0e-12
   end
 
   test "timeout subprocess traces use a nil exit_code" do

@@ -158,13 +158,13 @@ defmodule Thinktank.RunStoreTest do
     model = envelope.usd_cost_by_model["openai/gpt-5.4-mini"]
 
     assert envelope.pricing_gaps == []
-    assert_in_delta envelope.usd_cost_total, 0.0004675, 1.0e-12
+    assert_in_delta envelope.usd_cost_total, 0.0002355, 1.0e-12
     assert model["input_tokens"] == 130
     assert model["output_tokens"] == 30
     assert model["cache_read_tokens"] == 40
     assert model["cache_write_tokens"] == 0
     assert model["total_tokens"] == 200
-    assert_in_delta model["usd_cost"], 0.0004675, 1.0e-12
+    assert_in_delta model["usd_cost"], 0.0002355, 1.0e-12
     assert model["pricing_gap"] == nil
   end
 
