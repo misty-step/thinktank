@@ -163,38 +163,70 @@ defmodule Thinktank.Review.EvalTest do
     assert [%{contract: ^contract_path, status: "complete"}] = result.cases
   end
 
-  test "replays a finished review run directory through its root contract" do
-    workspace = Workspace.unique_tmp_dir("thinktank-review-eval-finished-workspace")
+  test "treats a directory without run markers as a saved-contract collection" do
+    workspace = Workspace.unique_tmp_dir("thinktank-review-eval-saved-contract-dir")
     Workspace.init_git_repo!(workspace)
-
-    source_run =
-      Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-finished-source"), "run")
+    fixture_root = Workspace.unique_tmp_dir("thinktank-review-eval-saved-contract-fixtures")
 
     output_root =
-      Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-finished-output"), "runs")
+      Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-saved-output"), "runs")
 
-    contract = review_contract(workspace, source_run, %{"source" => "finished-run"})
-    RunStore.init_run(source_run, contract, review_bench())
-    RunStore.complete_run(source_run, "complete")
+    contract_path = Path.join(fixture_root, "contract.json")
+    contract = review_contract(workspace, Path.join(fixture_root, "source-run"))
+    write_contract(contract_path, contract)
 
     assert {:ok, result} =
-             Eval.run(source_run,
+             Eval.run(fixture_root,
                output: output_root,
                runner: successful_runner()
              )
 
-    contract_path = Path.join(source_run, "contract.json")
-
     assert result.status == "complete"
     assert [%{contract: ^contract_path, status: "complete"}] = result.cases
+  end
 
-    replayed_contract =
-      output_root
-      |> Path.join("case-001/contract.json")
-      |> File.read!()
-      |> Jason.decode!()
+  for terminal_status <- ~w(complete degraded partial failed) do
+    test "replays a finished review run directory with #{terminal_status} terminal status" do
+      workspace = Workspace.unique_tmp_dir("thinktank-review-eval-finished-workspace")
+      Workspace.init_git_repo!(workspace)
 
-    assert replayed_contract["adapter_context"] == %{"source" => "finished-run"}
+      source_run =
+        Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-finished-source"), "run")
+
+      output_root =
+        Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-finished-output"), "runs")
+
+      contract =
+        review_contract(workspace, source_run, %{
+          "source" => "finished-run",
+          "status" => unquote(terminal_status)
+        })
+
+      RunStore.init_run(source_run, contract, review_bench())
+      RunStore.complete_run(source_run, unquote(terminal_status))
+
+      assert {:ok, result} =
+               Eval.run(source_run,
+                 output: output_root,
+                 runner: successful_runner()
+               )
+
+      contract_path = Path.join(source_run, "contract.json")
+
+      assert result.status == "complete"
+      assert [%{contract: ^contract_path, status: "complete"}] = result.cases
+
+      replayed_contract =
+        output_root
+        |> Path.join("case-001/contract.json")
+        |> File.read!()
+        |> Jason.decode!()
+
+      assert replayed_contract["adapter_context"] == %{
+               "source" => "finished-run",
+               "status" => unquote(terminal_status)
+             }
+    end
   end
 
   test "returns a typed error for an in-progress review run directory" do
@@ -216,6 +248,29 @@ defmodule Thinktank.Review.EvalTest do
             }} = Eval.run(source_run)
 
     assert resolved_path == Path.expand(source_run)
+  end
+
+  test "accepts a terminal trace summary even when the manifest is still running" do
+    workspace = Workspace.unique_tmp_dir("thinktank-review-eval-trace-terminal-workspace")
+    Workspace.init_git_repo!(workspace)
+
+    source_run =
+      Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-trace-terminal-source"), "run")
+
+    output_root =
+      Path.join(Workspace.unique_tmp_dir("thinktank-review-eval-trace-terminal-output"), "runs")
+
+    contract = review_contract(workspace, source_run, %{"source" => "trace-terminal"})
+    RunStore.init_run(source_run, contract, review_bench())
+    Thinktank.TraceLog.complete_run(source_run, %{"status" => "partial"})
+
+    assert {:ok, result} =
+             Eval.run(source_run,
+               output: output_root,
+               runner: successful_runner()
+             )
+
+    assert result.status == "complete"
   end
 
   test "returns typed case and top-level errors when replay cases fail" do
@@ -351,7 +406,8 @@ defmodule Thinktank.Review.EvalTest do
                "selected_agents" => [
                  %{"name" => "trace", "brief" => "Check regressions."}
                ],
-               "synthesis_brief" => "Prefer grounded findings."
+               "synthesis_brief" => "Prefer grounded findings.",
+               "warnings" => []
              }), 0}
 
           String.contains?(prompt, "Agent outputs:") ->
@@ -411,7 +467,8 @@ defmodule Thinktank.Review.EvalTest do
              "selected_agents" => [
                %{"name" => "trace", "brief" => "Check correctness risks."}
              ],
-             "synthesis_brief" => "Prefer grounded findings."
+             "synthesis_brief" => "Prefer grounded findings.",
+             "warnings" => []
            }), 0}
 
         String.contains?(prompt, "Agent outputs:") ->

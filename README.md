@@ -235,6 +235,17 @@ structure from agent prose after the fact.
 you can compare benches on the same frozen inputs. It does not impose an
 automatic scoring framework.
 
+Replay sources normalize to three supported shapes:
+
+- a direct `contract.json` path
+- a directory of saved `contract.json` files
+- a finished `thinktank review --output <dir>` run directory
+
+If you point `review eval` at a live run directory, it returns an explicit
+in-progress error instead of guessing from sparse artifacts. Use stderr progress
+or the terminal run state in `manifest.json` / `trace/summary.json` to decide
+when a run is finished before replaying it.
+
 ## Development
 
 ```bash
