@@ -22,6 +22,9 @@ defmodule Thinktank.Prompts.ReviewTest do
           ) do
       assert task =~ placeholder, "review task prompt missing #{placeholder}"
     end
+
+    assert task =~ "Structured review context (canonical JSON contract):"
+    assert task =~ "Structured review plan (canonical JSON contract):"
   end
 
   test "plan_task/0 contains required placeholders" do
@@ -41,6 +44,11 @@ defmodule Thinktank.Prompts.ReviewTest do
           ) do
       assert plan =~ placeholder, "review plan_task prompt missing #{placeholder}"
     end
+
+    assert plan =~ "Return JSON only with this shape:"
+    assert plan =~ "Use this exact shape with no extra keys."
+    assert plan =~ "Return exactly one JSON object. Do not use markdown fences."
+    assert plan =~ "Use [] when there are no warnings."
   end
 
   for name <- [

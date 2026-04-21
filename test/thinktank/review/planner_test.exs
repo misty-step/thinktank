@@ -18,6 +18,7 @@ defmodule Thinktank.Review.PlannerTest do
     planning = Planner.manual(agents)
 
     assert planning.planner_result == nil
+    assert planning.fallback_reason == nil
     assert planning.plan["source"] == "manual"
 
     assert Enum.map(planning.plan["selected_agents"], & &1["name"]) == [

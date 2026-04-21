@@ -16,11 +16,14 @@ defmodule Thinktank.Prompts.Review do
   Assigned brief:
   {{review_brief}}
 
-  Review context:
+  Structured review context (canonical JSON contract):
   {{review_context}}
 
-  Bench plan:
+  Structured review plan (canonical JSON contract):
   {{review_plan}}
+
+  Human-readable summaries may exist as orientation artifacts, but the JSON
+  contracts above are canonical for review scope and tasking.
 
   You are doing code review. Use bash, git, and file tools to inspect the
   current repository yourself. Start with git status and git diff. If base/head
@@ -40,7 +43,7 @@ defmodule Thinktank.Prompts.Review do
   Focus paths:
   {{paths_hint}}
 
-  Review context:
+  Structured review context (canonical JSON contract):
   {{review_context}}
 
   Available reviewers:
@@ -55,6 +58,10 @@ defmodule Thinktank.Prompts.Review do
     "synthesis_brief": "what the synthesizer should prioritize",
     "warnings": ["optional planner caveat"]
   }
+
+  Use this exact shape with no extra keys.
+  Return exactly one JSON object. Do not use markdown fences. Do not include
+  explanatory prose before or after the JSON payload. Use [] when there are no warnings.
 
   Use exact agent names from the roster (e.g., "trace", "guard", "atlas"), not
   role descriptions. Pick only reviewers that materially add signal for this

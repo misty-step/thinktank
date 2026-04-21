@@ -3,14 +3,17 @@ defmodule Thinktank.Review.Planner do
 
   alias Thinktank.{AgentSpec, Config, RunContract}
   alias Thinktank.Executor.Agentic
-  alias Thinktank.Review.Context
 
   @type plan :: map()
-  @type outcome :: %{plan: plan(), planner_result: Agentic.result() | nil}
+  @type outcome :: %{
+          plan: plan(),
+          planner_result: Agentic.result() | nil,
+          fallback_reason: String.t() | nil
+        }
 
   @spec manual([AgentSpec.t()]) :: outcome()
   def manual(agents) do
-    %{plan: default_plan(agents, "manual"), planner_result: nil}
+    %{plan: default_plan(agents, "manual"), planner_result: nil, fallback_reason: nil}
   end
 
   @spec create(
@@ -23,13 +26,13 @@ defmodule Thinktank.Review.Planner do
         ) ::
           outcome()
   def create(nil, agents, _contract, _review_context, _config, _opts) do
-    %{plan: default_plan(agents, "fallback"), planner_result: nil}
+    %{plan: default_plan(agents, "fallback"), planner_result: nil, fallback_reason: nil}
   end
 
   def create(planner, agents, contract, review_context, config, opts) do
     context = %{
       "paths_hint" => render_paths_hint(contract.input),
-      "review_context" => Context.render(review_context),
+      "review_context" => render_json(review_context),
       "review_roster" => render_roster(agents)
     }
 
@@ -42,26 +45,24 @@ defmodule Thinktank.Review.Planner do
         runner: opts[:runner]
       )
 
-    plan =
+    {plan, fallback_reason} =
       case planner_result.status do
         :ok ->
           case parse_plan(planner_result.output, agents) do
             {:ok, parsed} ->
-              parsed
+              {parsed, nil}
 
             {:error, reason} ->
-              default_plan(agents, "fallback", [
-                "planner output could not be parsed: #{reason}"
-              ])
+              fallback_reason = "planner output rejected: #{reason}"
+              {default_plan(agents, "fallback", [fallback_reason]), fallback_reason}
           end
 
         :error ->
-          default_plan(agents, "fallback", [
-            "planner failed: #{format_error(planner_result.error)}"
-          ])
+          fallback_reason = "planner failed: #{format_error(planner_result.error)}"
+          {default_plan(agents, "fallback", [fallback_reason]), fallback_reason}
       end
 
-    %{plan: plan, planner_result: planner_result}
+    %{plan: plan, planner_result: planner_result, fallback_reason: fallback_reason}
   end
 
   @spec apply_plan(plan(), [AgentSpec.t()]) :: [AgentSpec.t()]
@@ -125,102 +126,126 @@ defmodule Thinktank.Review.Planner do
     allowed = MapSet.new(Enum.map(agents, & &1.name))
 
     with {:ok, decoded} <- decode_plan(raw_output),
+         :ok <-
+           validate_allowed_keys(
+             decoded,
+             ~w(summary selected_agents synthesis_brief warnings),
+             "plan"
+           ),
+         {:ok, summary} <- parse_required_string(decoded, "summary"),
          {:ok, selected} <- parse_selected_agents(decoded["selected_agents"], allowed),
-         false <- selected == [] do
+         true <- selected != [] or {:error, "planner selected no reviewers"},
+         {:ok, synthesis_brief} <- parse_required_string(decoded, "synthesis_brief"),
+         {:ok, warnings} <- parse_warnings(decoded["warnings"]) do
       {:ok,
        %{
          "version" => 1,
          "source" => "planner",
-         "summary" =>
-           trimmed_string(decoded["summary"]) ||
-             "Planner selected the reviewer team for this change.",
+         "summary" => summary,
          "selected_agents" => selected,
-         "synthesis_brief" =>
-           trimmed_string(decoded["synthesis_brief"]) ||
-             "Prioritize grounded findings and collapse duplicates.",
-         "warnings" => parse_warnings(decoded["warnings"])
+         "synthesis_brief" => synthesis_brief,
+         "warnings" => warnings
        }}
     else
-      true ->
-        {:error, "planner selected no reviewers"}
-
       {:error, reason} ->
         {:error, reason}
     end
   end
 
   defp decode_plan(raw_output) do
-    raw_output
-    |> candidate_json_strings()
-    |> Enum.reduce_while({:error, "planner did not return valid JSON"}, fn candidate, _acc ->
-      case Jason.decode(candidate) do
-        {:ok, %{} = decoded} -> {:halt, {:ok, decoded}}
-        _ -> {:cont, {:error, "planner did not return valid JSON"}}
-      end
-    end)
-  end
-
-  defp candidate_json_strings(raw_output) do
     trimmed = String.trim(raw_output)
-    fenced = Regex.run(~r/```(?:json)?\s*(\{.*\})\s*```/s, raw_output, capture: :all_but_first)
 
-    brace_candidate =
-      case {first_index(raw_output, "{"), last_index(raw_output, "}")} do
-        {nil, _} ->
-          nil
+    case trimmed do
+      "" ->
+        {:error, "planner output must be a JSON object"}
 
-        {_, nil} ->
-          nil
-
-        {start_index, end_index} when end_index >= start_index ->
-          String.slice(raw_output, start_index..end_index)
-
-        _ ->
-          nil
-      end
-
-    [fenced && List.first(fenced), brace_candidate, trimmed]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.uniq()
+      _ ->
+        case Jason.decode(trimmed) do
+          {:ok, %{} = decoded} -> {:ok, decoded}
+          {:ok, _} -> {:error, "planner output must decode to a JSON object"}
+          {:error, _} -> {:error, "planner output must be valid JSON"}
+        end
+    end
   end
 
   defp parse_selected_agents(selected_agents, allowed) when is_list(selected_agents) do
-    parsed =
-      selected_agents
-      |> Enum.reduce([], fn entry, acc ->
-        case parse_selected_agent(entry, allowed) do
-          nil -> acc
-          parsed_entry -> [parsed_entry | acc]
-        end
-      end)
-      |> Enum.reverse()
+    selected_agents
+    |> Enum.reduce_while({:ok, [], MapSet.new()}, fn entry, {:ok, acc, seen} ->
+      case parse_selected_agent(entry, allowed, seen) do
+        {:ok, parsed_entry, next_seen} ->
+          {:cont, {:ok, [parsed_entry | acc], next_seen}}
 
-    {:ok, parsed}
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, parsed, _seen} -> {:ok, Enum.reverse(parsed)}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp parse_selected_agents(_, _allowed), do: {:error, "selected_agents must be a list"}
 
-  defp parse_selected_agent(%{} = entry, allowed) do
-    with name when not is_nil(name) <- trimmed_string(entry["name"]),
-         true <- MapSet.member?(allowed, name) do
-      %{
-        "name" => name,
-        "brief" => trimmed_string(entry["brief"]) || default_brief(name)
-      }
+  defp parse_selected_agent(%{} = entry, allowed, seen) do
+    with :ok <- validate_allowed_keys(entry, ~w(name brief), "selected_agents entry"),
+         {:ok, name} <- parse_required_string(entry, "name"),
+         true <-
+           MapSet.member?(allowed, name) or {:error, "selected agent is not in roster: #{name}"},
+         true <-
+           not MapSet.member?(seen, name) or
+             {:error, "selected_agents must not contain duplicates: #{name}"},
+         {:ok, brief} <- parse_required_string(entry, "brief") do
+      {:ok, %{"name" => name, "brief" => brief}, MapSet.put(seen, name)}
     else
-      _ -> nil
+      {:error, reason} -> {:error, reason}
     end
   end
 
-  defp parse_selected_agent(_, _allowed), do: nil
+  defp parse_selected_agent(_, _allowed, _seen),
+    do: {:error, "selected_agents entries must be objects"}
 
   defp parse_warnings(warnings) when is_list(warnings) do
     warnings
-    |> Enum.map(&trimmed_string/1)
-    |> Enum.reject(&is_nil/1)
+    |> Enum.reduce_while({:ok, []}, fn warning, {:ok, acc} ->
+      case trimmed_string(warning) do
+        nil ->
+          {:halt, {:error, "warnings entries must be non-empty strings"}}
+
+        value ->
+          {:cont, {:ok, [value | acc]}}
+      end
+    end)
+    |> case do
+      {:ok, parsed} -> {:ok, Enum.reverse(parsed)}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
-  defp parse_warnings(_), do: []
+  defp parse_warnings(_), do: {:error, "warnings must be a list"}
+
+  defp parse_required_string(map, key) do
+    case trimmed_string(map[key]) do
+      nil -> {:error, "#{key} must be a non-empty string"}
+      value -> {:ok, value}
+    end
+  end
+
+  defp validate_allowed_keys(map, allowed_keys, label) do
+    allowed = MapSet.new(allowed_keys)
+
+    unsupported =
+      map
+      |> Map.keys()
+      |> Enum.reject(&MapSet.member?(allowed, &1))
+      |> Enum.sort()
+
+    if unsupported == [] do
+      :ok
+    else
+      {:error, "#{label} has unsupported keys: #{Enum.join(unsupported, ", ")}"}
+    end
+  end
 
   defp default_plan(agents, source, warnings \\ []) do
     %{
@@ -269,10 +294,6 @@ defmodule Thinktank.Review.Planner do
     "Focus on the highest-signal #{role} risks in the change and report only grounded issues."
   end
 
-  defp default_brief(name) when is_binary(name) do
-    "Focus on the highest-signal risks relevant to #{name} and report only grounded issues."
-  end
-
   defp first_sentence(text) when is_binary(text) do
     text
     |> String.split(~r/(?<=[.!?])\s+/, parts: 2)
@@ -293,24 +314,12 @@ defmodule Thinktank.Review.Planner do
     end
   end
 
+  defp render_json(value), do: Jason.encode!(value, pretty: true)
+
   defp trimmed_string(value) when is_binary(value) do
     value = String.trim(value)
     if value == "", do: nil, else: value
   end
 
   defp trimmed_string(_), do: nil
-
-  defp first_index(haystack, needle) when is_binary(haystack) and is_binary(needle) do
-    case :binary.match(haystack, needle) do
-      {index, _length} -> index
-      :nomatch -> nil
-    end
-  end
-
-  defp last_index(haystack, needle) when is_binary(haystack) and is_binary(needle) do
-    case :binary.matches(haystack, needle) do
-      [] -> nil
-      matches -> matches |> List.last() |> elem(0)
-    end
-  end
 end

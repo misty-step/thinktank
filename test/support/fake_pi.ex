@@ -152,7 +152,8 @@ defmodule Thinktank.Test.FakePi do
       printf '%s\\n' \\
         '{"summary":"Planner summary.",' \\
         '"selected_agents":[{"name":"trace","brief":"Check correctness."}],' \\
-        '"synthesis_brief":"Use grounded evidence."}'
+        '"synthesis_brief":"Use grounded evidence.",' \\
+        '"warnings":[]}'
       ;;
       review-synth-*|research-synth-*)
       echo "Synthesized summary"

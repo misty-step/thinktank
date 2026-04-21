@@ -1,7 +1,7 @@
 defmodule Thinktank.Engine.Preparation do
   @moduledoc false
 
-  alias Thinktank.{ArtifactLayout, BenchSpec, Config, RunStore}
+  alias Thinktank.{ArtifactLayout, BenchSpec, Config, RunStore, TraceLog}
   alias Thinktank.Review.{Context, Planner}
 
   @spec normalize_input(BenchSpec.t(), map()) :: {:ok, map()} | {:error, atom() | String.t()}
@@ -47,8 +47,8 @@ defmodule Thinktank.Engine.Preparation do
 
         context = %{
           "paths_hint" => render_paths_hint(contract.input),
-          "review_context" => Context.render(review_context),
-          "review_plan" => Planner.render(planning.plan),
+          "review_context" => render_json(review_context),
+          "review_plan" => render_json(planning.plan),
           "synthesis_brief" => planning.plan["synthesis_brief"] || ""
         }
 
@@ -136,6 +136,8 @@ defmodule Thinktank.Engine.Preparation do
   end
 
   defp write_review_artifacts(output_dir, review_context, %{plan: plan} = planning) do
+    maybe_record_planner_fallback(output_dir, planning)
+
     RunStore.write_json_artifact(
       output_dir,
       "review-context",
@@ -143,7 +145,7 @@ defmodule Thinktank.Engine.Preparation do
       review_context
     )
 
-    RunStore.write_text_artifact(
+    write_optional_text_artifact(
       output_dir,
       "review-context-summary",
       ArtifactLayout.review_context_text_file(),
@@ -157,7 +159,7 @@ defmodule Thinktank.Engine.Preparation do
       plan
     )
 
-    RunStore.write_text_artifact(
+    write_optional_text_artifact(
       output_dir,
       "review-plan-summary",
       ArtifactLayout.review_plan_text_file(),
@@ -180,13 +182,43 @@ defmodule Thinktank.Engine.Preparation do
             if(planner_result.error, do: "\n\nERROR: #{inspect(planner_result.error)}", else: "")
       end
 
-    RunStore.write_text_artifact(
+    write_optional_text_artifact(
       output_dir,
       "review-planner",
       ArtifactLayout.review_planner_file(),
       output
     )
   end
+
+  defp maybe_record_planner_fallback(_output_dir, %{fallback_reason: nil}), do: :ok
+
+  defp maybe_record_planner_fallback(output_dir, %{plan: %{"source" => "fallback"}} = planning) do
+    TraceLog.record_event(output_dir, "review_planner_fallback", %{
+      "reason" => planning.fallback_reason,
+      "warnings" => Map.get(planning.plan, "warnings", []),
+      "planner_status" => planner_status(planning.planner_result)
+    })
+  end
+
+  defp maybe_record_planner_fallback(_output_dir, _planning), do: :ok
+
+  defp write_optional_text_artifact(output_dir, name, filename, content) do
+    RunStore.write_text_artifact(output_dir, name, filename, content)
+  rescue
+    error ->
+      TraceLog.record_event(output_dir, "review_optional_artifact_write_failed", %{
+        "artifact_name" => name,
+        "artifact_file" => filename,
+        "error" => Exception.message(error)
+      })
+
+      :ok
+  end
+
+  defp planner_status(nil), do: "none"
+  defp planner_status(%{status: status}), do: to_string(status)
+
+  defp render_json(value), do: Jason.encode!(value, pretty: true)
 
   defp fetch_agents(agents, names) do
     names

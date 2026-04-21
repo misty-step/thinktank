@@ -62,7 +62,8 @@ defmodule Thinktank.EngineTest do
                %{"name" => "atlas", "brief" => "Focus on coupling and boundary changes."},
                %{"name" => "proof", "brief" => "Focus on regression coverage gaps."}
              ],
-             "synthesis_brief" => "Prioritize reviewer overlap and grounded defects."
+             "synthesis_brief" => "Prioritize reviewer overlap and grounded defects.",
+             "warnings" => []
            }), 0}
 
         String.contains?(prompt, "Agent outputs:") ->
@@ -253,7 +254,8 @@ defmodule Thinktank.EngineTest do
              %{"name" => "trace", "brief" => "Check behavioral regressions."},
              %{"name" => "atlas", "brief" => "Check boundary and coupling changes."}
            ],
-           "synthesis_brief" => "Prefer grounded defects."
+           "synthesis_brief" => "Prefer grounded defects.",
+           "warnings" => []
          }), 0}
       else
         {"ok", 0}
@@ -284,6 +286,8 @@ defmodule Thinktank.EngineTest do
     prompts = Path.wildcard(Path.join(result.output_dir, "prompts/*.md"))
     assert prompts != []
     assert Enum.any?(prompts, &(File.read!(&1) =~ "Assigned brief:"))
+    assert Enum.any?(prompts, &(File.read!(&1) =~ "\"selected_agents\""))
+    assert Enum.any?(prompts, &(File.read!(&1) =~ "\"change\""))
   end
 
   test "review planner preserves explicit reviewer overrides" do
@@ -315,6 +319,50 @@ defmodule Thinktank.EngineTest do
     plan = result.output_dir |> Path.join("review/plan.json") |> File.read!() |> Jason.decode!()
     assert plan["source"] == "manual"
     assert Enum.map(plan["selected_agents"], & &1["name"]) == ["guard"]
+  end
+
+  test "review planner rejects non-JSON responses and records fallback trace events" do
+    cwd = unique_tmp_dir("thinktank-engine-planner-fallback")
+    init_git_repo_with_commit!(cwd)
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Return JSON only with this shape:") do
+        {"```json\n{\"summary\":\"Focus correctness.\",\"selected_agents\":[{\"name\":\"trace\",\"brief\":\"Check regressions.\"}],\"synthesis_brief\":\"Prefer grounded evidence.\",\"warnings\":[]}\n```",
+         0}
+      else
+        {"ok", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "review/default",
+               %{input_text: "Review this branch", no_synthesis: true},
+               cwd: cwd,
+               runner: runner
+             )
+
+    plan = result.output_dir |> Path.join("review/plan.json") |> File.read!() |> Jason.decode!()
+    assert plan["source"] == "fallback"
+
+    assert Enum.any?(plan["warnings"], fn warning ->
+             String.contains?(
+               warning,
+               "planner output rejected: planner output must be valid JSON"
+             )
+           end)
+
+    events = read_jsonl(Path.join(result.output_dir, "trace/events.jsonl"))
+
+    assert Enum.any?(events, fn event ->
+             event["event"] == "review_planner_fallback" and
+               String.contains?(
+                 to_string(event["reason"]),
+                 "planner output rejected: planner output must be valid JSON"
+               )
+           end)
   end
 
   test "review bench fails early when workspace has no git repository" do
@@ -475,7 +523,8 @@ defmodule Thinktank.EngineTest do
         {Jason.encode!(%{
            "summary" => "Focus on correctness.",
            "selected_agents" => [%{"name" => "trace", "brief" => "Check regressions."}],
-           "synthesis_brief" => "Use grounded evidence."
+           "synthesis_brief" => "Use grounded evidence.",
+           "warnings" => []
          }), 0}
       else
         {"ok", 0}
