@@ -6,9 +6,10 @@ cd "$REPO_ROOT"
 
 git diff --cached --check
 
-mapfile -t staged_backlog < <(
-  git diff --cached --name-only --diff-filter=ACMR | grep -E '^backlog\.d/.*\.md$' || true
-)
+staged_backlog=()
+while IFS= read -r path; do
+  [ -n "$path" ] && staged_backlog+=("$path")
+done < <(git diff --cached --name-only --diff-filter=ACMR | grep -E '^backlog\.d/.*\.md$' || true)
 
 if command -v pre-commit >/dev/null 2>&1; then
   exec pre-commit run --config .pre-commit-config.yaml --hook-stage pre-commit
@@ -18,9 +19,19 @@ if [ "${#staged_backlog[@]}" -gt 0 ]; then
   scripts/ci/backlog-state-gate.sh "${staged_backlog[@]}"
 fi
 
-mapfile -t staged_elixir < <(
-  git diff --cached --name-only --diff-filter=ACMR | grep -E '\.exs?$' || true
-)
+staged_harness_agents=()
+while IFS= read -r path; do
+  [ -n "$path" ] && staged_harness_agents+=("$path")
+done < <(git diff --cached --name-only --diff-filter=ACMR | grep -E '^\.claude/agents/.*\.md$' || true)
+
+if [ "${#staged_harness_agents[@]}" -gt 0 ]; then
+  scripts/ci/harness-agent-gate.sh
+fi
+
+staged_elixir=()
+while IFS= read -r path; do
+  [ -n "$path" ] && staged_elixir+=("$path")
+done < <(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.exs?$' || true)
 
 if [ "${#staged_elixir[@]}" -eq 0 ]; then
   exit 0

@@ -1,0 +1,73 @@
+project_doc_fallback_filenames = ["AGENTS.md", "CLAUDE.md"]
+
+[features]
+codex_hooks = true
+child_agents_md = true
+
+[[skills.config]]
+path = "./.codex/skills/ci/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/code-review/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/deliver/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/demo/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/deps/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/diagnose/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/flywheel/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/groom/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/implement/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/model-research/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/qa/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/refactor/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/reflect/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/research/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/settle/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/shape/SKILL.md"
+enabled = true
+
+[[skills.config]]
+path = "./.codex/skills/yeet/SKILL.md"
+enabled = true

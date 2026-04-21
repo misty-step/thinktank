@@ -31,7 +31,7 @@ repos:
         entry: mix format
         language: system
         files: \.exs?$
-        pass_filenames: false
+        pass_filenames: true
 
 # Elixir linting — catches style/complexity issues before commit
 -   repo: local
@@ -51,6 +51,16 @@ repos:
         entry: scripts/ci/architecture-gate.sh
         language: script
         files: \.exs?$
+        pass_filenames: false
+
+# Harness agent gate — repo-local personas define lenses, not models
+-   repo: local
+    hooks:
+    -   id: harness-agent-gate
+        name: harness-agent-gate
+        entry: scripts/ci/harness-agent-gate.sh
+        language: script
+        files: ^\.claude/agents/.*\.md$
         pass_filenames: false
 
 # Elixir model ID validation — prevents stale/deprecated model IDs

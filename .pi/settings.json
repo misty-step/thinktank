@@ -1,0 +1,21 @@
+{
+  "_doc": "Pi harness settings for ThinkTank. Emitted by /tailor for cross-harness parity.",
+  "skills": [
+    ".pi/skills/**/SKILL.md"
+  ],
+  "agents": [
+    ".claude/agents/*.md"
+  ],
+  "gate": {
+    "command": "./scripts/with-colima.sh dagger call check",
+    "fallback": [
+      "mix test",
+      "mix compile --warnings-as-errors"
+    ]
+  },
+  "conventions": {
+    "primary-branch": "master",
+    "backlog-root": "backlog.d",
+    "release-manager": "release-please"
+  }
+}
