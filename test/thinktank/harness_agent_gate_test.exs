@@ -50,6 +50,29 @@ defmodule Thinktank.HarnessAgentGateTest do
     )
   end
 
+  test "rejects indented agent frontmatter that hardcodes a model field" do
+    with_temp_agent_file(
+      """
+      ---
+        model : gpt-5
+      ---
+
+      # Temporary Agent
+      """,
+      fn relative_path ->
+        {output, status} =
+          System.cmd(gate_script(), [],
+            cd: repo_root(),
+            stderr_to_stdout: true
+          )
+
+        assert status == 1
+        assert output =~ "must not declare model or reasoning selection fields"
+        assert output =~ relative_path
+      end
+    )
+  end
+
   test "rejects concrete model family mentions in agent prose" do
     with_temp_agent_file(
       """

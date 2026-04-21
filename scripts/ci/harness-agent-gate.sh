@@ -9,6 +9,21 @@ if [ ! -d .claude/agents ]; then
   exit 0
 fi
 
+if ! command -v rg >/dev/null 2>&1; then
+  echo "FAIL: ripgrep (rg) is required for the harness agent gate." >&2
+  exit 1
+fi
+
+agent_files=()
+while IFS= read -r path; do
+  [ -n "$path" ] && agent_files+=("$path")
+done < <(find .claude/agents -type f -name '*.md' | sort)
+
+if [ "${#agent_files[@]}" -eq 0 ]; then
+  echo "PASS: harness agent gate skipped (.claude/agents has no markdown agent files)."
+  exit 0
+fi
+
 failures=0
 
 fail_matches() {
@@ -24,8 +39,8 @@ fail_matches() {
 }
 
 frontmatter_matches="$(
-  rg -nH '^(model|default_model|preferred_model|model_name|reasoning_effort|reasoning_level):' \
-    .claude/agents/*.md || true
+  rg -nH '^[[:space:]]*(model|default_model|preferred_model|model_name|reasoning_effort|reasoning_level)[[:space:]]*:' \
+    "${agent_files[@]}" || true
 )"
 
 if [ -n "$frontmatter_matches" ]; then
@@ -35,7 +50,7 @@ fi
 
 provider_slug_matches="$(
   rg -nH '\b(openai|anthropic|google|x-ai|mistralai|minimax|moonshotai|z-ai)/[A-Za-z0-9._-]+\b' \
-    .claude/agents/*.md || true
+    "${agent_files[@]}" || true
 )"
 
 if [ -n "$provider_slug_matches" ]; then
@@ -45,7 +60,7 @@ fi
 
 named_model_matches="$(
   rg -nH '\b(gpt-[0-9][A-Za-z0-9._-]*|claude-(opus|sonnet|haiku)[A-Za-z0-9._-]*|gemini-[0-9][A-Za-z0-9._-]*|grok-[0-9][A-Za-z0-9._-]*|glm-[0-9][A-Za-z0-9._-]*|kimi-[A-Za-z0-9._-]+)\b' \
-    .claude/agents/*.md || true
+    "${agent_files[@]}" || true
 )"
 
 if [ -n "$named_model_matches" ]; then
