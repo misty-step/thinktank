@@ -365,6 +365,49 @@ defmodule Thinktank.EngineTest do
            end)
   end
 
+  test "review optional markdown artifact write failures are non-gating and traced" do
+    cwd = unique_tmp_dir("thinktank-engine-review-optional-artifacts")
+    output_dir = Path.join(cwd, "captured-run")
+    init_git_repo_with_commit!(cwd)
+
+    File.mkdir_p!(Path.join(output_dir, "review/context.md"))
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Return JSON only with this shape:") do
+        {Jason.encode!(%{
+           "summary" => "Focus on correctness.",
+           "selected_agents" => [%{"name" => "trace", "brief" => "Check regressions."}],
+           "synthesis_brief" => "Use grounded evidence.",
+           "warnings" => []
+         }), 0}
+      else
+        {"ok", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "review/default",
+               %{input_text: "Review this branch", no_synthesis: true},
+               cwd: cwd,
+               output: output_dir,
+               runner: runner
+             )
+
+    assert result.envelope.status == "complete"
+    assert File.exists?(Path.join(output_dir, "review/context.json"))
+    assert File.exists?(Path.join(output_dir, "review/plan.json"))
+
+    events = read_jsonl(Path.join(output_dir, "trace/events.jsonl"))
+
+    assert Enum.any?(events, fn event ->
+             event["event"] == "review_optional_artifact_write_failed" and
+               event["artifact_file"] == "review/context.md"
+           end)
+  end
+
   test "review bench fails early when workspace has no git repository" do
     cwd = unique_tmp_dir("thinktank-engine-review-no-git")
     runner = fn _cmd, _args, _opts -> {"ok", 0} end

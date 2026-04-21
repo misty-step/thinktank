@@ -183,9 +183,9 @@ Each run writes:
 - `summary.md` — synthesizer output when enabled
 - `synthesis.md` for research benches
 - `review.md` for review benches
-- `review/context.json` and `review/context.md` for review benches
-- `review/plan.json` and `review/plan.md` for review benches
-- `review/planner.md` when a planner agent runs
+- `review/context.json` and `review/plan.json` for review benches (canonical structured review contract)
+- `review/context.md` and `review/plan.md` for review benches (optional derivative orientation artifacts)
+- `review/planner.md` when a planner agent runs (optional derivative orientation artifact)
 - `manifest.json` — run metadata, artifact index, per-run USD totals, and pricing gaps
 
 `--json` keeps stdout reserved for the final run envelope. While the bench is
@@ -214,6 +214,8 @@ one file per UTC day and leaves retention policy to the operator.
 
 ThinkTank records raw outputs and run metadata. It does not attempt to recover
 structure from agent prose after the fact.
+Review execution and correctness gates rely on the JSON contract artifacts, not
+the markdown derivatives.
 
 ## Review Notes
 
@@ -222,6 +224,9 @@ structure from agent prose after the fact.
 - ThinkTank may write a light review context pack and review plan before
   launching reviewers. These are orientation artifacts, not substitutes for
   repository exploration.
+- For review benches, `review/context.json` and `review/plan.json` are the
+  canonical machine-readable contract; markdown summaries and planner transcripts
+  are optional derivative orientation artifacts and are never gating.
 - `review/default` uses `marshal` as planner and synthesizes across the full reviewer roster.
 - `--base`, `--head`, `--repo`, and `--pr` are orientation hints for the
   reviewers and synthesizer.
