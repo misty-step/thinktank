@@ -22,8 +22,16 @@ defmodule Thinktank.RunTracker do
   @spec finish(Path.t(), String.t(), map()) :: :ok
   def finish(output_dir, status, attrs \\ %{})
       when is_binary(output_dir) and is_binary(status) and is_map(attrs) do
-    complete(output_dir, status, attrs)
-    unregister(output_dir)
+    canonical_output_dir = canonical_output_dir(output_dir)
+
+    case :ets.lookup(table(), canonical_output_dir) do
+      [{^canonical_output_dir, _attrs}] ->
+        complete(canonical_output_dir, status, attrs)
+        unregister(canonical_output_dir)
+
+      [] ->
+        :ok
+    end
   end
 
   @spec unregister(Path.t()) :: :ok

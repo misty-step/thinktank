@@ -1,6 +1,8 @@
 defmodule Thinktank.RunSession do
   @moduledoc false
 
+  require Logger
+
   alias Thinktank.{ArtifactLayout, Error, Progress, RunStore, RunTracker}
   alias Thinktank.Engine.{Bootstrap, Runtime}
 
@@ -28,7 +30,7 @@ defmodule Thinktank.RunSession do
       synthesizer: synthesizer && synthesizer.name
     })
 
-    case Bootstrap.initialize_run(output_dir, contract, bench) do
+    case Bootstrap.initialize_run(output_dir, contract, bench, opts) do
       :ok ->
         Bootstrap.record_run_started(output_dir, contract, bench, planner, synthesizer)
 
@@ -80,7 +82,23 @@ defmodule Thinktank.RunSession do
 
   defp finalize_run(output_dir, status, terminal_attrs) do
     if File.exists?(Path.join(output_dir, ArtifactLayout.manifest_file())) do
-      RunTracker.finish(output_dir, status, terminal_attrs)
+      try do
+        RunTracker.finish(output_dir, status, terminal_attrs)
+      rescue
+        error ->
+          Logger.warning(
+            "run finalization failed for #{Path.expand(output_dir)}: #{Exception.message(error)}"
+          )
+
+          :ok
+      catch
+        kind, reason ->
+          Logger.warning(
+            "run finalization failed for #{Path.expand(output_dir)}: #{inspect({kind, reason})}"
+          )
+
+          :ok
+      end
     else
       :ok
     end

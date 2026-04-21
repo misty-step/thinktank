@@ -4,10 +4,11 @@ defmodule Thinktank.Engine.Bootstrap do
   alias Thinktank.{ArtifactLayout, BenchSpec, Error, RunContract, RunStore, RunTracker, TraceLog}
   alias Thinktank.Engine.Preparation
 
-  @spec initialize_run(Path.t(), RunContract.t(), BenchSpec.t()) :: :ok | {:error, Error.t()}
-  def initialize_run(output_dir, %RunContract{} = contract, %BenchSpec{} = bench) do
+  @spec initialize_run(Path.t(), RunContract.t(), BenchSpec.t(), keyword()) ::
+          :ok | {:error, Error.t()}
+  def initialize_run(output_dir, %RunContract{} = contract, %BenchSpec{} = bench, opts \\ []) do
     case init_run(output_dir, contract, bench) do
-      :ok -> write_task_artifact(output_dir, contract.input, bench, contract)
+      :ok -> write_task_artifact(output_dir, contract.input, bench, contract, opts)
       {:error, _reason} = error -> error
     end
   end
@@ -38,8 +39,10 @@ defmodule Thinktank.Engine.Bootstrap do
     end)
   end
 
-  defp write_task_artifact(output_dir, input, bench, contract) do
+  defp write_task_artifact(output_dir, input, bench, contract, opts) do
     rescue_bootstrap_failure("task_artifact", bench, contract, fn ->
+      maybe_fail_post_init_bootstrap(output_dir, opts)
+
       task =
         [Map.get(input, "input_text"), Preparation.render_paths_hint(input)]
         |> Enum.reject(&(&1 in [nil, ""]))
@@ -51,6 +54,14 @@ defmodule Thinktank.Engine.Bootstrap do
 
       :ok
     end)
+  end
+
+  defp maybe_fail_post_init_bootstrap(output_dir, opts) do
+    case Keyword.get(opts, :bootstrap_after_init) do
+      fun when is_function(fun, 1) -> fun.(output_dir)
+      fun when is_function(fun, 0) -> fun.()
+      _ -> :ok
+    end
   end
 
   defp rescue_bootstrap_failure(phase, bench, contract, fun) do

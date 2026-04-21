@@ -834,6 +834,86 @@ defmodule Thinktank.EngineTest do
     assert RunTracker.active_runs() == []
   end
 
+  test "bootstrap failure after init_run finalizes through the lifecycle owner" do
+    cwd = unique_tmp_dir("thinktank-engine-bootstrap-post-init")
+    output_dir = Path.expand(Path.join(cwd, "captured-run"))
+    init_git_repo_with_commit!(cwd)
+
+    assert {:ok, resolved} =
+             Engine.resolve(
+               "research/default",
+               %{input_text: "Research this", no_synthesis: true},
+               cwd: cwd,
+               output: output_dir
+             )
+
+    runner = fn _cmd, _args, _opts -> flunk("runner should not execute when bootstrap fails") end
+
+    assert {:error, %Error{} = error, ^output_dir} =
+             Engine.run_resolved(
+               resolved,
+               runner: runner,
+               bootstrap_after_init: fn _output_dir ->
+                 raise "forced post-init bootstrap failure"
+               end
+             )
+
+    assert error.code == :bootstrap_failed
+    assert error.message == "failed to initialize run artifacts"
+    assert error.details[:phase] == "task_artifact"
+
+    manifest = output_dir |> Path.join("manifest.json") |> File.read!() |> Jason.decode!()
+    assert manifest["status"] == "failed"
+    assert is_binary(manifest["completed_at"])
+
+    events = read_jsonl(Path.join(output_dir, "trace/events.jsonl"))
+    [run_completed] = run_completed_events(events)
+    assert run_completed["status"] == "failed"
+    assert run_completed["phase"] == "task_artifact"
+
+    assert RunTracker.active_runs() == []
+  end
+
+  test "shutdown finalization remains terminal while lifecycle owner unwinds" do
+    cwd = unique_tmp_dir("thinktank-engine-shutdown-lifecycle")
+    output_dir = Path.expand(Path.join(cwd, "captured-run"))
+    init_git_repo_with_commit!(cwd)
+    parent = self()
+
+    runner = fn _cmd, _args, _opts ->
+      Process.sleep(200)
+      {"ok", 0}
+    end
+
+    task =
+      Task.async(fn ->
+        Engine.run(
+          "research/default",
+          %{input_text: "Research this", agents: ["systems"], no_synthesis: true},
+          cwd: cwd,
+          output: output_dir,
+          runner: runner,
+          progress_callback: fn event, attrs ->
+            send(parent, {:progress, event, attrs})
+          end
+        )
+      end)
+
+    assert_receive {:progress, "agent_started", %{"agent_name" => "systems"}}, 1_000
+    assert %{} == Thinktank.Application.prep_stop(%{})
+    assert {:ok, result} = Task.await(task)
+    assert result.envelope.status == "partial"
+
+    manifest = output_dir |> Path.join("manifest.json") |> File.read!() |> Jason.decode!()
+    assert manifest["status"] == "partial"
+
+    events = read_jsonl(Path.join(output_dir, "trace/events.jsonl"))
+    [run_completed] = run_completed_events(events)
+    assert run_completed["status"] == "partial"
+
+    assert RunTracker.active_runs() == []
+  end
+
   test "does not replace malformed input_text with a bench default task" do
     cwd = unique_tmp_dir("thinktank-engine-invalid-input")
     config_path = Path.join([cwd, ".thinktank", "config.yml"])
