@@ -1,8 +1,14 @@
 # Fix Review Eval And Finished Review Contract
 
 Priority: high
-Status: ready
+Status: done
 Estimate: M
+
+## What Was Built
+- Taught `Thinktank.Review.Eval` to normalize replay targets across three explicit source shapes: direct `contract.json` paths, directories of saved contracts, and finished review run directories rooted at a ThinkTank output path.
+- Added terminal-state detection from `manifest.json` / `trace/summary.json` so live review directories return a typed `review_eval_in_progress` error instead of falling through to misleading missing-artifact failures.
+- Expanded eval coverage to lock finished terminal states, asymmetric manifest/trace state handling, and the saved-contract-directory fallback boundary.
+- Updated `README.md` so replay-source normalization and "wait for terminal run state before replaying" are part of the operator-facing contract.
 
 ## Goal
 Completed review work can be consumed reliably because `thinktank review eval` normalizes replay sources and finished review run directories into one contract, while live runs surface an explicit in-progress state instead of looking broken.

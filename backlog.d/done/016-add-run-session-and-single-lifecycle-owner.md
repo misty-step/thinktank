@@ -1,8 +1,14 @@
 # Add Run Session And Single Lifecycle Owner
 
 Priority: high
-Status: ready
+Status: done
 Estimate: L
+
+## What Was Built
+- Introduced a single lifecycle owner, `Thinktank.RunSession.execute/2`, that now owns bootstrap, execute, terminal status emission, and finalization sequencing for bench runs.
+- Reduced `Thinktank.Engine` to resolution plus one execute call, narrowed `Thinktank.Engine.Runtime` to execution/status derivation, and removed bootstrap-local finalization so terminal state comes from one path.
+- Hardened finalization so post-bootstrap terminal writes stay fail-open, and made shutdown finalization authoritative by refusing to overwrite runs that `RunTracker` has already finalized and unregistered.
+- Added lifecycle coverage for complete, degraded, partial, failed, bootstrap-after-init failure, and shutdown-in-flight termination through the centralized owner.
 
 ## Goal
 Bench runs become easy to reason about because one deep module owns lifecycle sequencing, terminal status, trace emission, and finalization from bootstrap through shutdown.

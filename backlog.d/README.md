@@ -20,9 +20,6 @@ Status conventions:
 
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
-| [015](015-fix-review-eval-and-finished-review-contract.md) | Fix Review Eval And Finished Review Contract | high | M |
-| [016](016-add-run-session-and-single-lifecycle-owner.md) | Add Run Session And Single Lifecycle Owner | high | L |
-| [017](017-reduce-review-control-plane-to-structured-contracts.md) | Reduce Review Control Plane To Structured Contracts | high | M |
 | [018](018-centralize-gate-policy-sources-and-remove-overlap.md) | Centralize Gate Policy Sources And Remove Overlap | medium | M |
 | [020](020-capability-aware-benches-validate.md) | Capability-Aware Benches Validate | medium | M |
 | [021](021-domain-tagged-degrade-policy.md) | Domain-Tagged Degrade Policy | medium | L |
@@ -46,6 +43,9 @@ See [done/](done/) for full write-ups including "What Was Built" notes.
 | [012](done/012-align-project-docs-with-thin-launcher-architecture.md) | Align Project Docs With Thin Launcher Architecture |
 | [013](done/013-add-durable-wip-scratchpads-and-partial-results-contract.md) | Add Durable WIP Scratchpads And Partial-Result Contract |
 | [014](done/014-track-per-run-usd-cost.md) | Track Per-Run USD Cost |
+| [015](done/015-fix-review-eval-and-finished-review-contract.md) | Fix Review Eval And Finished Review Contract |
+| [016](done/016-add-run-session-and-single-lifecycle-owner.md) | Add Run Session And Single Lifecycle Owner |
+| [017](done/017-reduce-review-control-plane-to-structured-contracts.md) | Reduce Review Control Plane To Structured Contracts |
 | [019](done/019-fix-default-review-bench-guard-agent-incompatibility.md) | Fix Default Review Bench Guard Agent Incompatibility |
 
 ## Workflow

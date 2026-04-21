@@ -1,8 +1,14 @@
 # Reduce Review Control Plane To Structured Contracts
 
 Priority: high
-Status: ready
+Status: done
 Estimate: M
+
+## What Was Built
+- Rewrote `Thinktank.Review.Planner` to accept only strict schema-valid JSON plans, reject unsupported keys / duplicates / malformed warnings deterministically, and emit explicit fallback reasons instead of salvaging prose with regexes.
+- Switched review prompt context to canonical JSON review contracts and made markdown review context/plan/planner artifacts optional, non-gating derivatives recorded for operator convenience only.
+- Added explicit fallback trace events and a non-gating artifact-write test so review execution no longer depends on markdown side artifacts being writable.
+- Updated `README.md` and focused tests to document and lock the structured review-control contract.
 
 ## Goal
 Review benches stay thin because planning and orientation depend on strict machine-readable contracts instead of prose recovery, regex salvage, and artifact sprawl.
