@@ -20,6 +20,9 @@ Status conventions:
 
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
+| [022](022-add-run-inspection-and-explicit-run-state-commands.md) | Add Run Inspection And Explicit Run State Commands | high | M |
+| [023](023-add-structured-research-findings-contract.md) | Add Structured Research Findings Contract | high | M |
+| [024](024-add-first-class-focused-review-benches.md) | Add First-Class Focused Review Benches | medium | M |
 | [018](018-centralize-gate-policy-sources-and-remove-overlap.md) | Centralize Gate Policy Sources And Remove Overlap | medium | M |
 | [020](020-capability-aware-benches-validate.md) | Capability-Aware Benches Validate | medium | M |
 | [021](021-domain-tagged-degrade-policy.md) | Domain-Tagged Degrade Policy | medium | L |
