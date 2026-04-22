@@ -24,6 +24,12 @@ defmodule Thinktank.RunInspector do
           trace_events_file: String.t() | nil
         }
 
+  @type error_reason :: %{
+          required(:category) => atom(),
+          required(:message) => String.t(),
+          optional(atom()) => term()
+        }
+
   @spec list(keyword()) :: {:ok, [run_info()]}
   def list(opts \\ []) do
     limit = Keyword.get(opts, :limit, @default_limit)
@@ -40,14 +46,14 @@ defmodule Thinktank.RunInspector do
     {:ok, runs}
   end
 
-  @spec show(String.t(), keyword()) :: {:ok, run_info()} | {:error, String.t()}
+  @spec show(String.t(), keyword()) :: {:ok, run_info()} | {:error, error_reason()}
   def show(target, opts \\ []) when is_binary(target) do
     with {:ok, output_dir} <- resolve_target(target, opts) do
       load_run(output_dir)
     end
   end
 
-  @spec wait(String.t(), keyword()) :: {:ok, run_info()} | {:error, String.t()}
+  @spec wait(String.t(), keyword()) :: {:ok, run_info()} | {:error, error_reason()}
   def wait(target, opts \\ []) when is_binary(target) do
     poll_ms = Keyword.get(opts, :poll_ms, @default_poll_ms)
     timeout_ms = Keyword.get(opts, :timeout_ms, :infinity)
@@ -67,7 +73,9 @@ defmodule Thinktank.RunInspector do
 
       {:ok, _run} ->
         if timed_out?(deadline) do
-          {:error, "timed out waiting for run to finish: #{output_dir}"}
+          error(:run_wait_timeout, "timed out waiting for run to finish: #{output_dir}",
+            output_dir: output_dir
+          )
         else
           Process.sleep(poll_ms)
           wait_for_terminal(output_dir, poll_ms, deadline)
@@ -102,10 +110,14 @@ defmodule Thinktank.RunInspector do
         {:ok, output_dir}
 
       [] ->
-        {:error, "run not found: #{target}"}
+        error(:run_target_not_found, "run not found: #{target}", target: target)
 
       _ ->
-        {:error, "multiple runs match #{target}; use an explicit path"}
+        error(
+          :run_target_ambiguous,
+          "multiple runs match #{target}; use an explicit path",
+          target: target
+        )
     end
   end
 
@@ -122,13 +134,17 @@ defmodule Thinktank.RunInspector do
   defp resolve_existing_path(expanded, original_target) do
     case existing_target_candidate(expanded) do
       :missing ->
-        {:error, "run not found: #{original_target}"}
+        error(:run_target_not_found, "run not found: #{original_target}", target: original_target)
 
       candidate ->
         if run_dir?(candidate) do
           {:ok, candidate}
         else
-          {:error, "not a ThinkTank run directory: #{original_target}"}
+          error(
+            :invalid_run_target,
+            "not a ThinkTank run directory: #{original_target}",
+            target: original_target
+          )
         end
     end
   end
@@ -168,14 +184,30 @@ defmodule Thinktank.RunInspector do
   end
 
   defp discover_output_dirs(opts) do
+    tmp_dir = Keyword.get(opts, :tmp_dir, System.tmp_dir!())
+    log_dir = resolved_log_dir(opts)
+
     [
       tracked_output_dirs(),
-      tmp_output_dirs(Keyword.get(opts, :tmp_dir, System.tmp_dir!())),
-      log_output_dirs(Keyword.get(opts, :log_dir, TraceLog.global_log_dir()))
+      tmp_output_dirs(tmp_dir),
+      log_output_dirs(log_dir)
     ]
     |> List.flatten()
     |> Enum.map(&Path.expand/1)
     |> Enum.uniq()
+  end
+
+  defp resolved_log_dir(opts) do
+    case Keyword.fetch(opts, :log_dir) do
+      {:ok, log_dir} -> log_dir
+      :error -> safe_global_log_dir()
+    end
+  end
+
+  defp safe_global_log_dir do
+    TraceLog.global_log_dir()
+  rescue
+    _ -> nil
   end
 
   defp tracked_output_dirs do
@@ -249,15 +281,23 @@ defmodule Thinktank.RunInspector do
   end
 
   defp ensure_run_artifacts(output_dir, nil, nil, nil),
-    do: {:error, "run artifacts not found: #{output_dir}"}
+    do:
+      error(:run_artifacts_missing, "run artifacts not found: #{output_dir}",
+        output_dir: output_dir
+      )
 
   defp ensure_run_artifacts(_output_dir, _manifest, _summary, _contract), do: :ok
 
   defp derive_status(manifest, summary) do
     case manifest_value(manifest, "status") || manifest_value(summary, "status") do
-      status when status in @known_statuses -> {:ok, status}
-      nil -> {:error, "run status is missing"}
-      status -> {:error, "unknown run status: #{inspect(status)}"}
+      status when status in @known_statuses ->
+        {:ok, status}
+
+      nil ->
+        error(:run_status_missing, "run status is missing")
+
+      status ->
+        error(:run_status_invalid, "unknown run status: #{inspect(status)}", status: status)
     end
   end
 
@@ -270,20 +310,37 @@ defmodule Thinktank.RunInspector do
          {:ok, decoded} <- decode_json_object(body, path) do
       {:ok, decoded}
     else
-      {:error, reason} when is_binary(reason) ->
+      {:error, %{category: _} = reason} ->
         {:error, reason}
 
       {:error, reason} ->
-        {:error, "failed to read #{path}: #{:file.format_error(reason)}"}
+        error(
+          :run_artifact_read_error,
+          "failed to read #{path}: #{:file.format_error(reason)}",
+          path: path
+        )
     end
   end
 
   defp decode_json_object(body, path) do
     case Jason.decode(body) do
-      {:ok, decoded} when is_map(decoded) -> {:ok, decoded}
-      {:ok, _decoded} -> {:error, "expected JSON object at #{path}"}
-      {:error, reason} -> {:error, "failed to decode #{path}: #{Exception.message(reason)}"}
+      {:ok, decoded} when is_map(decoded) ->
+        {:ok, decoded}
+
+      {:ok, _decoded} ->
+        error(:run_artifact_invalid, "expected JSON object at #{path}", path: path)
+
+      {:error, reason} ->
+        error(
+          :run_artifact_decode_error,
+          "failed to decode #{path}: #{Exception.message(reason)}",
+          path: path
+        )
     end
+  end
+
+  defp error(category, message, details \\ %{}) do
+    {:error, Map.merge(%{category: category, message: message}, Map.new(details))}
   end
 
   defp build_run_info(output_dir, paths, manifest, summary, contract, status) do
@@ -302,7 +359,9 @@ defmodule Thinktank.RunInspector do
       completed_at:
         manifest_value(manifest, "completed_at") || manifest_value(summary, "completed_at"),
       workspace_root:
-        manifest_value(manifest, "workspace_root") || manifest_value(contract, "workspace_root"),
+        manifest_value(manifest, "workspace_root") ||
+          manifest_value(summary, "workspace_root") ||
+          manifest_value(contract, "workspace_root"),
       manifest_file: existing_path(paths.manifest),
       trace_summary_file: existing_path(paths.summary),
       trace_events_file: existing_path(paths.events)

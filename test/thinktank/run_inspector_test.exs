@@ -104,6 +104,22 @@ defmodule Thinktank.RunInspectorTest do
     assert run.status == "complete"
   end
 
+  test "show preserves workspace_root for summary-only runs" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-summary-only"), "run")
+    expected_root = File.cwd!()
+
+    init_run(output_dir, "research/default")
+    RunStore.complete_run(output_dir, "complete")
+
+    File.rm!(Path.join(output_dir, "manifest.json"))
+    File.rm!(Path.join(output_dir, "contract.json"))
+
+    assert {:ok, run} = RunInspector.show(output_dir)
+    assert run.workspace_root == expected_root
+    assert run.manifest_file == nil
+    assert run.trace_summary_file == Path.join(output_dir, "trace/summary.json")
+  end
+
   test "list returns recent runs sorted by started_at descending" do
     first_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-list-first"), "first")
     init_run(first_dir, "research/default")
@@ -143,14 +159,19 @@ defmodule Thinktank.RunInspectorTest do
   test "show returns a typed error for a missing run target" do
     missing = Path.join(unique_tmp_dir("thinktank-run-inspector-missing"), "missing-run")
 
-    assert {:error, "run not found: " <> ^missing} = RunInspector.show(missing)
-    assert {:error, "run not found: no-such-run"} = RunInspector.show("no-such-run")
+    assert {:error, %{category: :run_target_not_found, message: "run not found: " <> ^missing}} =
+             RunInspector.show(missing)
+
+    assert {:error, %{category: :run_target_not_found, message: "run not found: no-such-run"}} =
+             RunInspector.show("no-such-run")
   end
 
   test "show returns a typed error for a non-run directory" do
     dir = unique_tmp_dir("thinktank-run-inspector-non-run")
 
-    assert {:error, "not a ThinkTank run directory: " <> ^dir} = RunInspector.show(dir)
+    assert {:error,
+            %{category: :invalid_run_target, message: "not a ThinkTank run directory: " <> ^dir}} =
+             RunInspector.show(dir)
   end
 
   test "show returns a typed error for an existing non-run file" do
@@ -162,7 +183,9 @@ defmodule Thinktank.RunInspectorTest do
 
     File.write!(path, "not a run")
 
-    assert {:error, "not a ThinkTank run directory: " <> ^path} = RunInspector.show(path)
+    assert {:error,
+            %{category: :invalid_run_target, message: "not a ThinkTank run directory: " <> ^path}} =
+             RunInspector.show(path)
   end
 
   test "show returns a typed error when the run status is unknown" do
@@ -171,7 +194,8 @@ defmodule Thinktank.RunInspectorTest do
 
     update_json(Path.join(output_dir, "manifest.json"), &Map.put(&1, "status", "mystery"))
 
-    assert {:error, "unknown run status: \"mystery\""} = RunInspector.show(output_dir)
+    assert {:error, %{category: :run_status_invalid, message: "unknown run status: \"mystery\""}} =
+             RunInspector.show(output_dir)
   end
 
   test "show returns a typed error when multiple runs share the same id" do
@@ -184,7 +208,11 @@ defmodule Thinktank.RunInspectorTest do
     init_run(second_dir, "review/default")
     RunStore.complete_run(second_dir, "degraded")
 
-    assert {:error, "multiple runs match " <> ^run_id <> "; use an explicit path"} =
+    assert {:error,
+            %{
+              category: :run_target_ambiguous,
+              message: "multiple runs match " <> ^run_id <> "; use an explicit path"
+            }} =
              RunInspector.show(run_id)
   end
 
@@ -211,7 +239,11 @@ defmodule Thinktank.RunInspectorTest do
     init_run(output_dir, "research/default")
     RunTracker.start(output_dir, %{"bench" => "research/default"})
 
-    assert {:error, "timed out waiting for run to finish: " <> ^output_dir} =
+    assert {:error,
+            %{
+              category: :run_wait_timeout,
+              message: "timed out waiting for run to finish: " <> ^output_dir
+            }} =
              RunInspector.wait(output_dir, poll_ms: 5, timeout_ms: 0)
   end
 end

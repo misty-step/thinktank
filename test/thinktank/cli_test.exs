@@ -536,6 +536,28 @@ defmodule Thinktank.CLITest do
     assert stderr =~ "Error: not a ThinkTank run directory: #{path}"
   end
 
+  test "runs show returns a generic error for malformed run artifacts" do
+    output_dir =
+      init_run_fixture("thinktank-cli-runs-show-invalid-artifact", "research/default", "complete")
+
+    manifest_path = Path.join(output_dir, "manifest.json")
+
+    manifest_path
+    |> File.read!()
+    |> Jason.decode!()
+    |> Map.put("status", "mystery")
+    |> then(&File.write!(manifest_path, Jason.encode!(&1, pretty: true)))
+
+    {:ok, command} = CLI.parse_args(["runs", "show", output_dir])
+
+    stderr =
+      capture_io(:stderr, fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.generic_error
+      end)
+
+    assert stderr =~ "Error: unknown run status: \"mystery\""
+  end
+
   test "runs wait exits non-zero when the final run status is not complete" do
     output_dir = init_run_fixture("thinktank-cli-runs-wait", "research/default", "partial")
 
@@ -562,6 +584,20 @@ defmodule Thinktank.CLITest do
     assert {:ok, decoded} = Jason.decode(String.trim(output))
     assert decoded["run"]["status"] == "partial"
     assert decoded["run"]["output_dir"] == output_dir
+  end
+
+  test "runs wait returns an input error for an existing non-run file target" do
+    path = Path.join(unique_tmp_dir("thinktank-cli-runs-wait-invalid-file"), "notes.txt")
+    File.write!(path, "not a run")
+
+    {:ok, command} = CLI.parse_args(["runs", "wait", path])
+
+    stderr =
+      capture_io(:stderr, fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.input_error
+      end)
+
+    assert stderr =~ "Error: not a ThinkTank run directory: #{path}"
   end
 
   test "renders a cost line in the human-readable run payload" do

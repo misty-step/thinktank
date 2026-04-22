@@ -119,8 +119,9 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason} ->
-        emit_error(command, normalize_error(reason), nil)
-        @exit_codes.input_error
+        error = normalize_error(reason)
+        emit_error(command, error, nil)
+        runs_error_exit_code(error)
     end
   end
 
@@ -135,8 +136,9 @@ defmodule Thinktank.CLI do
         end
 
       {:error, reason} ->
-        emit_error(command, normalize_error(reason), nil)
-        @exit_codes.input_error
+        error = normalize_error(reason)
+        emit_error(command, error, nil)
+        runs_error_exit_code(error)
     end
   end
 
@@ -287,6 +289,13 @@ defmodule Thinktank.CLI do
     |> Render.benches_show_text()
     |> IO.puts()
   end
+
+  defp runs_error_exit_code(%Error{code: code})
+       when code in [:run_target_not_found, :run_target_ambiguous, :invalid_run_target] do
+    @exit_codes.input_error
+  end
+
+  defp runs_error_exit_code(_error), do: @exit_codes.generic_error
 
   defp emit_runs_list(runs, %{json: true}) do
     runs
