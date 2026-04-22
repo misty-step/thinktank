@@ -153,6 +153,18 @@ defmodule Thinktank.RunInspectorTest do
     assert {:error, "not a ThinkTank run directory: " <> ^dir} = RunInspector.show(dir)
   end
 
+  test "show returns a typed error for an existing non-run file" do
+    path =
+      Path.join(
+        unique_tmp_dir("thinktank-run-inspector-non-run-file"),
+        "notes.txt"
+      )
+
+    File.write!(path, "not a run")
+
+    assert {:error, "not a ThinkTank run directory: " <> ^path} = RunInspector.show(path)
+  end
+
   test "show returns a typed error when the run status is unknown" do
     output_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-unknown-status"), "run")
     init_run(output_dir, "research/default")

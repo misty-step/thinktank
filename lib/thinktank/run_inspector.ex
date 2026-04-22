@@ -120,37 +120,41 @@ defmodule Thinktank.RunInspector do
   end
 
   defp resolve_existing_path(expanded, original_target) do
-    candidate =
-      cond do
-        File.dir?(expanded) -> expanded
-        File.exists?(expanded) -> run_dir_from_artifact_path(expanded)
-        true -> :missing
-      end
-
-    cond do
-      candidate == :missing ->
+    case existing_target_candidate(expanded) do
+      :missing ->
         {:error, "run not found: #{original_target}"}
 
-      run_dir?(candidate) ->
-        {:ok, candidate}
+      candidate ->
+        if run_dir?(candidate) do
+          {:ok, candidate}
+        else
+          {:error, "not a ThinkTank run directory: #{original_target}"}
+        end
+    end
+  end
 
-      true ->
-        {:error, "not a ThinkTank run directory: #{original_target}"}
+  defp existing_target_candidate(expanded) do
+    cond do
+      File.dir?(expanded) -> expanded
+      File.exists?(expanded) -> run_dir_from_artifact_path(expanded)
+      true -> :missing
     end
   end
 
   defp run_dir_from_artifact_path(path) do
+    trace_dir = TraceLog.summary_file() |> Path.dirname()
+    basename = Path.basename(path)
+    parent_dir = path |> Path.dirname() |> Path.basename()
+
     cond do
-      String.ends_with?(path, "/" <> ArtifactLayout.manifest_file()) ->
+      basename in [ArtifactLayout.manifest_file(), ArtifactLayout.contract_file()] ->
         Path.dirname(path)
 
-      String.ends_with?(path, "/" <> ArtifactLayout.contract_file()) ->
-        Path.dirname(path)
-
-      String.ends_with?(path, "/" <> TraceLog.summary_file()) ->
-        path |> Path.dirname() |> Path.dirname()
-
-      String.ends_with?(path, "/" <> TraceLog.events_file()) ->
+      parent_dir == trace_dir and
+          basename in [
+            Path.basename(TraceLog.summary_file()),
+            Path.basename(TraceLog.events_file())
+          ] ->
         path |> Path.dirname() |> Path.dirname()
 
       true ->
@@ -217,10 +221,12 @@ defmodule Thinktank.RunInspector do
     _ -> []
   end
 
-  defp run_dir?(output_dir) do
+  defp run_dir?(output_dir) when is_binary(output_dir) do
     File.exists?(Path.join(output_dir, ArtifactLayout.manifest_file())) ||
       File.exists?(Path.join(output_dir, TraceLog.summary_file()))
   end
+
+  defp run_dir?(_), do: false
 
   defp load_run(output_dir, mode \\ :strict) do
     case do_load_run(Path.expand(output_dir)) do

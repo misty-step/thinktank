@@ -522,6 +522,20 @@ defmodule Thinktank.CLITest do
     assert decoded["run"]["output_dir"] == output_dir
   end
 
+  test "runs show returns an input error for an existing non-run file target" do
+    path = Path.join(unique_tmp_dir("thinktank-cli-runs-show-invalid-file"), "notes.txt")
+    File.write!(path, "not a run")
+
+    {:ok, command} = CLI.parse_args(["runs", "show", path])
+
+    stderr =
+      capture_io(:stderr, fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.input_error
+      end)
+
+    assert stderr =~ "Error: not a ThinkTank run directory: #{path}"
+  end
+
   test "runs wait exits non-zero when the final run status is not complete" do
     output_dir = init_run_fixture("thinktank-cli-runs-wait", "research/default", "partial")
 
