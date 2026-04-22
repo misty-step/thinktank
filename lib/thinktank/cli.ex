@@ -10,6 +10,7 @@ defmodule Thinktank.CLI do
   alias Thinktank.Error
   alias Thinktank.ProgressReporter
   alias Thinktank.Review.Eval
+  alias Thinktank.RunInspector
 
   @exit_codes %{
     success: 0,
@@ -98,6 +99,40 @@ defmodule Thinktank.CLI do
         |> emit_benches_validate(command)
 
         @exit_codes.success
+
+      {:error, reason} ->
+        emit_error(command, normalize_error(reason), nil)
+        @exit_codes.input_error
+    end
+  end
+
+  def execute({:ok, %{action: :runs_list} = command}) do
+    {:ok, runs} = RunInspector.list()
+    emit_runs_list(runs, command)
+    @exit_codes.success
+  end
+
+  def execute({:ok, %{action: :runs_show, target: target} = command}) do
+    case RunInspector.show(target) do
+      {:ok, run} ->
+        emit_run(run, command)
+        @exit_codes.success
+
+      {:error, reason} ->
+        emit_error(command, normalize_error(reason), nil)
+        @exit_codes.input_error
+    end
+  end
+
+  def execute({:ok, %{action: :runs_wait, target: target} = command}) do
+    case RunInspector.wait(target) do
+      {:ok, run} ->
+        emit_run(run, command)
+
+        case run.status do
+          "complete" -> @exit_codes.success
+          _ -> @exit_codes.generic_error
+        end
 
       {:error, reason} ->
         emit_error(command, normalize_error(reason), nil)
@@ -250,6 +285,30 @@ defmodule Thinktank.CLI do
   defp emit_benches_show(payload, _command) do
     payload
     |> Render.benches_show_text()
+    |> IO.puts()
+  end
+
+  defp emit_runs_list(runs, %{json: true}) do
+    runs
+    |> Render.runs_list_json()
+    |> IO.puts()
+  end
+
+  defp emit_runs_list(runs, _command) do
+    runs
+    |> Render.runs_list_text()
+    |> IO.puts()
+  end
+
+  defp emit_run(run, %{json: true}) do
+    run
+    |> Render.run_json()
+    |> IO.puts()
+  end
+
+  defp emit_run(run, _command) do
+    run
+    |> Render.run_text()
     |> IO.puts()
   end
 

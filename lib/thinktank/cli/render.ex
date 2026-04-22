@@ -13,6 +13,7 @@ defmodule Thinktank.CLI.Render do
       thinktank research "..." [options]
       thinktank review [options]
       thinktank review eval <contract-or-dir> [--bench <bench>]
+      thinktank runs list|show <path-or-id>|wait <path-or-id>
       thinktank benches list|show|validate
 
     Task text can come from --input, positional text, or piped stdin.
@@ -118,6 +119,49 @@ defmodule Thinktank.CLI.Render do
     Agents:
     #{render_bench_show_agent_lines(payload.agents)}
     """
+  end
+
+  @spec runs_list_json([map()]) :: String.t()
+  def runs_list_json(runs), do: Jason.encode!(%{runs: runs})
+
+  @spec runs_list_text([map()]) :: String.t()
+  def runs_list_text([]), do: "No runs found"
+
+  def runs_list_text(runs) do
+    rows =
+      Enum.map_join(runs, "\n", fn run ->
+        [
+          run.id,
+          run.status,
+          run.bench || "unknown",
+          run.started_at || "unknown",
+          run.output_dir
+        ]
+        |> Enum.join("\t")
+      end)
+
+    "ID\tSTATUS\tBENCH\tSTARTED\tOUTPUT\n" <> rows
+  end
+
+  @spec run_json(map()) :: String.t()
+  def run_json(run), do: Jason.encode!(%{run: run})
+
+  @spec run_text(map()) :: String.t()
+  def run_text(run) do
+    """
+    Run: #{run.id}
+    Bench: #{run.bench || "unknown"}
+    Kind: #{run.kind || "unknown"}
+    Status: #{run.status}
+    Started: #{run.started_at || "unknown"}
+    Completed: #{run.completed_at || "pending"}
+    Output: #{run.output_dir}
+    Workspace: #{run.workspace_root || "unknown"}
+    Manifest: #{run.manifest_file || "none"}
+    Trace Summary: #{run.trace_summary_file || "none"}
+    Trace Events: #{run.trace_events_file || "none"}
+    """
+    |> String.trim()
   end
 
   @spec resolve_agents_payload(map(), map(), boolean()) ::

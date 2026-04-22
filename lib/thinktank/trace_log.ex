@@ -82,6 +82,20 @@ defmodule Thinktank.TraceLog do
   @spec summary_file() :: String.t()
   def summary_file, do: @summary_file
 
+  @spec global_log_dir() :: String.t() | nil
+  def global_log_dir do
+    case System.get_env("THINKTANK_LOG_DIR") do
+      value when value in [nil, ""] ->
+        default_log_dir()
+
+      "off" ->
+        nil
+
+      value ->
+        Path.expand(value)
+    end
+  end
+
   defp ensure_initialized(output_dir) do
     unless File.exists?(summary_path(output_dir)) do
       init_run(output_dir)
@@ -205,19 +219,6 @@ defmodule Thinktank.TraceLog do
           |> Date.to_iso8601()
 
         Path.join(dir, "#{date}.jsonl")
-    end
-  end
-
-  defp global_log_dir do
-    case System.get_env("THINKTANK_LOG_DIR") do
-      value when value in [nil, ""] ->
-        default_log_dir()
-
-      "off" ->
-        nil
-
-      value ->
-        Path.expand(value)
     end
   end
 

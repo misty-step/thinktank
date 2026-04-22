@@ -3,7 +3,7 @@ defmodule Thinktank.CLITest do
 
   import ExUnit.CaptureIO
 
-  alias Thinktank.{CLI, Config}
+  alias Thinktank.{BenchSpec, CLI, Config, RunContract, RunStore}
 
   @exit_codes CLI.exit_codes()
 
@@ -204,6 +204,16 @@ defmodule Thinktank.CLITest do
              CLI.parse_args(["workflows", "show", "review/default"])
   end
 
+  test "parses run inspection commands" do
+    assert {:ok, %{action: :runs_list, json: true}} = CLI.parse_args(["runs", "list", "--json"])
+
+    assert {:ok, %{action: :runs_show, target: "abc123"}} =
+             CLI.parse_args(["runs", "show", "abc123"])
+
+    assert {:ok, %{action: :runs_wait, target: "./tmp/run"}} =
+             CLI.parse_args(["runs", "wait", "./tmp/run"])
+  end
+
   test "benches validate prints JSON when --json is requested" do
     {:ok, config} = Config.load()
     expected_count = length(Config.list_benches(config))
@@ -299,6 +309,9 @@ defmodule Thinktank.CLITest do
 
     assert {:error, "benches expects list, show <bench>, or validate"} =
              CLI.parse_args(["benches", "show", "research/default", "extra"])
+
+    assert {:error, "runs expects list, show <path-or-id>, or wait <path-or-id>"} =
+             CLI.parse_args(["runs", "show"])
   end
 
   test "read_stdin fails fast when stdin is interactive" do
@@ -456,7 +469,55 @@ defmodule Thinktank.CLITest do
 
     assert output =~ "thinktank benches"
     assert output =~ "thinktank review"
+    assert output =~ "thinktank runs"
     assert output =~ "Task text can come from --input, positional text, or piped stdin."
+  end
+
+  test "runs list --json emits discovered runs with typed state" do
+    output_dir = init_run_fixture("thinktank-cli-runs-list", "review/default", "degraded")
+    run_id = Path.basename(output_dir)
+
+    {:ok, command} = CLI.parse_args(["runs", "list", "--json"])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.success
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert is_list(decoded["runs"])
+
+    run = Enum.find(decoded["runs"], &(&1["id"] == run_id))
+    assert run["bench"] == "review/default"
+    assert run["status"] == "degraded"
+    assert run["output_dir"] == output_dir
+  end
+
+  test "runs show prints terminal status without treating failed runs as CLI errors" do
+    output_dir = init_run_fixture("thinktank-cli-runs-show", "research/default", "failed")
+
+    {:ok, command} = CLI.parse_args(["runs", "show", output_dir])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.success
+      end)
+
+    assert output =~ "Status: failed"
+    assert output =~ "Output: #{output_dir}"
+  end
+
+  test "runs wait exits non-zero when the final run status is not complete" do
+    output_dir = init_run_fixture("thinktank-cli-runs-wait", "research/default", "partial")
+
+    {:ok, command} = CLI.parse_args(["runs", "wait", output_dir])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.generic_error
+      end)
+
+    assert output =~ "Status: partial"
   end
 
   test "renders a cost line in the human-readable run payload" do
@@ -513,6 +574,24 @@ defmodule Thinktank.CLITest do
     research = Enum.find(decoded, &(&1["id"] == "research/default"))
     assert research["kind"] == "research"
     assert research["agent_count"] == 4
+  end
+
+  defp init_run_fixture(prefix, bench_id, status) do
+    output_dir = Path.join(unique_tmp_dir(prefix), "run")
+
+    contract = %RunContract{
+      bench_id: bench_id,
+      workspace_root: File.cwd!(),
+      input: %{"input_text" => "inspect this"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{id: bench_id, description: "Demo", agents: ["systems"]}
+
+    RunStore.init_run(output_dir, contract, bench)
+    RunStore.complete_run(output_dir, status)
+    output_dir
   end
 
   test "benches list without --json emits tab-separated text" do

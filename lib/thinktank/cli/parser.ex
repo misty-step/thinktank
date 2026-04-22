@@ -141,6 +141,39 @@ defmodule Thinktank.CLI.Parser do
      }}
   end
 
+  defp build_command(["runs", "list"], parsed) do
+    {:ok,
+     %{
+       action: :runs_list,
+       cwd: File.cwd!(),
+       json: parsed[:json] || false
+     }}
+  end
+
+  defp build_command(["runs", "show", target], parsed) do
+    {:ok,
+     %{
+       action: :runs_show,
+       target: target,
+       cwd: File.cwd!(),
+       json: parsed[:json] || false
+     }}
+  end
+
+  defp build_command(["runs", "wait", target], parsed) do
+    {:ok,
+     %{
+       action: :runs_wait,
+       target: target,
+       cwd: File.cwd!(),
+       json: parsed[:json] || false
+     }}
+  end
+
+  defp build_command(["runs" | _rest], _parsed) do
+    {:error, "runs expects list, show <path-or-id>, or wait <path-or-id>"}
+  end
+
   defp build_command([group, "show", bench_id], parsed) when group in ["benches", "workflows"] do
     {:ok,
      %{

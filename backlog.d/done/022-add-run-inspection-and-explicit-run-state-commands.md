@@ -1,7 +1,7 @@
 # Add Run Inspection And Explicit Run State Commands
 
 Priority: high
-Status: ready
+Status: done
 Estimate: M
 
 ## Goal
@@ -30,13 +30,20 @@ Operators can inspect, tail, and wait on research and review runs through first-
 - `README.md`
 
 ## Oracle
-- [ ] `thinktank runs list` shows recent local runs with bench, status, start time, and output directory
-- [ ] `thinktank runs show <path-or-id>` reports a typed state (`running`, `complete`, `degraded`, `partial`, `failed`) without requiring manual trace-file inspection
-- [ ] `thinktank runs wait <path-or-id>` blocks until terminal state and exits deterministically based on the final run status
-- [ ] JSON output for the new commands is additive and documented in `README.md`
-- [ ] Automated coverage proves the commands against complete, degraded, partial, failed, and still-running runs
+- [x] `thinktank runs list` shows recent local runs with bench, status, start time, and output directory
+- [x] `thinktank runs show <path-or-id>` reports a typed state (`running`, `complete`, `degraded`, `partial`, `failed`) without requiring manual trace-file inspection
+- [x] `thinktank runs wait <path-or-id>` blocks until terminal state and exits deterministically based on the final run status
+- [x] JSON output for the new commands is additive and documented in `README.md`
+- [x] Automated coverage proves the commands against complete, degraded, partial, failed, and still-running runs
 
 ## Notes
 Today the README tells operators to tail `trace/events.jsonl` directly to inspect a live run. That is a useful escape hatch, but not a good product default. Research and review both feel less trustworthy when completion and liveness are implicit.
 
 This item is the UX layer on top of the contract work in `015` and `016`: once run-state is explicit and lifecycle ownership is centralized, ThinkTank should surface that state directly instead of forcing users to reason from artifacts.
+
+## What Was Built
+- Added `thinktank runs list`, `thinktank runs show <path-or-id>`, and `thinktank runs wait <path-or-id>` on top of the existing manifest/trace contract instead of inventing a second state system.
+- Added `Thinktank.RunInspector` to discover recent local runs, resolve a run by path or id, read typed state from durable artifacts, and wait until terminal state.
+- Extended the CLI help text and JSON/text renderers so run inspection stays machine-safe under `--json` and readable in plain text.
+- Documented the new inspection flow in `README.md`, keeping raw trace tailing as an escape hatch rather than the primary UX.
+- Added coverage for complete, degraded, partial, failed, and still-running runs, plus CLI parsing and exit-code behavior for the new commands.
