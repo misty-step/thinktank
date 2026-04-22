@@ -120,6 +120,22 @@ defmodule Thinktank.RunInspectorTest do
     assert run.trace_summary_file == Path.join(output_dir, "trace/summary.json")
   end
 
+  test "show prefers a terminal trace summary status over a stale manifest status" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-terminal-summary"), "run")
+    init_run(output_dir, "research/default")
+    RunStore.complete_run(output_dir, "failed")
+
+    update_json(Path.join(output_dir, "manifest.json"), fn manifest ->
+      manifest
+      |> Map.put("status", "running")
+      |> Map.delete("completed_at")
+    end)
+
+    assert {:ok, run} = RunInspector.show(output_dir)
+    assert run.status == "failed"
+    assert run.completed_at != nil
+  end
+
   test "list returns recent runs sorted by started_at descending" do
     first_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-list-first"), "first")
     init_run(first_dir, "research/default")
@@ -154,6 +170,23 @@ defmodule Thinktank.RunInspectorTest do
     assert {:ok, run} = RunInspector.show(Path.join(output_dir, "manifest.json"))
     assert run.output_dir == Path.expand(output_dir)
     assert run.status == "complete"
+  end
+
+  test "show treats an existing bare relative directory name as a path target" do
+    run_id = "custom-output-#{System.unique_integer([:positive])}"
+    parent = Path.join(System.tmp_dir!(), "custom-parent-#{System.unique_integer([:positive])}")
+    File.rm_rf!(parent)
+    File.mkdir_p!(parent)
+    output_dir = Path.join(parent, run_id)
+
+    init_run(output_dir, "research/default")
+
+    File.cd!(parent, fn ->
+      assert {:ok, run} = RunInspector.show(run_id, log_dir: nil)
+      assert Path.basename(run.output_dir) == run_id
+      assert Path.basename(Path.dirname(run.output_dir)) == Path.basename(parent)
+      assert run.status == "running"
+    end)
   end
 
   test "show returns a typed error for a missing run target" do
@@ -196,6 +229,11 @@ defmodule Thinktank.RunInspectorTest do
 
     assert {:error, %{category: :run_status_invalid, message: "unknown run status: \"mystery\""}} =
              RunInspector.show(output_dir)
+  end
+
+  test "list returns a typed error when run discovery raises unexpectedly" do
+    assert {:error, %{category: :run_list_failed, message: "failed to discover runs"}} =
+             RunInspector.list(tmp_dir: :invalid)
   end
 
   test "show returns a typed error when multiple runs share the same id" do
@@ -245,5 +283,20 @@ defmodule Thinktank.RunInspectorTest do
               message: "timed out waiting for run to finish: " <> ^output_dir
             }} =
              RunInspector.wait(output_dir, poll_ms: 5, timeout_ms: 0)
+  end
+
+  test "wait returns immediately when the trace summary is already terminal" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-terminal-wait"), "run")
+    init_run(output_dir, "research/default")
+    RunStore.complete_run(output_dir, "degraded")
+
+    update_json(Path.join(output_dir, "manifest.json"), fn manifest ->
+      manifest
+      |> Map.put("status", "running")
+      |> Map.delete("completed_at")
+    end)
+
+    assert {:ok, run} = RunInspector.wait(output_dir, poll_ms: 5, timeout_ms: 0)
+    assert run.status == "degraded"
   end
 end

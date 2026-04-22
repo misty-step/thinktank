@@ -30,20 +30,26 @@ defmodule Thinktank.RunInspector do
           optional(atom()) => term()
         }
 
-  @spec list(keyword()) :: {:ok, [run_info()]}
+  @spec list(keyword()) :: {:ok, [run_info()]} | {:error, error_reason()}
   def list(opts \\ []) do
     limit = Keyword.get(opts, :limit, @default_limit)
 
     runs =
       opts
       |> discover_output_dirs()
-      |> Enum.map(&load_run(&1, :lenient))
-      |> Enum.reject(&is_nil/1)
-      |> Enum.map(fn {:ok, run} -> run end)
+      |> Enum.flat_map(fn output_dir ->
+        case load_run(output_dir, :lenient) do
+          {:ok, run} -> [run]
+          nil -> []
+        end
+      end)
       |> Enum.sort_by(&{sort_timestamp(&1), &1.id, &1.output_dir}, :desc)
       |> maybe_limit(limit)
 
     {:ok, runs}
+  rescue
+    exception ->
+      error(:run_list_failed, "failed to discover runs", reason: Exception.message(exception))
   end
 
   @spec show(String.t(), keyword()) :: {:ok, run_info()} | {:error, error_reason()}
@@ -122,10 +128,10 @@ defmodule Thinktank.RunInspector do
   end
 
   defp resolve_target_path(target) do
-    if path_target?(target) do
-      target
-      |> Path.expand()
-      |> resolve_existing_path(target)
+    expanded = Path.expand(target)
+
+    if path_target?(target) || File.exists?(expanded) do
+      resolve_existing_path(expanded, target)
     else
       :not_a_path_target
     end
@@ -240,15 +246,16 @@ defmodule Thinktank.RunInspector do
   defp read_log_output_dirs(path) do
     path
     |> File.stream!(:line, [])
-    |> Enum.reduce([], fn line, acc ->
+    |> Enum.reduce(MapSet.new(), fn line, acc ->
       case Jason.decode(line) do
         {:ok, %{"output_dir" => output_dir}} when is_binary(output_dir) ->
-          [output_dir | acc]
+          MapSet.put(acc, output_dir)
 
         _ ->
           acc
       end
     end)
+    |> MapSet.to_list()
   rescue
     _ -> []
   end
@@ -289,16 +296,32 @@ defmodule Thinktank.RunInspector do
   defp ensure_run_artifacts(_output_dir, _manifest, _summary, _contract), do: :ok
 
   defp derive_status(manifest, summary) do
-    case manifest_value(manifest, "status") || manifest_value(summary, "status") do
-      status when status in @known_statuses ->
-        {:ok, status}
+    manifest_status = manifest_value(manifest, "status")
+    summary_status = manifest_value(summary, "status")
 
-      nil ->
-        error(:run_status_missing, "run status is missing")
+    with :ok <- validate_status(manifest_status),
+         :ok <- validate_status(summary_status) do
+      case preferred_status(manifest_status, summary_status) do
+        nil ->
+          error(:run_status_missing, "run status is missing")
 
-      status ->
-        error(:run_status_invalid, "unknown run status: #{inspect(status)}", status: status)
+        status ->
+          {:ok, status}
+      end
     end
+  end
+
+  defp preferred_status(_manifest_status, summary_status)
+       when summary_status in @terminal_statuses,
+       do: summary_status
+
+  defp preferred_status(manifest_status, summary_status), do: manifest_status || summary_status
+
+  defp validate_status(nil), do: :ok
+  defp validate_status(status) when status in @known_statuses, do: :ok
+
+  defp validate_status(status) do
+    error(:run_status_invalid, "unknown run status: #{inspect(status)}", status: status)
   end
 
   defp read_json_optional(path) do

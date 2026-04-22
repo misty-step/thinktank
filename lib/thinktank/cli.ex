@@ -107,9 +107,16 @@ defmodule Thinktank.CLI do
   end
 
   def execute({:ok, %{action: :runs_list} = command}) do
-    {:ok, runs} = RunInspector.list()
-    emit_runs_list(runs, command)
-    @exit_codes.success
+    case RunInspector.list() do
+      {:ok, runs} ->
+        emit_runs_list(runs, command)
+        @exit_codes.success
+
+      {:error, reason} ->
+        error = normalize_error(reason)
+        emit_error(command, error, nil)
+        runs_error_exit_code(error)
+    end
   end
 
   def execute({:ok, %{action: :runs_show, target: target} = command}) do
