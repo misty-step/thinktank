@@ -79,18 +79,15 @@ defmodule Thinktank.RunInspector do
   end
 
   defp resolve_target(target, opts) do
-    case output_dir_from_path(target) do
+    case resolve_target_path(target) do
       {:ok, output_dir} ->
         {:ok, output_dir}
 
-      :path_not_found ->
-        {:error, "run not found: #{target}"}
-
-      :not_a_run ->
-        {:error, "not a ThinkTank run directory: #{target}"}
-
-      :no_path_match ->
+      :not_a_path_target ->
         resolve_target_id(target, opts)
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -112,30 +109,37 @@ defmodule Thinktank.RunInspector do
     end
   end
 
-  defp output_dir_from_path(target) do
-    expanded = Path.expand(target)
-
-    cond do
-      File.dir?(expanded) ->
-        if run_dir?(expanded), do: {:ok, expanded}, else: :not_a_run
-
-      File.exists?(expanded) ->
-        expanded
-        |> infer_run_dir_from_file()
-        |> case do
-          nil -> :not_a_run
-          output_dir -> {:ok, output_dir}
-        end
-
-      path_like_target?(target) ->
-        :path_not_found
-
-      true ->
-        :no_path_match
+  defp resolve_target_path(target) do
+    if path_target?(target) do
+      target
+      |> Path.expand()
+      |> resolve_existing_path(target)
+    else
+      :not_a_path_target
     end
   end
 
-  defp infer_run_dir_from_file(path) do
+  defp resolve_existing_path(expanded, original_target) do
+    candidate =
+      cond do
+        File.dir?(expanded) -> expanded
+        File.exists?(expanded) -> run_dir_from_artifact_path(expanded)
+        true -> :missing
+      end
+
+    cond do
+      candidate == :missing ->
+        {:error, "run not found: #{original_target}"}
+
+      run_dir?(candidate) ->
+        {:ok, candidate}
+
+      true ->
+        {:error, "not a ThinkTank run directory: #{original_target}"}
+    end
+  end
+
+  defp run_dir_from_artifact_path(path) do
     cond do
       String.ends_with?(path, "/" <> ArtifactLayout.manifest_file()) ->
         Path.dirname(path)
@@ -154,7 +158,7 @@ defmodule Thinktank.RunInspector do
     end
   end
 
-  defp path_like_target?(target) do
+  defp path_target?(target) do
     String.contains?(target, ["/", "\\"]) || String.starts_with?(target, ".") ||
       String.starts_with?(target, "~")
   end

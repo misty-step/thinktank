@@ -507,6 +507,21 @@ defmodule Thinktank.CLITest do
     assert output =~ "Output: #{output_dir}"
   end
 
+  test "runs show --json emits the run envelope" do
+    output_dir = init_run_fixture("thinktank-cli-runs-show-json", "research/default", "failed")
+
+    {:ok, command} = CLI.parse_args(["runs", "show", output_dir, "--json"])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.success
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert decoded["run"]["status"] == "failed"
+    assert decoded["run"]["output_dir"] == output_dir
+  end
+
   test "runs wait exits non-zero when the final run status is not complete" do
     output_dir = init_run_fixture("thinktank-cli-runs-wait", "research/default", "partial")
 
@@ -518,6 +533,21 @@ defmodule Thinktank.CLITest do
       end)
 
     assert output =~ "Status: partial"
+  end
+
+  test "runs wait --json preserves the run envelope on non-complete terminal state" do
+    output_dir = init_run_fixture("thinktank-cli-runs-wait-json", "research/default", "partial")
+
+    {:ok, command} = CLI.parse_args(["runs", "wait", output_dir, "--json"])
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.generic_error
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert decoded["run"]["status"] == "partial"
+    assert decoded["run"]["output_dir"] == output_dir
   end
 
   test "renders a cost line in the human-readable run payload" do

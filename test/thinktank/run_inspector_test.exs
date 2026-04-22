@@ -24,6 +24,19 @@ defmodule Thinktank.RunInspectorTest do
     RunStore.init_run(output_dir, contract, bench)
   end
 
+  defp read_json(path), do: path |> File.read!() |> Jason.decode!()
+
+  defp write_json(path, data) do
+    File.write!(path, Jason.encode!(data, pretty: true))
+  end
+
+  defp update_json(path, fun) do
+    path
+    |> read_json()
+    |> fun.()
+    |> then(&write_json(path, &1))
+  end
+
   setup do
     log_dir = unique_tmp_dir("thinktank-run-inspector-logs")
     previous = System.get_env("THINKTANK_LOG_DIR")
@@ -95,17 +108,72 @@ defmodule Thinktank.RunInspectorTest do
     first_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-list-first"), "first")
     init_run(first_dir, "research/default")
     RunStore.complete_run(first_dir, "complete")
-    Process.sleep(10)
 
     second_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-list-second"), "second")
     init_run(second_dir, "review/default")
     RunStore.complete_run(second_dir, "degraded")
+
+    update_json(
+      Path.join(first_dir, "manifest.json"),
+      &Map.put(&1, "started_at", "2026-01-01T00:00:00Z")
+    )
+
+    update_json(
+      Path.join(second_dir, "manifest.json"),
+      &Map.put(&1, "started_at", "2026-01-02T00:00:00Z")
+    )
 
     assert {:ok, runs} = RunInspector.list(limit: nil)
     ids = Enum.map(runs, & &1.id)
     assert Enum.find(runs, &(&1.output_dir == Path.expand(first_dir))).status == "complete"
     assert Enum.find(runs, &(&1.output_dir == Path.expand(second_dir))).status == "degraded"
     assert Enum.find_index(ids, &(&1 == "second")) < Enum.find_index(ids, &(&1 == "first"))
+  end
+
+  test "show accepts a manifest path and resolves the containing run" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-manifest"), "run")
+    init_run(output_dir, "research/default")
+    RunStore.complete_run(output_dir, "complete")
+
+    assert {:ok, run} = RunInspector.show(Path.join(output_dir, "manifest.json"))
+    assert run.output_dir == Path.expand(output_dir)
+    assert run.status == "complete"
+  end
+
+  test "show returns a typed error for a missing run target" do
+    missing = Path.join(unique_tmp_dir("thinktank-run-inspector-missing"), "missing-run")
+
+    assert {:error, "run not found: " <> ^missing} = RunInspector.show(missing)
+    assert {:error, "run not found: no-such-run"} = RunInspector.show("no-such-run")
+  end
+
+  test "show returns a typed error for a non-run directory" do
+    dir = unique_tmp_dir("thinktank-run-inspector-non-run")
+
+    assert {:error, "not a ThinkTank run directory: " <> ^dir} = RunInspector.show(dir)
+  end
+
+  test "show returns a typed error when the run status is unknown" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-unknown-status"), "run")
+    init_run(output_dir, "research/default")
+
+    update_json(Path.join(output_dir, "manifest.json"), &Map.put(&1, "status", "mystery"))
+
+    assert {:error, "unknown run status: \"mystery\""} = RunInspector.show(output_dir)
+  end
+
+  test "show returns a typed error when multiple runs share the same id" do
+    run_id = "duplicate-run-#{System.unique_integer([:positive])}"
+    first_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-duplicate-first"), run_id)
+    second_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-duplicate-second"), run_id)
+
+    init_run(first_dir, "research/default")
+    RunStore.complete_run(first_dir, "complete")
+    init_run(second_dir, "review/default")
+    RunStore.complete_run(second_dir, "degraded")
+
+    assert {:error, "multiple runs match " <> ^run_id <> "; use an explicit path"} =
+             RunInspector.show(run_id)
   end
 
   test "wait blocks until the run reaches a terminal state" do
@@ -124,5 +192,14 @@ defmodule Thinktank.RunInspectorTest do
     assert {:ok, run} = RunInspector.wait(output_dir, poll_ms: 10, timeout_ms: 1_000)
     assert run.status == "complete"
     assert_receive :finished, 1_000
+  end
+
+  test "wait returns a typed timeout error while the run is still active" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-timeout"), "run")
+    init_run(output_dir, "research/default")
+    RunTracker.start(output_dir, %{"bench" => "research/default"})
+
+    assert {:error, "timed out waiting for run to finish: " <> ^output_dir} =
+             RunInspector.wait(output_dir, poll_ms: 5, timeout_ms: 0)
   end
 end
