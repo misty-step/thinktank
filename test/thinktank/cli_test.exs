@@ -49,6 +49,22 @@ defmodule Thinktank.CLITest do
     assert command.input.agents == ["systems", "dx"]
   end
 
+  test "warns when --paths points outside the current workspace" do
+    root = unique_tmp_dir("thinktank-cli-path-scope")
+    workspace = Path.join(root, "workspace")
+    outside = Path.join(root, "outside")
+    File.mkdir_p!(workspace)
+    File.mkdir_p!(outside)
+
+    File.cd!(workspace, fn ->
+      assert {:ok, command} = CLI.parse_args(["research", "audit this", "--paths", outside])
+
+      assert command.warnings == [
+               "--paths includes #{Path.expand(outside)}, which is outside the current workspace #{command.cwd}. ThinkTank agents reason from workspace root; rerun from that repo before using --paths."
+             ]
+    end)
+  end
+
   test "parses review subcommand flags" do
     assert {:ok, command} =
              CLI.parse_args([
@@ -348,6 +364,44 @@ defmodule Thinktank.CLITest do
     assert {:ok, decoded} = Jason.decode(String.trim(output))
     assert decoded["bench"] == "research/default"
     assert decoded["input"]["input_text"] == "test prompt"
+  end
+
+  test "dry run emits structured path-scope warnings on stderr without corrupting stdout json" do
+    root = unique_tmp_dir("thinktank-cli-dry-run-warning")
+    workspace = Path.join(root, "workspace")
+    outside = Path.join(root, "outside")
+    File.mkdir_p!(workspace)
+    File.mkdir_p!(outside)
+
+    File.cd!(workspace, fn ->
+      assert {:ok, command} =
+               CLI.parse_args([
+                 "research",
+                 "test prompt",
+                 "--dry-run",
+                 "--json",
+                 "--paths",
+                 outside
+               ])
+
+      stderr =
+        capture_io(:stderr, fn ->
+          output =
+            capture_io(fn ->
+              assert CLI.execute({:ok, command}) == 0
+            end)
+
+          assert {:ok, decoded} = Jason.decode(String.trim(output))
+          assert decoded["bench"] == "research/default"
+          assert decoded["input"]["paths"] == [Path.expand(outside)]
+        end)
+
+      assert {:ok, decoded_warning} = Jason.decode(String.trim(stderr))
+      assert decoded_warning["type"] == "warning"
+      assert decoded_warning["category"] == "paths_outside_workspace"
+      assert decoded_warning["message"] =~ Path.expand(outside)
+      assert decoded_warning["message"] =~ command.cwd
+    end)
   end
 
   test "dry run prints a human summary unless --json is requested" do

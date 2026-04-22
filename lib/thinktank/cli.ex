@@ -179,6 +179,7 @@ defmodule Thinktank.CLI do
   def render_run_payload(payload), do: Render.render_run_payload(payload)
 
   defp run_bench(command) do
+    emit_command_warnings(command)
     agent_config_dir = agent_config_dir(command.cwd)
 
     base_opts =
@@ -222,6 +223,8 @@ defmodule Thinktank.CLI do
   end
 
   defp dry_run(command) do
+    emit_command_warnings(command)
+
     resolve_opts =
       [cwd: command.cwd, output: command.output]
       |> maybe_put_opt(:trust_repo_config, command.trust_repo_config)
@@ -250,6 +253,27 @@ defmodule Thinktank.CLI do
 
   defp emit_progress_event(payload) do
     IO.puts(:stderr, Jason.encode!(payload))
+  end
+
+  defp emit_command_warnings(%{warnings: warnings} = command) when is_list(warnings) do
+    Enum.each(warnings, &emit_warning(command, &1))
+  end
+
+  defp emit_command_warnings(_command), do: :ok
+
+  defp emit_warning(%{json: true}, message) do
+    IO.puts(
+      :stderr,
+      Jason.encode!(%{
+        type: "warning",
+        category: "paths_outside_workspace",
+        message: message
+      })
+    )
+  end
+
+  defp emit_warning(_command, message) do
+    IO.puts(:stderr, "Warning: #{message}")
   end
 
   defp emit_benches_list(benches, %{json: true}) do

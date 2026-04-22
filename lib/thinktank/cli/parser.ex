@@ -227,17 +227,21 @@ defmodule Thinktank.CLI.Parser do
   end
 
   defp build_common_command(parsed, bench_id, input_text) do
+    cwd = File.cwd!()
+    paths = normalize_paths(Keyword.get_values(parsed, :paths))
+
     %{
       action: :run,
       bench_id: bench_id,
-      cwd: File.cwd!(),
+      cwd: cwd,
       json: parsed[:json] || false,
       output: parsed[:output] && Path.expand(parsed[:output]),
       dry_run: parsed[:dry_run] || false,
       trust_repo_config: parsed[:trust_repo_config],
+      warnings: path_scope_warnings(cwd, paths),
       input: %{
         input_text: input_text,
-        paths: normalize_paths(Keyword.get_values(parsed, :paths)),
+        paths: paths,
         agents: parse_agent_list(parsed[:agents]),
         no_synthesis: parsed[:no_synthesis] || false
       }
@@ -286,7 +290,35 @@ defmodule Thinktank.CLI.Parser do
   defp resolve_input_text(value, _rest) when is_binary(value), do: value
   defp resolve_input_text(nil, rest), do: Enum.join(rest, " ")
 
+  defp path_scope_warnings(cwd, paths) when is_list(paths) do
+    Enum.flat_map(paths, fn path ->
+      if outside_workspace?(cwd, path) do
+        [
+          "--paths includes #{path}, which is outside the current workspace #{Path.expand(cwd)}. " <>
+            "ThinkTank agents reason from workspace root; rerun from that repo before using --paths."
+        ]
+      else
+        []
+      end
+    end)
+  end
+
   defp normalize_paths(paths) when is_list(paths), do: Enum.map(paths, &Path.expand/1)
+
+  defp outside_workspace?(cwd, path) do
+    workspace_segments = Path.expand(cwd) |> Path.split()
+    path_segments = Path.expand(path) |> Path.split()
+    not path_prefix?(workspace_segments, path_segments)
+  end
+
+  defp path_prefix?([], _path_segments), do: true
+  defp path_prefix?(_workspace_segments, []), do: false
+
+  defp path_prefix?([segment | workspace_rest], [segment | path_rest]) do
+    path_prefix?(workspace_rest, path_rest)
+  end
+
+  defp path_prefix?(_workspace_segments, _path_segments), do: false
 
   defp parse_agent_list(nil), do: []
 
