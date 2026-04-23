@@ -105,6 +105,7 @@ Shared spellbook-tailored skills installed here:
 | `refactor` | Simplify review/runtime/control-plane hotspots without introducing new orchestration layers |
 | `reflect` | Post-work codification and harness hardening |
 | `research` | Repo-aware multi-source research, not one-source lookup |
+| `ship` | Final-mile landing for a settled branch: archive shipped tickets under `backlog.d/done/`, merge to `master`, then run `/reflect cycle` with harness edits on `reflect/<cycle-id>` |
 | `settle` | Land a clean branch to `master` while respecting hooks, Conventional Commits, and Release Please |
 | `shape` | Turn thin-launcher-safe ideas into context packets with executable oracles |
 | `yeet` | Commit and push intentionally without `--no-verify` or stray workspace junk |
