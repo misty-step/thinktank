@@ -1,5 +1,30 @@
 # Changelog
 
+## [6.4.0](https://github.com/misty-step/thinktank/compare/v6.3.0...v6.4.0) (2026-04-23)
+
+
+### Features
+
+* add live json run progress surface ([a30f822](https://github.com/misty-step/thinktank/commit/a30f822744b8d05af9bdbe89829e6a812f9d0fee))
+* add run inspection commands ([abb7c65](https://github.com/misty-step/thinktank/commit/abb7c650cdc507e460c40c41a429d0a93bc0a2fb))
+* **ci:** add security gating workflow ([b267b7b](https://github.com/misty-step/thinktank/commit/b267b7ba3eb5158bea3844a26730f451a52ec175))
+* **engine:** centralize run lifecycle ownership in RunSession ([f2f4fbf](https://github.com/misty-step/thinktank/commit/f2f4fbf963419bfcd2c5abff7e760ef2850f4860))
+* **models:** adopt April OpenRouter releases ([c75ee8f](https://github.com/misty-step/thinktank/commit/c75ee8fe121ff96cf0940d592f7a7026254e1901))
+* **research:** add structured findings contract ([#296](https://github.com/misty-step/thinktank/issues/296)) ([1443231](https://github.com/misty-step/thinktank/commit/1443231cd01ffdd925e24b9ccb76b92188cdec15))
+* **review:** enforce structured planner contracts ([1fa55c3](https://github.com/misty-step/thinktank/commit/1fa55c320911179dabb04b961e1d430c76f8c1db))
+* **runtime:** add durable partial run scratchpads ([fb8dea9](https://github.com/misty-step/thinktank/commit/fb8dea99e444bcfd10695f90555a561b53f6b4e7))
+* **runtime:** track per-run usd cost ([eac193f](https://github.com/misty-step/thinktank/commit/eac193fe8d29d58da8d787199ffbec13af473921))
+* **validate:** add capability-aware bench validation ([0f8c85d](https://github.com/misty-step/thinktank/commit/0f8c85df82caa260bf300e63261cdca58a98b59b))
+
+
+### Bug Fixes
+
+* **ci:** centralize gate policy ([2ad7b48](https://github.com/misty-step/thinktank/commit/2ad7b48fd4fac1fcbe8086dbdd3dfcae023e2ce0))
+* **config:** make builtin agent defaults config-driven ([a70774b](https://github.com/misty-step/thinktank/commit/a70774b96222cfe576d6355e8bb96c66d3a882d1))
+* **engine:** harden run lifecycle finalization paths ([34e03cf](https://github.com/misty-step/thinktank/commit/34e03cf9be3a7833556804eb054602942d057e18))
+* **review:** normalize eval replay sources ([ff18dfb](https://github.com/misty-step/thinktank/commit/ff18dfb522db5d8bf613c8ed49bb66dfb5fc7b1b))
+* **review:** route guard reviewer to tool-capable grok-4.20 ([#293](https://github.com/misty-step/thinktank/issues/293)) ([aea70c0](https://github.com/misty-step/thinktank/commit/aea70c0de4ccf108965f11872d42afd0a62886f6))
+
 ## [6.3.0](https://github.com/misty-step/thinktank/compare/v6.2.0...v6.3.0) (2026-04-15)
 
 
