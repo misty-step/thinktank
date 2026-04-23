@@ -276,6 +276,26 @@ defmodule Thinktank.RunInspectorTest do
     assert_receive :finished, 1_000
   end
 
+  test "wait retries transient artifact load errors for tracked active runs" do
+    run_id = "pending-run-#{System.unique_integer([:positive])}"
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-pending-wait"), run_id)
+    RunTracker.start(output_dir, %{"bench" => "research/default"})
+
+    parent = self()
+
+    Task.start(fn ->
+      Process.sleep(50)
+      init_run(output_dir, "research/default")
+      RunTracker.finish(output_dir, "complete", %{"bench" => "research/default"})
+      send(parent, :finished)
+    end)
+
+    assert {:ok, run} = RunInspector.wait(run_id, poll_ms: 10, timeout_ms: 1_000)
+    assert run.output_dir == Path.expand(output_dir)
+    assert run.status == "complete"
+    assert_receive :finished, 1_000
+  end
+
   test "wait returns a typed timeout error while the run is still active" do
     output_dir = Path.join(unique_tmp_dir("thinktank-run-inspector-timeout"), "run")
     init_run(output_dir, "research/default")

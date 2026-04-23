@@ -7,6 +7,12 @@ defmodule Thinktank.RunInspector do
 
   @known_statuses ~w(running complete degraded partial failed)
   @terminal_statuses ~w(complete degraded partial failed)
+  @transient_wait_error_codes [
+    :run_artifacts_missing,
+    :run_artifact_read_error,
+    :run_artifact_decode_error,
+    :run_status_missing
+  ]
   @default_poll_ms 100
   @default_limit 20
 
@@ -69,17 +75,24 @@ defmodule Thinktank.RunInspector do
         {:ok, run}
 
       {:ok, _run} ->
-        if timed_out?(deadline) do
-          error(:run_wait_timeout, "timed out waiting for run to finish: #{output_dir}",
-            output_dir: output_dir
-          )
-        else
-          Process.sleep(poll_ms)
-          wait_for_terminal(output_dir, poll_ms, deadline)
-        end
+        sleep_or_timeout(output_dir, poll_ms, deadline)
+
+      {:error, %Error{code: code}} when code in @transient_wait_error_codes ->
+        sleep_or_timeout(output_dir, poll_ms, deadline)
 
       {:error, _reason} = error ->
         error
+    end
+  end
+
+  defp sleep_or_timeout(output_dir, poll_ms, deadline) do
+    if timed_out?(deadline) do
+      error(:run_wait_timeout, "timed out waiting for run to finish: #{output_dir}",
+        output_dir: output_dir
+      )
+    else
+      Process.sleep(poll_ms)
+      wait_for_terminal(output_dir, poll_ms, deadline)
     end
   end
 
