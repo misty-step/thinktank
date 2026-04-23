@@ -24,7 +24,7 @@ Code review becomes easier to invoke correctly because common operator intents s
 - `lib/thinktank/prompts/review.ex`
 - `lib/thinktank/cli/parser.ex`
 - `README.md`
-- `backlog.d/020-capability-aware-benches-validate.md`
+- `backlog.d/done/020-capability-aware-benches-validate.md`
 - `backlog.d/021-domain-tagged-degrade-policy.md`
 
 ## Oracle

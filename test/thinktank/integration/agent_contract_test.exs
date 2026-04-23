@@ -20,6 +20,13 @@ defmodule Thinktank.Integration.AgentContractTest do
     test "validate benches exposes a machine-readable success payload" do
       {:ok, validate_cmd} = CLI.parse_args(["benches", "validate", "--json"])
 
+      validate_cmd =
+        validate_cmd
+        |> Map.put(:capability_env_reader, fn _name -> "test-openrouter-key" end)
+        |> Map.put(:capability_probe, fn _provider, _model, required_capabilities, _opts ->
+          {:ok, required_capabilities}
+        end)
+
       validate_output =
         capture_io(fn ->
           assert CLI.execute({:ok, validate_cmd}) == @exit_codes.success

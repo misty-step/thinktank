@@ -97,7 +97,16 @@ thinktank run review/default --input "Review this branch" --agents trace,guard
 
 # Show bench configuration
 thinktank benches show research/default
+
+# Validate benches structurally and, when credentials are present, against
+# provider capability metadata
+thinktank benches validate --json
 ```
+
+`thinktank benches validate` always performs structural validation. When a
+provider credential is available, it also probes provider capability metadata
+and reports additive `warnings` / `errors` fields in the JSON envelope instead
+of burying mismatches in a later run.
 
 ## Configuration
 

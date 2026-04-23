@@ -22,6 +22,14 @@ defmodule Thinktank.CLITest do
     File.cd!(tmp, fun)
   end
 
+  defp capability_success_command(command) do
+    command
+    |> Map.put(:capability_env_reader, fn _name -> "test-openrouter-key" end)
+    |> Map.put(:capability_probe, fn _provider, _model, required_capabilities, _opts ->
+      {:ok, required_capabilities}
+    end)
+  end
+
   test "parses legacy positional prompt as research bench" do
     assert {:ok, command} = CLI.parse_args(["compare approaches"])
     assert command.action == :run
@@ -221,7 +229,9 @@ defmodule Thinktank.CLITest do
     {:ok, config} = Config.load()
     expected_count = length(Config.list_benches(config))
 
-    {:ok, command} = CLI.parse_args(["benches", "validate", "--json"])
+    {:ok, command} =
+      CLI.parse_args(["benches", "validate", "--json"])
+      |> then(fn {:ok, command} -> {:ok, capability_success_command(command)} end)
 
     output =
       capture_io(fn ->
@@ -236,7 +246,9 @@ defmodule Thinktank.CLITest do
     {:ok, config} = Config.load()
     expected_count = length(Config.list_benches(config))
 
-    {:ok, command} = CLI.parse_args(["benches", "validate"])
+    {:ok, command} =
+      CLI.parse_args(["benches", "validate"])
+      |> then(fn {:ok, command} -> {:ok, capability_success_command(command)} end)
 
     output =
       capture_io(fn ->
@@ -250,7 +262,9 @@ defmodule Thinktank.CLITest do
     {:ok, config} = Config.load()
     expected_count = length(Config.list_benches(config))
 
-    {:ok, command} = CLI.parse_args(["workflows", "validate", "--json"])
+    {:ok, command} =
+      CLI.parse_args(["workflows", "validate", "--json"])
+      |> then(fn {:ok, command} -> {:ok, capability_success_command(command)} end)
 
     output =
       capture_io(fn ->
@@ -259,6 +273,140 @@ defmodule Thinktank.CLITest do
 
     assert {:ok, decoded} = Jason.decode(String.trim(output))
     assert decoded == %{"status" => "ok", "bench_count" => expected_count}
+  end
+
+  test "benches validate emits a structural warning when provider credentials are missing" do
+    {:ok, config} = Config.load()
+    expected_count = length(Config.list_benches(config))
+    {:ok, command} = CLI.parse_args(["benches", "validate", "--json"])
+
+    command =
+      command
+      |> Map.put(:capability_env_reader, fn _name -> nil end)
+      |> Map.put(:capability_http_requester, fn _url, _headers, _timeout_ms ->
+        flunk("capability probe should not hit the network when credentials are missing")
+      end)
+
+    output =
+      capture_io(fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.success
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(output))
+    assert decoded["status"] == "ok"
+    assert decoded["bench_count"] == expected_count
+
+    assert [%{"code" => "provider_credentials_missing", "provider" => "openrouter"}] =
+             decoded["warnings"]
+  end
+
+  test "benches validate emits a warning instead of crashing when a capability probe times out" do
+    in_tmp_repo_config(
+      """
+      agents:
+        slow:
+          provider: openrouter
+          model: demo/slow-model
+          system_prompt: Slow reviewer
+          tools:
+            - bash
+      benches:
+        demo/review:
+          kind: review
+          description: Demo review bench
+          agents:
+            - slow
+      """,
+      fn ->
+        assert {:ok, command} =
+                 CLI.parse_args(["benches", "validate", "--trust-repo-config", "--json"])
+
+        command =
+          command
+          |> Map.put(:capability_probe_timeout_ms, 1)
+          |> Map.put(:capability_max_concurrency, 1)
+          |> Map.put(:capability_probe, fn _provider, model, _required_capabilities, _opts ->
+            if model == "demo/slow-model" do
+              Process.sleep(50)
+            end
+
+            {:ok, ["tools"]}
+          end)
+
+        output =
+          capture_io(fn ->
+            assert CLI.execute({:ok, command}) == @exit_codes.success
+          end)
+
+        assert {:ok, decoded} = Jason.decode(String.trim(output))
+        assert decoded["status"] == "ok"
+        assert is_integer(decoded["bench_count"])
+        assert Map.get(decoded, "errors", []) == []
+
+        assert [
+                 %{
+                   "code" => "provider_capability_probe_failed",
+                   "provider" => "openrouter",
+                   "model" => "demo/slow-model",
+                   "details" => %{"reason" => reason}
+                 }
+               ] = decoded["warnings"]
+
+        assert String.contains?(reason, "timeout")
+      end
+    )
+  end
+
+  test "benches validate emits typed JSON errors for missing provider capabilities" do
+    in_tmp_repo_config(
+      """
+      agents:
+        broken:
+          provider: openrouter
+          model: demo/bad-model
+          system_prompt: Broken reviewer
+          tools:
+            - bash
+      benches:
+        demo/review:
+          kind: review
+          description: Demo review bench
+          agents:
+            - broken
+      """,
+      fn ->
+        assert {:ok, command} =
+                 CLI.parse_args(["benches", "validate", "--trust-repo-config", "--json"])
+
+        command =
+          command
+          |> Map.put(:capability_env_reader, fn _name -> "test-openrouter-key" end)
+          |> Map.put(:capability_probe, fn _provider, model, _required_capabilities, _opts ->
+            if model == "demo/bad-model", do: {:ok, []}, else: {:ok, ["tools"]}
+          end)
+
+        output =
+          capture_io(fn ->
+            assert CLI.execute({:ok, command}) == @exit_codes.generic_error
+          end)
+
+        assert {:ok, decoded} = Jason.decode(String.trim(output))
+        assert decoded["status"] == "error"
+        assert is_integer(decoded["bench_count"])
+
+        assert [
+                 %{
+                   "code" => "missing_provider_capability",
+                   "bench" => "demo/review",
+                   "agent" => "broken",
+                   "provider" => "openrouter",
+                   "model" => "demo/bad-model",
+                   "declared_tools" => ["bash"],
+                   "missing_capabilities" => ["tools"]
+                 }
+               ] = decoded["errors"]
+      end
+    )
   end
 
   test "benches validate emits structured JSON errors for invalid trusted repo config" do

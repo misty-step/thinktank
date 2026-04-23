@@ -132,7 +132,6 @@ These files must not hardcode model IDs, model families, or reasoning tiers.
 - `backlog.d/016-add-run-session-and-single-lifecycle-owner.md`
 - `backlog.d/017-reduce-review-control-plane-to-structured-contracts.md`
 - `backlog.d/018-centralize-gate-policy-sources-and-remove-overlap.md`
-- `backlog.d/020-capability-aware-benches-validate.md`
 - `backlog.d/021-domain-tagged-degrade-policy.md`
 
 Any work that touches these areas should either improve them directly or avoid

@@ -94,14 +94,21 @@ defmodule Thinktank.CLI.Render do
     end)
   end
 
-  @spec benches_validate_json([map()]) :: String.t()
-  def benches_validate_json(benches) do
-    %{status: "ok", bench_count: length(benches)}
-    |> Jason.encode!()
-  end
+  @spec benches_validate_json(map()) :: String.t()
+  def benches_validate_json(report), do: Jason.encode!(report)
 
-  @spec benches_validate_text([map()]) :: String.t()
-  def benches_validate_text(benches), do: "Validated #{length(benches)} benches"
+  @spec benches_validate_text(map()) :: String.t()
+  def benches_validate_text(%{bench_count: bench_count} = report) do
+    sections =
+      [
+        render_validate_findings("Warnings", Map.get(report, :warnings, [])),
+        render_validate_findings("Errors", Map.get(report, :errors, []))
+      ]
+      |> Enum.reject(&is_nil/1)
+
+    ["Validated #{bench_count} benches" | sections]
+    |> Enum.join("\n\n")
+  end
 
   @spec benches_show_json(map()) :: String.t()
   def benches_show_json(payload), do: Jason.encode!(payload, pretty: true)
@@ -266,6 +273,18 @@ defmodule Thinktank.CLI.Render do
         """
         |> String.trim_trailing()
     end)
+  end
+
+  defp render_validate_findings(_title, []), do: nil
+
+  defp render_validate_findings(title, findings) do
+    [
+      "#{title}:"
+      | Enum.map(findings, fn finding ->
+          "- #{finding[:message] || finding["message"]}"
+        end)
+    ]
+    |> Enum.join("\n")
   end
 
   defp indent_lines(text, prefix) do

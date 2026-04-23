@@ -1,7 +1,7 @@
 # Capability-Aware Benches Validate
 
 Priority: medium
-Status: ready
+Status: done
 Estimate: M
 
 ## Goal
@@ -37,11 +37,17 @@ Backlog 019 documents the exact failure mode that this would have caught at vali
 
 ## Oracle
 
-- [ ] `thinktank benches validate` probes each agent's configured model for the bench's declared tool set against the provider catalog, and fails with a typed error when a mismatch is detected
-- [ ] When `OPENROUTER_API_KEY` is absent the command degrades to structural-only validation and emits a single visible warning explaining the capability gap
-- [ ] `mix test --include integration` covers: (a) a bench with a known-incompatible model fails validate with a typed error; (b) absent-credential mode still returns a structural pass
-- [ ] End-to-end wall-clock for the built-in catalog stays under 5 s on a normal OpenRouter response (measured in an integration test, not just asserted)
-- [ ] The `--json` payload gains the capability findings in an additive, documented way
+- [x] `thinktank benches validate` probes each agent's configured model for the bench's declared tool set against the provider catalog, and fails with a typed error when a mismatch is detected
+- [x] When `OPENROUTER_API_KEY` is absent the command degrades to structural-only validation and emits a single visible warning explaining the capability gap
+- [x] Automated tests cover: (a) a bench with a known-incompatible model fails validate with a typed error; (b) absent-credential mode still returns a structural pass; (c) the live integration path exercises the OpenRouter happy path
+- [x] End-to-end wall-clock for the built-in catalog stays under 5 s on a normal OpenRouter response (measured in an integration test, not just asserted)
+- [x] The `--json` payload gains the capability findings in an additive, documented way
+
+## What Was Built
+
+- Added `Thinktank.BenchValidation` as the capability-aware validator behind `thinktank benches validate`, with OpenRouter endpoint probing, provider-credential fallback, typed warnings, and typed per-bench capability errors.
+- Wired the CLI and renderer so `benches validate` keeps the existing `{status, bench_count}` happy-path contract while surfacing additive `warnings` / `errors` fields and returning a non-zero exit when a capability mismatch is found.
+- Added deterministic CLI/contract tests for success, missing-credential degradation, and a known-incompatible custom bench, plus a live integration check that exercises the real OpenRouter catalog and enforces the `<5s` validation budget.
 
 ## Notes
 

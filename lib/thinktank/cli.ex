@@ -3,6 +3,7 @@ defmodule Thinktank.CLI do
   CLI entry point for ThinkTank benches.
   """
 
+  alias Thinktank.BenchValidation
   alias Thinktank.CLI.Parser
   alias Thinktank.CLI.Render
   alias Thinktank.Config
@@ -95,11 +96,13 @@ defmodule Thinktank.CLI do
   def execute({:ok, %{action: :benches_validate} = command}) do
     case load_config(command) do
       {:ok, config} ->
-        config
-        |> Config.list_benches()
-        |> emit_benches_validate(command)
+        report = BenchValidation.validate(config, benches_validate_opts(command))
+        emit_benches_validate(report, command)
 
-        @exit_codes.success
+        case report do
+          %{status: "ok"} -> @exit_codes.success
+          _report -> @exit_codes.generic_error
+        end
 
       {:error, reason} ->
         emit_error(command, normalize_error(reason), nil)
@@ -280,6 +283,15 @@ defmodule Thinktank.CLI do
     |> IO.puts()
   end
 
+  defp benches_validate_opts(command) do
+    []
+    |> maybe_put_opt(:capability_probe, Map.get(command, :capability_probe))
+    |> maybe_put_opt(:env_reader, Map.get(command, :capability_env_reader))
+    |> maybe_put_opt(:http_requester, Map.get(command, :capability_http_requester))
+    |> maybe_put_opt(:max_concurrency, Map.get(command, :capability_max_concurrency))
+    |> maybe_put_opt(:probe_timeout_ms, Map.get(command, :capability_probe_timeout_ms))
+  end
+
   defp emit_benches_show(payload, %{json: true}) do
     payload
     |> Render.benches_show_json()
@@ -366,16 +378,10 @@ defmodule Thinktank.CLI do
   defp emit(_command, payload), do: IO.puts(Render.render_run_payload(payload))
 
   defp emit_eval(%{json: true}, payload), do: IO.puts(Jason.encode!(payload))
+  defp emit_eval(_command, payload), do: payload |> Render.eval_text() |> IO.puts()
 
-  defp emit_eval(_command, payload) do
-    payload
-    |> Render.eval_text()
-    |> IO.puts()
-  end
-
-  defp load_config(command) do
-    Config.load(cwd: command.cwd, trust_repo_config: Map.get(command, :trust_repo_config))
-  end
+  defp load_config(command),
+    do: Config.load(cwd: command.cwd, trust_repo_config: Map.get(command, :trust_repo_config))
 
   defp maybe_put_opt(opts, _key, nil), do: opts
   defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)

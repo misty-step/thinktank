@@ -1,11 +1,9 @@
 ---
 name: ship
 description: |
-  Final mile. Take a merge-ready branch to shipped: squash-merge, archive
-  the backlog ticket(s), sync touched docs, run /reflect, and apply its
-  outputs. Assumes /settle already left the branch merge-ready — ship does
-  not run CI, code-review, or refactor itself. If those are not done, run
-  /settle first.
+  Final mile. Take a branch to shipped through the triad loop: run /ci,
+  /code-review, and /refactor in parallel subagents; fix and repeat until
+  lean, green, clean, and shiny; squash-merge; run /reflect; apply outputs.
   Use when: "ship it", "merge and close out", "final mile", "land and
   reflect", "finish this ticket".
   Trigger: /ship.
@@ -14,17 +12,17 @@ argument-hint: "[branch-or-pr]"
 
 # /ship
 
-The final mile. Branch is merge-ready; `/ship` lands it, archives the
-ticket(s), syncs docs, runs `/reflect`, and threads reflect's outputs back
-into the repo. One command from "green" to "shipped and learned from."
+The final mile. `/ship` owns the branch from candidate to shipped: triad
+verification, fixes, squash merge, reflect, and learned follow-through. One
+command from "probably ready" to "landed, verified, and learned from."
 
 ## Repo-specific (thinktank)
 
 Primary branch is `master`. Completed backlog items live under
 `backlog.d/done/`, not `backlog.d/_done/`. ThinkTank feature branches are
-normally named `feat/<id>`, `fix/<id>`, `chore/<id>`, `refactor/<id>`,
-`docs/<id>`, `test/<id>`, or `perf/<id>`; allow an optional `-slug`
-suffix, but the numeric capture is still the primary backlog ID. Release
+normally named `cx/<id>-slug`, `feat/<id>`, `fix/<id>`, `chore/<id>`,
+`refactor/<id>`, `docs/<id>`, `test/<id>`, or `perf/<id>`; allow an optional
+`-slug` suffix, but the numeric capture is still the primary backlog ID. Release
 Please owns version bumps and release PRs. `/reflect cycle` may propose
 harness edits, but those must land on `reflect/<cycle-id>`, never on
 `master`.
@@ -37,12 +35,15 @@ optional metadata to preserve, not a required local helper contract.
 
 1. Act, do not propose. `/ship` has authority within its domain: archive,
    merge, pull, reflect, apply.
-2. Pre-merge prep belongs on the shipping branch. Archive moves and doc
+2. Triad verification is mandatory. Dispatch `/ci`, `/code-review`, and
+   `/refactor` as parallel subagents on every loop.
+3. Fixes belong on the shipping branch, then the full triad reruns. Stop only
+   when CI is green, review is clean, and refactor finds no worthwhile
+   simplification.
+4. Pre-merge prep belongs on the shipping branch. Archive moves and doc
    syncs happen before the squash so the merge records one clean closure
    event.
-3. `/ship` is not `/settle`. If merge-readiness is in doubt, refuse and
-   route the operator back to `/settle`.
-4. Reflect's harness edits never touch `master`. They go to
+5. Reflect's harness edits never touch `master`. They go to
    `reflect/<cycle-id>` for human review.
 
 ## Prerequisites
@@ -51,17 +52,14 @@ Assert these first; refuse on any miss.
 
 - On a feature branch, not `master`.
 - Branch name matches
-  `^(feat|fix|chore|refactor|docs|test|perf)/(\\d+)(-.+)?$`.
+  `^(cx|feat|fix|chore|refactor|docs|test|perf)/(\\d+)(-.+)?$`.
 - Working tree clean.
 - If a PR exists, `gh pr view --json mergeable,mergeStateStatus` reports
   mergeable and `gh pr checks` is green.
-- `/settle` has already left the branch merge-ready. In git-native mode,
-  require a recent clean `./scripts/with-colima.sh dagger call check` on
-  the current `HEAD`.
 - The primary backlog ID exists as a top-level `backlog.d/<id>-*.md` file,
-  or the branch commits contain explicit `Closes-backlog:` /
-  `Ships-backlog:` trailers. Shipping with no backlog association is a
-  refuse condition.
+  already lives under `backlog.d/done/<id>-*.md`, or the branch commits
+  contain explicit `Closes-backlog:` / `Ships-backlog:` trailers. Shipping
+  with no backlog association is a refuse condition.
 
 ## Process
 
@@ -71,7 +69,7 @@ Primary ID comes from the branch regex capture. Then scan branch commits for
 trailers:
 
 ```sh
-git log --format=%B master..HEAD \
+git log --format=%B origin/master..HEAD \
   | git interpret-trailers --parse --no-divider
 ```
 
@@ -84,7 +82,31 @@ Collect:
 If the repo has no trailer practice on the branch, that is fine. Close the
 primary ID and preserve any trailers only when they already exist.
 
-### 2. Archive backlog files on the shipping branch
+### 2. Run the triad loop
+
+Dispatch three subagents in parallel, each with the branch name, base
+`origin/master`, changed files, and the current `HEAD` SHA:
+
+| Subagent | Skill | Done means |
+|---|---|---|
+| Green | `/ci` | `./scripts/with-colima.sh dagger call check` passes on `HEAD` |
+| Clean | `/code-review` | no blocking findings remain |
+| Lean | `/refactor` | no high-value simplification remains, or one bounded simplification landed |
+
+Rules:
+
+- Subagents must not merge, push, or rewrite history.
+- If a subagent changes code, it owns a narrow, named file set and commits its
+  fix on the shipping branch.
+- After any code or doc change, rerun all three subagents. Do not accept a
+  partial rerun after mutation.
+- Loop cap is three full triad passes. If the third pass still has blocking
+  findings, stop with the exact blocker and evidence.
+- "Shiny" means the final diff is formatted, documented where needed, backlog
+  state is current, and the final report can name the command or artifact that
+  exercised each changed executable path.
+
+### 3. Archive backlog files on the shipping branch
 
 For each ID in the closing set, locate a top-level backlog file:
 
@@ -103,22 +125,22 @@ Rules:
 - Already archived in `backlog.d/done/` is fine; skip silently.
 - Missing file is acceptable only when the ID came from trailers or the
   ticket was closure-only. Note it in the final report.
-- If the primary ID has no file and the branch has no closing trailers,
-  refuse.
+- If the primary ID has neither a top-level file nor an archived done file
+  and the branch has no closing trailers, refuse.
 
-### 3. Sync touched docs
+### 4. Sync touched docs
 
 Inspect the diff:
 
 ```sh
-git diff master..HEAD --name-only
+git diff origin/master..HEAD --name-only
 ```
 
 If existing docs were made stale by the shipped change, update them on the
 shipping branch before merge. Do not invent new docs just to satisfy the
 step. If no obvious docs need syncing, note that and continue.
 
-### 4. Create the archive commit on the feature branch
+### 5. Create the archive/docs commit on the feature branch
 
 If archiving or doc sync produced changes, commit them as one focused
 closure commit:
@@ -131,7 +153,7 @@ If branch commits already carry backlog trailers, preserve them on this
 commit with `git interpret-trailers --if-exists addIfDifferent`. Do not
 hand-format trailer blocks.
 
-### 5. Squash-merge
+### 6. Squash-merge
 
 GitHub mode is preferred when `gh pr view` succeeds for the branch.
 
@@ -139,7 +161,7 @@ If backlog trailers exist on the branch, pass them explicitly in the squash
 body so GitHub does not drop them:
 
 ```sh
-body="$(git log --format=%B master..HEAD \
+body="$(git log --format=%B origin/master..HEAD \
   | git interpret-trailers --parse --no-divider \
   | rg '^(Closes-backlog|Ships-backlog|Refs-backlog):' \
   | sort -u)"
@@ -149,15 +171,24 @@ gh pr merge --squash --body "$body"
 If there are no trailers, merge with the repo's normal squash subject/body
 convention.
 
-Git-native fallback:
+Git-native fallback first preserves or verifies divergent local state, then
+rewrites `master` from `origin/master`:
+
+If local `master` has diverged from `origin/master`, do not stop. First check
+whether the local-only commit is already represented upstream by patch-id or
+subject. If represented, leave a breadcrumb in the final report and rebuild
+`master` from `origin/master` before the squash. If not represented, preserve
+it on `backup/master-before-ship-<id>` before rebuilding `master`.
+
+Only after that safety step, run:
 
 ```sh
-git checkout master
+git checkout -B master origin/master
 git merge --squash <branch>
 git commit
 ```
 
-### 6. Pull `master` and verify closure
+### 7. Pull `master` and verify closure
 
 After merge:
 
@@ -175,7 +206,7 @@ Verify:
 If trailer preservation failed, stop and surface it. Do not pretend the
 closeout is complete.
 
-### 7. Invoke `/reflect cycle`
+### 8. Invoke `/reflect cycle`
 
 Run `/reflect cycle` scoped to the shipped work and pass:
 
@@ -190,7 +221,7 @@ Capture:
 - Harness-tuning proposals
 - Retro notes and coaching output
 
-### 8. Apply reflect's backlog mutations on `master`
+### 9. Apply reflect's backlog mutations on `master`
 
 If reflect proposes new tickets or edits to open tickets, apply them on
 `master` and commit:
@@ -201,7 +232,7 @@ chore(backlog): apply reflect outputs from shipping <primary-id>
 
 If reflect proposes no backlog mutations, skip this step.
 
-### 9. Apply harness outputs to `reflect/<cycle-id>`
+### 10. Apply harness outputs to `reflect/<cycle-id>`
 
 Reflect's harness edits never land on `master`. Create or update the branch
 named by the reflect cycle contract:
@@ -213,7 +244,7 @@ git checkout -B reflect/<cycle-id> master
 Apply only the harness changes there, commit them, push the branch, then
 return to `master`.
 
-### 10. Final report
+### 11. Final report
 
 Emit one plain-text block covering:
 
@@ -233,11 +264,12 @@ Stop and surface the reason instead of shipping when:
 - Working tree is dirty.
 - Current branch is `master`.
 - PR is conflicted, blocked, or has failing checks.
-- `/settle` clearly has not been run yet.
 - Primary backlog ID has no top-level backlog file and the branch carries no
-  closing trailers.
+  closing trailers and no archived `backlog.d/done/<id>-*.md` file.
 - Rebase, merge, or cherry-pick is already in progress.
 - The branch was already shipped and deleted upstream.
+- The triad loop hits three passes with a remaining blocking CI, review, or
+  refactor finding.
 
 ## Trailer Conventions
 
@@ -261,16 +293,15 @@ GitHub mode is preferred because the PR timeline records the merge.
 
 ## Interactions
 
-- Upstream: `/settle` leaves the branch merge-ready.
-- Invokes: `/reflect cycle`.
+- Invokes: `/ci`, `/code-review`, `/refactor`, and `/reflect cycle`.
 - Invoked by: `/flywheel` as the landing and reflection stage.
 - Complements `/yeet`: `/yeet` ships the worktree to the remote; `/ship`
-  ships the settled branch to `master`.
+  ships the verified branch to `master`.
 
 ## Gotchas
 
 - ThinkTank archives to `backlog.d/done/`, not `_done/`.
-- ThinkTank branch names are usually `feat/023`, not `feat/023-slug`.
+- ThinkTank branch names are usually `cx/023-slug` or `feat/023-slug`.
 - This repo does not provide backlog or verdict helper scripts. Use direct
   `git mv` and explicit PR or CI checks.
 - GitHub's default squash body can drop trailers. Pass an explicit body when
