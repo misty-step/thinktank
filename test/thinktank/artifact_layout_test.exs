@@ -24,6 +24,36 @@ defmodule Thinktank.ArtifactLayoutTest do
            ]
   end
 
+  test "canonical artifact path contract is relative and unique" do
+    contract = ArtifactLayout.path_contract()
+    paths = contract.files ++ contract.directories ++ contract.dynamic_files
+
+    assert "manifest.json" in contract.files
+    assert "review/context.json" in contract.files
+    assert "scratchpads/run.md" in contract.files
+    assert "agents/{instance_id}.md" in contract.dynamic_files
+    assert Enum.uniq(paths) == paths
+    assert ArtifactLayout.validate_path_contract() == :ok
+
+    assert Enum.all?(paths, fn path ->
+             Path.type(path) == :relative and path != "" and
+               not String.contains?(path, "..")
+           end)
+  end
+
+  test "artifact path contract validation reports unsafe and missing entries" do
+    contract = %{
+      files: ["manifest.json", "/tmp/contract.json"],
+      directories: ["agents"],
+      dynamic_files: ["agents/{instance_id}.md", "agents/{instance_id}.md"]
+    }
+
+    assert {:error, errors} = ArtifactLayout.validate_path_contract(contract)
+    assert "/tmp/contract.json" in Keyword.fetch!(errors, :invalid)
+    assert "agents/{instance_id}.md" in Keyword.fetch!(errors, :duplicate)
+    assert "contract.json" in Keyword.fetch!(errors, :missing)
+  end
+
   test "run store writes the canonical artifact layout contract" do
     output_dir = Path.join(unique_tmp_dir("thinktank-artifact-layout"), "run")
 

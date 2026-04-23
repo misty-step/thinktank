@@ -14,14 +14,13 @@ Status conventions:
 
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
-| [008](008-enforce-command-plane-architecture-gates.md) | Enforce Command-Plane Architecture Gates | medium | L |
+| _None._ | _None._ | _None._ | _None._ |
 
 ## Active (ready to pick)
 
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
 | [024](024-add-first-class-focused-review-benches.md) | Add First-Class Focused Review Benches | medium | M |
-| [018](018-centralize-gate-policy-sources-and-remove-overlap.md) | Centralize Gate Policy Sources And Remove Overlap | medium | M |
 | [021](021-domain-tagged-degrade-policy.md) | Domain-Tagged Degrade Policy | medium | L |
 
 ## Done
@@ -46,6 +45,7 @@ See [done/](done/) for full write-ups including "What Was Built" notes.
 | [015](done/015-fix-review-eval-and-finished-review-contract.md) | Fix Review Eval And Finished Review Contract |
 | [016](done/016-add-run-session-and-single-lifecycle-owner.md) | Add Run Session And Single Lifecycle Owner |
 | [017](done/017-reduce-review-control-plane-to-structured-contracts.md) | Reduce Review Control Plane To Structured Contracts |
+| [018](done/018-centralize-gate-policy-sources-and-remove-overlap.md) | Centralize Gate Policy Sources And Remove Overlap |
 | [019](done/019-fix-default-review-bench-guard-agent-incompatibility.md) | Fix Default Review Bench Guard Agent Incompatibility |
 | [020](done/020-capability-aware-benches-validate.md) | Capability-Aware Benches Validate |
 | [022](done/022-add-run-inspection-and-explicit-run-state-commands.md) | Add Run Inspection And Explicit Run State Commands |

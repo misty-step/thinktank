@@ -48,7 +48,7 @@ defmodule Thinktank.SecurityGateTest do
     )
   end
 
-  test "rejects System.cmd/3 outside approved runtime boundaries" do
+  test "does not duplicate architecture-only System.cmd/3 boundary checks" do
     with_temp_lib_file(
       """
       defmodule SecurityGateFixture do
@@ -62,23 +62,32 @@ defmodule Thinktank.SecurityGateTest do
             stderr_to_stdout: true
           )
 
-        assert status == 1
-        assert output =~ "System.cmd/3 is only allowed"
-        assert output =~ relative_path
+        assert status == 0
+        assert output =~ "PASS: security gate passed."
       end
     )
   end
 
-  test "allows known runtime boundaries that use System.cmd/3" do
-    {output, status} =
-      System.cmd(
-        gate_script(),
-        ["lib/thinktank/review/context.ex", "lib/thinktank/executor/agentic.ex"],
-        cd: repo_root(),
-        stderr_to_stdout: true
-      )
+  test "rejects shell invocation through System.cmd/3" do
+    for shell <- ["sh", "/bin/sh", "bash", "/bin/bash"] do
+      with_temp_lib_file(
+        """
+        defmodule SecurityGateFixture do
+          def run, do: System.cmd("#{shell}", ["-c", "echo unsafe"])
+        end
+        """,
+        fn relative_path ->
+          {output, status} =
+            System.cmd(gate_script(), [relative_path],
+              cd: repo_root(),
+              stderr_to_stdout: true
+            )
 
-    assert status == 0
-    assert output =~ "PASS: security gate passed."
+          assert status == 1
+          assert output =~ "shell invocation via System.cmd/3 is not allowed"
+          assert output =~ relative_path
+        end
+      )
+    end
   end
 end

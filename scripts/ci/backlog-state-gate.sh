@@ -4,10 +4,51 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+source "$REPO_ROOT/scripts/ci/gate-policy.sh"
+
 failures=0
 
 status_for_file() {
   awk -F': ' '/^Status:/ {print $2; exit}' "$1"
+}
+
+repo_anchors_for_file() {
+  awk '
+    /^## Repo Anchors[[:space:]]*$/ {
+      in_section = 1
+      next
+    }
+
+    /^## / {
+      in_section = 0
+    }
+
+    in_section {
+      print
+    }
+  ' "$1" | sed -nE 's/^[[:space:]]*-[[:space:]]*`([^`]+)`.*/\1/p'
+}
+
+check_repo_anchors() {
+  local file="$1"
+  local anchor
+  local anchor_count=0
+
+  while IFS= read -r anchor; do
+    [[ -z "$anchor" ]] && continue
+
+    anchor_count=$((anchor_count + 1))
+
+    if [[ ! -e "$anchor" ]]; then
+      echo "FAIL: repo anchor does not exist in $file: $anchor" >&2
+      failures=1
+    fi
+  done < <(repo_anchors_for_file "$file")
+
+  if [[ "$anchor_count" -eq 0 ]]; then
+    echo "FAIL: active backlog item must list at least one live repo anchor: $file" >&2
+    failures=1
+  fi
 }
 
 check_file() {
@@ -42,6 +83,11 @@ check_file() {
         echo "FAIL: $file is a top-level backlog item marked done." >&2
         echo "      Move merged items to backlog.d/done/ during the squash/merge step." >&2
         failures=1
+      elif ! ci_policy_is_active_backlog_status "$status"; then
+        echo "FAIL: $file has unsupported active Status '$status'" >&2
+        failures=1
+      else
+        check_repo_anchors "$file"
       fi
       ;;
   esac

@@ -4,6 +4,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+source "$REPO_ROOT/scripts/ci/gate-policy.sh"
+
 search_repo() {
   local pattern="$1"
   local root="$2"
@@ -46,6 +48,24 @@ check_max_lines() {
   fi
 }
 
+check_artifact_layout_registry() {
+  mix run --no-start -e '
+case Thinktank.ArtifactLayout.validate_path_contract() do
+  :ok ->
+    :ok
+
+  {:error, errors} ->
+    IO.puts(:stderr, "FAIL: artifact layout registry is invalid")
+
+    Enum.each(errors, fn {kind, paths} ->
+      Enum.each(paths, &IO.puts(:stderr, "      #{kind}: #{&1}"))
+    end)
+
+    System.halt(1)
+end
+'
+}
+
 echo "architecture-gate: checking compile-connected cycles"
 mix xref graph --format cycles --label compile-connected --fail-above 0 >/dev/null
 
@@ -69,9 +89,8 @@ fi
 
 echo "architecture-gate: checking subprocess boundary"
 system_cmd_matches="$(
-  search_repo 'System\.cmd\(' lib \
-    lib/thinktank/executor/agentic.ex \
-    lib/thinktank/review/context.ex
+  search_repo "$CI_POLICY_SYSTEM_CMD_PATTERN" lib \
+    "${CI_POLICY_SYSTEM_CMD_BOUNDARIES[@]}"
 )"
 if [[ -n "$system_cmd_matches" ]]; then
   echo "FAIL: System.cmd is only allowed in executor and git-context boundaries" >&2
@@ -87,17 +106,8 @@ if [[ -n "$file_cd_matches" ]]; then
   exit 1
 fi
 
-echo "architecture-gate: checking artifact layout ownership"
-artifact_layout_matches="$(
-  search_repo '"(manifest\.json|contract\.json|task\.md|summary\.md|review/context\.(json|md)|review/plan\.(json|md)|review/planner\.md|review\.md|synthesis\.md|scratchpads|artifacts/streams|agents/)"' lib \
-    lib/thinktank/artifact_layout.ex \
-    lib/thinktank/trace_log.ex
-)"
-if [[ -n "$artifact_layout_matches" ]]; then
-  echo "FAIL: artifact layout constants must live in Thinktank.ArtifactLayout" >&2
-  printf '%s\n' "$artifact_layout_matches" >&2
-  exit 1
-fi
+echo "architecture-gate: checking artifact layout registry"
+check_artifact_layout_registry
 
 echo "architecture-gate: checking module line budgets"
 check_max_lines lib/thinktank/cli.ex 400

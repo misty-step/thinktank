@@ -4,6 +4,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+source "$REPO_ROOT/scripts/ci/gate-policy.sh"
+
 failures=0
 
 fail() {
@@ -20,7 +22,7 @@ emit_matches() {
 
 check_dynamic_eval() {
   local output
-  output="$(rg -nH 'Code\.(eval_|compile_)|:erlang\.binary_to_term\(|:os\.cmd\(|:erlang\.open_port\(|Port\.open\(' "$@" || true)"
+  output="$(rg -nH "$CI_POLICY_DYNAMIC_EXECUTION_API_PATTERN" "$@" || true)"
 
   if [[ -n "$output" ]]; then
     fail "security-sensitive dynamic execution API detected"
@@ -28,27 +30,9 @@ check_dynamic_eval() {
   fi
 }
 
-check_system_cmd_boundary() {
-  local output
-  output="$(rg -nH 'System\.cmd\(' "$@" || true)"
-
-  while IFS=: read -r file line _; do
-    [[ -z "${file:-}" ]] && continue
-
-    case "$file" in
-      lib/thinktank/executor/agentic.ex|lib/thinktank/review/context.ex)
-        ;;
-      *)
-        fail "System.cmd/3 is only allowed in approved runtime boundaries"
-        echo "      ${file}:${line}" >&2
-        ;;
-    esac
-  done <<<"$output"
-}
-
 check_shell_invocation() {
   local output
-  output="$(rg -nH 'System\.cmd\("(/bin/)?(sh|bash)"' "$@" || true)"
+  output="$(rg -nH "$CI_POLICY_SHELL_SYSTEM_CMD_PATTERN" "$@" || true)"
 
   if [[ -n "$output" ]]; then
     fail "shell invocation via System.cmd/3 is not allowed in runtime code"
@@ -65,7 +49,6 @@ if [[ "${#targets[@]}" -eq 0 ]]; then
 fi
 
 check_dynamic_eval "${targets[@]}"
-check_system_cmd_boundary "${targets[@]}"
 check_shell_invocation "${targets[@]}"
 
 if [[ "$failures" -ne 0 ]]; then

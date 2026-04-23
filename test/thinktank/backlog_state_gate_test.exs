@@ -94,4 +94,107 @@ defmodule Thinktank.BacklogStateGateTest do
       end
     )
   end
+
+  test "rejects active items without repo anchors" do
+    with_temp_backlog_file(
+      "backlog.d",
+      """
+      # Temporary Item
+
+      Priority: high
+      Status: ready
+      Estimate: S
+      """,
+      fn relative_path ->
+        {output, status} =
+          System.cmd(gate_script(), [relative_path],
+            cd: repo_root(),
+            stderr_to_stdout: true
+          )
+
+        assert status == 1
+        assert output =~ "must list at least one live repo anchor"
+      end
+    )
+  end
+
+  test "rejects active items with stale repo anchors" do
+    with_temp_backlog_file(
+      "backlog.d",
+      """
+      # Temporary Item
+
+      Priority: high
+      Status: ready
+      Estimate: S
+
+      ## Repo Anchors
+      - `lib/thinktank/does_not_exist.ex`
+      """,
+      fn relative_path ->
+        {output, status} =
+          System.cmd(gate_script(), [relative_path],
+            cd: repo_root(),
+            stderr_to_stdout: true
+          )
+
+        assert status == 1
+        assert output =~ "repo anchor does not exist"
+        assert output =~ "lib/thinktank/does_not_exist.ex"
+      end
+    )
+  end
+
+  test "rejects unsupported active statuses" do
+    with_temp_backlog_file(
+      "backlog.d",
+      """
+      # Temporary Item
+
+      Priority: high
+      Status: blocked
+      Estimate: S
+
+      ## Repo Anchors
+      - `mix.exs`
+      """,
+      fn relative_path ->
+        {output, status} =
+          System.cmd(gate_script(), [relative_path],
+            cd: repo_root(),
+            stderr_to_stdout: true
+          )
+
+        assert status == 1
+        assert output =~ "unsupported active Status 'blocked'"
+      end
+    )
+  end
+
+  test "ignores non-path code spans in repo anchor notes" do
+    with_temp_backlog_file(
+      "backlog.d",
+      """
+      # Temporary Item
+
+      Priority: high
+      Status: ready
+      Estimate: S
+
+      ## Repo Anchors
+      - `mix.exs` carries the project contract.
+      - Domain tags such as `security` and `correctness` are not file paths.
+      """,
+      fn relative_path ->
+        {output, status} =
+          System.cmd(gate_script(), [relative_path],
+            cd: repo_root(),
+            stderr_to_stdout: true
+          )
+
+        assert status == 0
+        assert output =~ "PASS: backlog state gate passed."
+      end
+    )
+  end
 end
