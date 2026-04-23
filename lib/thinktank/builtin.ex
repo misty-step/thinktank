@@ -30,6 +30,7 @@ defmodule Thinktank.Builtin do
           "kind" => "research",
           "description" =>
             "Launch a fixed research bench of Pi agents and optionally synthesize their findings.",
+          "structured_findings" => true,
           "agents" => ["systems", "verification", "ml", "dx"],
           "synthesizer" => "research-synth",
           "concurrency" => 4

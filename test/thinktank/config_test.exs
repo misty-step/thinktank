@@ -24,6 +24,8 @@ defmodule Thinktank.ConfigTest do
     assert Map.has_key?(config.agents, "trace")
     assert config.benches["research/quick"].kind == :research
     assert config.benches["research/default"].kind == :research
+    assert config.benches["research/quick"].structured_findings == false
+    assert config.benches["research/default"].structured_findings == true
     assert config.benches["review/default"].kind == :review
     assert config.benches["review/default"].planner == "marshal"
   end

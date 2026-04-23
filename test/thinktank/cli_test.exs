@@ -766,6 +766,7 @@ defmodule Thinktank.CLITest do
 
     assert {:ok, decoded} = Jason.decode(String.trim(output))
     assert is_list(decoded["agents"])
+    assert is_boolean(decoded["structured_findings"])
 
     assert [_ | _] = decoded["agents"]
 
@@ -794,6 +795,7 @@ defmodule Thinktank.CLITest do
     assert {:ok, decoded} = Jason.decode(String.trim(output))
     assert decoded["id"] == "research/default"
     assert decoded["kind"] == "research"
+    assert decoded["structured_findings"] == true
     assert decoded["agents"] == ["systems", "verification", "ml", "dx"]
     assert decoded["planner"] == nil
     assert decoded["synthesizer"] == "research-synth"
@@ -811,6 +813,7 @@ defmodule Thinktank.CLITest do
     assert output =~ "Bench: research/default"
     assert output =~ "Description:"
     assert output =~ "Kind: research"
+    assert output =~ "Structured Findings: true"
     assert output =~ "Agents:"
     assert output =~ "- systems"
     assert output =~ "- verification"

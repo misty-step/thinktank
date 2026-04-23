@@ -143,6 +143,7 @@ defmodule Thinktank.Engine.Runtime do
   def run(bench, agents, planner, contract, config, opts, synthesizer) do
     output_dir = contract.artifact_dir
     phase = Preparation.preparation_phase(bench, planner)
+    clear_stale_research_findings(output_dir, bench)
 
     Progress.emit(opts, "prepare_started", %{
       phase: phase,
@@ -177,6 +178,21 @@ defmodule Thinktank.Engine.Runtime do
         {:error, error, output_dir, "failed", terminal_attrs}
     end
   end
+
+  defp clear_stale_research_findings(
+         output_dir,
+         %BenchSpec{kind: :research, structured_findings: true}
+       ) do
+    path = Path.join(output_dir, ArtifactLayout.research_findings_file())
+
+    case File.rm(path) do
+      :ok -> :ok
+      {:error, :enoent} -> :ok
+      {:error, reason} -> raise File.Error, reason: reason, action: "remove", path: path
+    end
+  end
+
+  defp clear_stale_research_findings(_output_dir, _bench), do: :ok
 
   defp execute_bench(
          planned_agents,
@@ -327,7 +343,11 @@ defmodule Thinktank.Engine.Runtime do
     end
   end
 
-  defp handle_synthesis_result(output_dir, %BenchSpec{kind: :research} = bench, result) do
+  defp handle_synthesis_result(
+         output_dir,
+         %BenchSpec{kind: :research, structured_findings: true} = bench,
+         result
+       ) do
     case result.status do
       :ok ->
         findings = Findings.from_synthesis_output(result.output)
@@ -365,7 +385,7 @@ defmodule Thinktank.Engine.Runtime do
 
   defp maybe_write_partial_research_findings(
          output_dir,
-         %BenchSpec{kind: :research} = bench,
+         %BenchSpec{kind: :research, structured_findings: true} = bench,
          "partial",
          nil
        ) do

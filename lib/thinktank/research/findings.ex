@@ -131,22 +131,11 @@ defmodule Thinktank.Research.Findings do
 
   defp required_list(payload, key, normalize_entry) do
     case payload[key] do
-      value when is_list(value) -> collect_list(value, key, normalize_entry)
-      _ -> missing_or_invalid(key)
-    end
-  end
+      values when is_list(values) ->
+        normalize_list(values, normalize_entry, missing_or_invalid(key))
 
-  defp collect_list(values, key, normalize_entry) do
-    values
-    |> Enum.reduce_while({:ok, []}, fn value, {:ok, acc} ->
-      case normalize_entry.(value) do
-        {:ok, normalized} -> {:cont, {:ok, [normalized | acc]}}
-        :error -> {:halt, missing_or_invalid(key)}
-      end
-    end)
-    |> case do
-      {:ok, normalized} -> {:ok, Enum.reverse(normalized)}
-      error -> error
+      _ ->
+        missing_or_invalid(key)
     end
   end
 
@@ -157,7 +146,7 @@ defmodule Thinktank.Research.Findings do
   defp finding(%{} = finding) do
     with {:ok, claim} <- string_field(finding, "claim"),
          {:ok, evidence} <- string_list_field(finding, "evidence"),
-         {:ok, confidence} <- optional_confidence(finding, "confidence") do
+         {:ok, confidence} <- required_finding_confidence(finding, "confidence") do
       {:ok, %{"claim" => claim, "evidence" => evidence, "confidence" => confidence}}
     end
   end
@@ -185,31 +174,31 @@ defmodule Thinktank.Research.Findings do
 
   defp string_list_field(payload, key) do
     case payload[key] do
-      values when is_list(values) ->
-        collect_string_list(values)
-
-      _ ->
-        :error
+      values when is_list(values) -> normalize_list(values, &present_binary_string/1, :error)
+      _ -> :error
     end
   end
 
-  defp collect_string_list(values) do
+  defp normalize_list(values, normalize_entry, invalid_result) do
     values
     |> Enum.reduce_while({:ok, []}, fn
-      value, {:ok, acc} when is_binary(value) ->
-        case present_string(value) do
+      value, {:ok, acc} ->
+        case normalize_entry.(value) do
           {:ok, normalized} -> {:cont, {:ok, [normalized | acc]}}
-          :error -> {:halt, :error}
+          :error -> {:halt, invalid_result}
         end
 
       _value, _acc ->
-        {:halt, :error}
+        {:halt, invalid_result}
     end)
     |> case do
       {:ok, normalized} -> {:ok, Enum.reverse(normalized)}
-      :error -> :error
+      error -> error
     end
   end
+
+  defp present_binary_string(value) when is_binary(value), do: present_string(value)
+  defp present_binary_string(_value), do: :error
 
   defp present_string(value) do
     value = String.trim(value)
@@ -223,7 +212,12 @@ defmodule Thinktank.Research.Findings do
     end
   end
 
-  defp optional_confidence(payload, key), do: {:ok, normalize_confidence(payload[key])}
+  defp required_finding_confidence(payload, key) do
+    case normalize_confidence(payload[key]) do
+      confidence when confidence in ~w(high medium low) -> {:ok, confidence}
+      _ -> :error
+    end
+  end
 
   defp normalize_confidence(value) when is_binary(value) do
     value = value |> String.downcase() |> String.trim()

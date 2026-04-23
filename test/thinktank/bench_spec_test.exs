@@ -9,6 +9,7 @@ defmodule Thinktank.BenchSpecTest do
                "kind" => "review",
                "description" => "Review bench",
                "agents" => ["trace", "guard"],
+               "structured_findings" => true,
                "planner" => "marshal",
                "synthesizer" => "review-synth",
                "concurrency" => "2",
@@ -17,6 +18,7 @@ defmodule Thinktank.BenchSpecTest do
 
     assert bench.id == "review/default"
     assert bench.kind == :review
+    assert bench.structured_findings == true
     assert bench.agents == ["trace", "guard"]
     assert bench.planner == "marshal"
     assert bench.synthesizer == "review-synth"
@@ -32,7 +34,12 @@ defmodule Thinktank.BenchSpecTest do
           {%{"description" => "Review bench", "agents" => ["trace", 123]},
            "bench agents must be a non-empty list of agent names"},
           {%{"description" => "Review bench", "agents" => ["trace"], "default_task" => "   "},
-           "bench optional string fields must be strings"}
+           "bench optional string fields must be strings"},
+          {%{
+             "description" => "Review bench",
+             "agents" => ["trace"],
+             "structured_findings" => "yes"
+           }, "bench structured_findings must be a boolean"}
         ] do
       assert {:error, ^expected_error} = BenchSpec.from_pair("review/default", raw)
     end
@@ -46,6 +53,7 @@ defmodule Thinktank.BenchSpecTest do
              })
 
     assert bench.kind == :default
+    assert bench.structured_findings == false
     assert bench.planner == nil
     assert bench.synthesizer == nil
     assert bench.concurrency == nil
