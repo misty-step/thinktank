@@ -199,8 +199,28 @@ If a run times out, is interrupted, or loses synthesis after useful work has
 already been captured, ThinkTank finalizes it as `partial` and writes a
 best-effort summary from the scratchpads and available artifacts.
 
-If you need to inspect the same run from another shell, tail the trace file
-inside `output_dir`:
+If you need to inspect the same run from another shell, use the run inspection
+commands first:
+
+```bash
+thinktank runs list
+thinktank runs show <path-or-id>
+thinktank runs wait <path-or-id> [--timeout-ms N]
+```
+
+`runs show` and `runs wait` surface the canonical typed run state from
+`manifest.json` / `trace/summary.json`: `running`, `complete`, `degraded`,
+`partial`, or `failed`. `--json` wraps the same payload in a machine-safe
+`{"run": ...}` or `{"runs": [...]}` envelope so operators and scripts can
+consume it without parsing markdown. `runs list` shows the 20 most recent
+discoverable local runs by default, sorted newest-first by `started_at`.
+`runs wait` exits `0` only when the terminal state is `complete`, returns the
+generic non-zero CLI failure status for `degraded`, `partial`, and `failed`,
+returns the input-error status when the target cannot be resolved, uses the
+generic failure status for malformed or unreadable run artifacts, and waits
+indefinitely unless `--timeout-ms` is provided.
+
+If you still need the raw event stream, tail the trace file inside `output_dir`:
 
 ```bash
 tail -f /path/to/run/trace/events.jsonl
