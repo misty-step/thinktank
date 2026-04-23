@@ -144,7 +144,213 @@ defmodule Thinktank.EngineTest do
     assert result.envelope.status == "partial"
     assert File.read!(Path.join(result.output_dir, "summary.md")) =~ "Partial Result"
     assert File.read!(Path.join(result.output_dir, "summary.md")) =~ "partial finding"
+    assert result.envelope.research_findings["status"] == "partial"
+    assert result.envelope.research_findings["error"]["category"] == "partial_run"
     assert File.exists?(Path.join(result.output_dir, "scratchpads/run.md"))
+  end
+
+  test "partial research runs overwrite stale unrecorded findings in reused output directories" do
+    cwd = unique_tmp_dir("thinktank-engine-partial-stale-findings")
+    output_dir = Path.join(cwd, "reused-run")
+    stale_findings_path = Path.join(output_dir, "research/findings.json")
+    File.mkdir_p!(Path.dirname(stale_findings_path))
+
+    File.write!(
+      stale_findings_path,
+      Jason.encode!(%{
+        status: "complete",
+        thesis: "stale",
+        findings: [],
+        evidence: [],
+        open_questions: [],
+        confidence: "high"
+      })
+    )
+
+    runner = fn _cmd, _args, _opts -> {"partial finding", :timeout} end
+
+    assert {:ok, result} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems"], no_synthesis: true},
+               cwd: cwd,
+               output: output_dir,
+               runner: runner
+             )
+
+    assert result.envelope.status == "partial"
+    assert result.envelope.research_findings["status"] == "partial"
+    assert result.envelope.research_findings["error"]["category"] == "partial_run"
+  end
+
+  test "failed research runs clear stale findings files in reused output directories" do
+    cwd = unique_tmp_dir("thinktank-engine-failed-stale-findings")
+    output_dir = Path.join(cwd, "reused-run")
+    stale_findings_path = Path.join(output_dir, "research/findings.json")
+    File.mkdir_p!(Path.dirname(stale_findings_path))
+
+    File.write!(
+      stale_findings_path,
+      Jason.encode!(%{
+        status: "complete",
+        thesis: "stale",
+        findings: [],
+        evidence: [],
+        open_questions: [],
+        confidence: "high"
+      })
+    )
+
+    runner = fn _cmd, _args, _opts -> {"simulated failure", 1} end
+
+    assert {:error, %Error{code: :no_successful_agents}, ^output_dir} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems"], no_synthesis: true},
+               cwd: cwd,
+               output: output_dir,
+               runner: runner
+             )
+
+    refute File.exists?(stale_findings_path)
+    assert Thinktank.RunStore.result_envelope(output_dir).research_findings == nil
+  end
+
+  test "research synthesis writes structured findings alongside the prose synthesis" do
+    cwd = unique_tmp_dir("thinktank-engine-research-findings")
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Raw agent report") do
+        {Jason.encode!(%{
+           thesis: "The repo already has a thin launcher boundary.",
+           findings: [
+             %{
+               claim: "Artifacts are recorded through RunStore.",
+               evidence: ["lib/thinktank/run_store.ex"],
+               confidence: "high"
+             }
+           ],
+           evidence: [
+             %{
+               source: "lib/thinktank/run_store.ex",
+               summary: "RunStore owns manifest artifact registration."
+             }
+           ],
+           open_questions: ["Should downstream tools read the new field directly?"],
+           confidence: "high"
+         }), 0}
+      else
+        {"Raw agent report", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems"]},
+               cwd: cwd,
+               runner: runner
+             )
+
+    findings_path = Path.join(result.output_dir, "research/findings.json")
+
+    assert result.envelope.status == "complete"
+
+    assert File.read!(Path.join(result.output_dir, "synthesis.md")) =~
+             "The repo already has a thin launcher boundary."
+
+    assert File.exists?(findings_path)
+    assert result.envelope.research_findings["status"] == "complete"
+
+    assert result.envelope.research_findings["thesis"] ==
+             "The repo already has a thin launcher boundary."
+
+    assert hd(result.envelope.research_findings["findings"])["claim"] =~ "Artifacts are recorded"
+
+    assert Enum.any?(
+             result.envelope.artifacts,
+             &(&1["name"] == "research-findings" and &1["file"] == "research/findings.json")
+           )
+  end
+
+  test "research findings record invalid structured synthesis without parsing markdown" do
+    cwd = unique_tmp_dir("thinktank-engine-research-findings-invalid")
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Raw agent report") do
+        {"not json", 0}
+      else
+        {"Raw agent report", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems"]},
+               cwd: cwd,
+               runner: runner
+             )
+
+    assert result.envelope.status == "partial"
+    assert result.envelope.research_findings["status"] == "invalid"
+    assert result.envelope.research_findings["error"]["category"] == "invalid_json"
+  end
+
+  test "research findings record invalid schema without accepting partial JSON" do
+    cwd = unique_tmp_dir("thinktank-engine-research-findings-invalid-shape")
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Raw agent report") do
+        {Jason.encode!(%{thesis: "Missing required lists.", confidence: "high"}), 0}
+      else
+        {"Raw agent report", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems"]},
+               cwd: cwd,
+               runner: runner
+             )
+
+    assert result.envelope.status == "partial"
+    assert result.envelope.research_findings["status"] == "invalid"
+    assert result.envelope.research_findings["error"]["category"] == "invalid_shape"
+  end
+
+  test "research findings record synthesizer process failures" do
+    cwd = unique_tmp_dir("thinktank-engine-research-findings-synth-fail")
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Raw agent report") do
+        {"synth crashed", 1}
+      else
+        {"Raw agent report", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "research/default",
+               %{input_text: "Research this", agents: ["systems"]},
+               cwd: cwd,
+               runner: runner
+             )
+
+    assert result.envelope.status == "partial"
+    assert result.envelope.research_findings["status"] == "unavailable"
+    assert result.envelope.research_findings["error"]["category"] == "synthesis_failed"
   end
 
   test "supports overriding a bench agent subset" do
@@ -230,6 +436,145 @@ defmodule Thinktank.EngineTest do
     assert File.exists?(Path.join(result.output_dir, "review.md"))
     assert File.read!(Path.join(result.output_dir, "review.md")) =~ "Synthesized review"
     refute File.exists?(Path.join(result.output_dir, "synthesis.md"))
+  end
+
+  test "custom research benches keep prose synthesis unless structured findings are enabled" do
+    cwd = unique_tmp_dir("thinktank-engine-custom-research")
+    output_dir = Path.join(cwd, "reused-run")
+    config_path = Path.join([cwd, ".thinktank", "config.yml"])
+    File.mkdir_p!(Path.dirname(config_path))
+
+    File.write!(
+      config_path,
+      """
+      benches:
+        demo/custom-research:
+          kind: research
+          description: Demo custom research bench
+          agents:
+            - systems
+          synthesizer: review-synth
+          default_task: Research the current change and summarize the result.
+      """
+    )
+
+    init_git_repo_with_commit!(cwd)
+    stale_findings_path = Path.join(output_dir, "research/findings.json")
+    File.mkdir_p!(Path.dirname(stale_findings_path))
+
+    stale_findings =
+      Jason.encode!(%{
+        status: "complete",
+        thesis: "stale",
+        findings: [],
+        evidence: [],
+        open_questions: [],
+        confidence: "high"
+      })
+
+    File.write!(stale_findings_path, stale_findings)
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Agent outputs:") do
+        {"Synthesized research\n\n" <> prompt, 0}
+      else
+        {"Raw agent report\n\n" <> prompt, 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "demo/custom-research",
+               %{},
+               cwd: cwd,
+               output: output_dir,
+               trust_repo_config: true,
+               runner: runner
+             )
+
+    assert result.envelope.status == "complete"
+    assert result.envelope.research_findings == nil
+    refute Enum.any?(result.envelope.artifacts, &(&1["name"] == "research-findings"))
+    assert File.exists?(Path.join(result.output_dir, "summary.md"))
+    assert File.exists?(Path.join(result.output_dir, "synthesis.md"))
+    assert File.read!(Path.join(result.output_dir, "synthesis.md")) =~ "Synthesized research"
+    assert File.read!(stale_findings_path) == stale_findings
+  end
+
+  test "custom research benches can opt into structured findings" do
+    cwd = unique_tmp_dir("thinktank-engine-custom-structured-research")
+    output_dir = Path.join(cwd, "reused-run")
+    config_path = Path.join([cwd, ".thinktank", "config.yml"])
+    File.mkdir_p!(Path.dirname(config_path))
+
+    File.write!(
+      config_path,
+      """
+      benches:
+        demo/custom-structured-research:
+          kind: research
+          structured_findings: true
+          description: Demo custom research bench with structured findings
+          agents:
+            - systems
+          synthesizer: research-synth
+          default_task: Research the current change and summarize the result.
+      """
+    )
+
+    init_git_repo_with_commit!(cwd)
+    stale_findings_path = Path.join(output_dir, "research/findings.json")
+    File.mkdir_p!(Path.dirname(stale_findings_path))
+
+    File.write!(
+      stale_findings_path,
+      Jason.encode!(%{"status" => "complete", "thesis" => "stale"})
+    )
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "Raw agent report") do
+        {Jason.encode!(%{
+           thesis: "Structured findings stay opt-in.",
+           findings: [
+             %{
+               claim: "Custom benches can keep prose or opt into JSON.",
+               evidence: ["lib/thinktank/bench_spec.ex"],
+               confidence: "high"
+             }
+           ],
+           evidence: [
+             %{
+               source: "lib/thinktank/bench_spec.ex",
+               summary: "BenchSpec now carries the structured findings flag."
+             }
+           ],
+           open_questions: [],
+           confidence: "high"
+         }), 0}
+      else
+        {"Raw agent report", 0}
+      end
+    end
+
+    assert {:ok, result} =
+             Engine.run(
+               "demo/custom-structured-research",
+               %{},
+               cwd: cwd,
+               output: output_dir,
+               trust_repo_config: true,
+               runner: runner
+             )
+
+    assert result.envelope.status == "complete"
+    assert result.envelope.research_findings["status"] == "complete"
+    assert result.envelope.research_findings["thesis"] == "Structured findings stay opt-in."
+    assert File.read!(stale_findings_path) =~ "Structured findings stay opt-in."
+    assert File.exists?(Path.join(result.output_dir, "synthesis.md"))
   end
 
   test "review runs write context and plan artifacts and focus the reviewer subset" do
@@ -678,10 +1023,16 @@ defmodule Thinktank.EngineTest do
     runner = fn _cmd, args, _opts ->
       prompt = File.read!(prompt_path(args))
 
-      if String.contains?(prompt, "Agent outputs:") do
-        {"Synthesized summary", 0}
+      if String.contains?(prompt, "Progress agent report") do
+        {Jason.encode!(%{
+           thesis: "Progress synthesis completed.",
+           findings: [],
+           evidence: [],
+           open_questions: [],
+           confidence: "high"
+         }), 0}
       else
-        {"ok", 0}
+        {"Progress agent report", 0}
       end
     end
 

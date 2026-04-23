@@ -75,6 +75,7 @@ defmodule Thinktank.CLI do
         id: bench.id,
         description: bench.description,
         kind: bench.kind,
+        structured_findings: bench.structured_findings,
         agents: agents_payload,
         planner: bench.planner,
         synthesizer: bench.synthesizer,

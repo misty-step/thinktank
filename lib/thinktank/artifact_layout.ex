@@ -9,6 +9,7 @@ defmodule Thinktank.ArtifactLayout do
   @summary_file "summary.md"
   @review_file "review.md"
   @synthesis_file "synthesis.md"
+  @research_findings_file "research/findings.json"
   @review_context_json_file "review/context.json"
   @review_context_text_file "review/context.md"
   @review_plan_json_file "review/plan.json"
@@ -44,6 +45,9 @@ defmodule Thinktank.ArtifactLayout do
 
   @spec review_planner_file() :: String.t()
   def review_planner_file, do: @review_planner_file
+
+  @spec research_findings_file() :: String.t()
+  def research_findings_file, do: @research_findings_file
 
   @spec scratchpads_dir() :: String.t()
   def scratchpads_dir, do: @scratchpads_dir

@@ -133,6 +133,7 @@ defmodule Thinktank.Engine.Runtime do
 
   alias Thinktank.Engine.Preparation
   alias Thinktank.Executor.Agentic
+  alias Thinktank.Research.Findings
 
   @type terminal_attrs :: map()
 
@@ -142,6 +143,7 @@ defmodule Thinktank.Engine.Runtime do
   def run(bench, agents, planner, contract, config, opts, synthesizer) do
     output_dir = contract.artifact_dir
     phase = Preparation.preparation_phase(bench, planner)
+    clear_stale_research_findings(output_dir, bench)
 
     Progress.emit(opts, "prepare_started", %{
       phase: phase,
@@ -176,6 +178,21 @@ defmodule Thinktank.Engine.Runtime do
         {:error, error, output_dir, "failed", terminal_attrs}
     end
   end
+
+  defp clear_stale_research_findings(
+         output_dir,
+         %BenchSpec{kind: :research, structured_findings: true}
+       ) do
+    path = Path.join(output_dir, ArtifactLayout.research_findings_file())
+
+    case File.rm(path) do
+      :ok -> :ok
+      {:error, :enoent} -> :ok
+      {:error, reason} -> raise File.Error, reason: reason, action: "remove", path: path
+    end
+  end
+
+  defp clear_stale_research_findings(_output_dir, _bench), do: :ok
 
   defp execute_bench(
          planned_agents,
@@ -233,6 +250,7 @@ defmodule Thinktank.Engine.Runtime do
       )
 
     status = derive_status(results, synthesis)
+    maybe_write_partial_research_findings(output_dir, bench, status, synthesis)
 
     terminal_attrs = %{
       "bench" => bench.id,
@@ -319,15 +337,65 @@ defmodule Thinktank.Engine.Runtime do
           runner: opts[:runner]
         )
 
-      record_result(output_dir, result)
-
-      if result.status == :ok do
-        write_summary_artifacts(output_dir, bench, result.output)
-      end
-
-      result
+      handled_result = handle_synthesis_result(output_dir, bench, result)
+      record_result(output_dir, handled_result)
+      handled_result
     end
   end
+
+  defp handle_synthesis_result(
+         output_dir,
+         %BenchSpec{kind: :research, structured_findings: true} = bench,
+         result
+       ) do
+    case result.status do
+      :ok ->
+        findings = Findings.from_synthesis_output(result.output)
+        write_research_findings(output_dir, findings)
+
+        if Findings.complete?(findings) do
+          write_summary_artifacts(output_dir, bench, Findings.to_markdown(findings))
+          result
+        else
+          %{result | status: :error, error: Findings.error(findings)}
+        end
+
+      :error ->
+        write_research_findings(output_dir, Findings.synthesis_failed(result.error))
+        result
+    end
+  end
+
+  defp handle_synthesis_result(output_dir, bench, result) do
+    if result.status == :ok do
+      write_summary_artifacts(output_dir, bench, result.output)
+    end
+
+    result
+  end
+
+  defp write_research_findings(output_dir, findings) do
+    RunStore.write_json_artifact(
+      output_dir,
+      "research-findings",
+      ArtifactLayout.research_findings_file(),
+      findings
+    )
+  end
+
+  defp maybe_write_partial_research_findings(
+         output_dir,
+         %BenchSpec{kind: :research, structured_findings: true} = bench,
+         "partial",
+         nil
+       ) do
+    write_research_findings(
+      output_dir,
+      Findings.partial(%{"bench" => bench.id, "status" => "partial"})
+    )
+  end
+
+  defp maybe_write_partial_research_findings(_output_dir, _bench, _status, _synthesis), do: :ok
 
   defp write_summary_artifacts(output_dir, %BenchSpec{kind: kind}, content) do
     Enum.each(ArtifactLayout.summary_artifacts(kind), fn {name, file} ->

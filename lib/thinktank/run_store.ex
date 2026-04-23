@@ -181,8 +181,6 @@ defmodule Thinktank.RunStore do
       Enum.each(ArtifactLayout.summary_artifacts(manifest["kind"]), fn {name, file} ->
         write_text_artifact(output_dir, name, file, content)
       end)
-    else
-      :ok
     end
   end
 
@@ -207,6 +205,8 @@ defmodule Thinktank.RunStore do
       usd_cost_total: manifest["usd_cost_total"],
       usd_cost_by_model: manifest["usd_cost_by_model"],
       pricing_gaps: manifest["pricing_gaps"],
+      research_findings:
+        read_json_artifact(artifact_named(artifacts, "research-findings"), output_dir),
       synthesis: read_synthesis(output_dir, artifacts)
     }
   end
@@ -237,6 +237,22 @@ defmodule Thinktank.RunStore do
   defp read_artifact(%{"file" => file}, output_dir) do
     path = Path.join(output_dir, file)
     if File.exists?(path), do: File.read!(path), else: nil
+  end
+
+  defp read_json_artifact(nil, _output_dir), do: nil
+
+  defp read_json_artifact(%{"file" => file}, output_dir) do
+    path = Path.join(output_dir, file)
+
+    with true <- File.exists?(path), {:ok, decoded} <- path |> File.read!() |> Jason.decode() do
+      decoded
+    else
+      _error -> nil
+    end
+  end
+
+  defp artifact_named(artifacts, name) do
+    Enum.find(artifacts, &(&1["name"] == name))
   end
 
   defp init_run_scratchpad(output_dir, contract, bench, started_at) do

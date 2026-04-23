@@ -8,6 +8,7 @@ defmodule Thinktank.BenchSpec do
     :id,
     :description,
     kind: :default,
+    structured_findings: false,
     agents: [],
     planner: nil,
     synthesizer: nil,
@@ -21,6 +22,7 @@ defmodule Thinktank.BenchSpec do
           id: String.t(),
           description: String.t(),
           kind: kind(),
+          structured_findings: boolean(),
           agents: [String.t()],
           planner: String.t() | nil,
           synthesizer: String.t() | nil,
@@ -32,6 +34,7 @@ defmodule Thinktank.BenchSpec do
   def from_pair(id, %{} = raw) when is_binary(id) do
     with {:ok, description} <- require_string(raw, "description"),
          {:ok, kind} <- parse_kind(raw["kind"]),
+         {:ok, structured_findings} <- parse_boolean(raw["structured_findings"], false),
          {:ok, agents} <- require_agent_names(raw["agents"]),
          {:ok, planner} <- optional_string(raw["planner"]),
          {:ok, synthesizer} <- optional_string(raw["synthesizer"]),
@@ -42,6 +45,7 @@ defmodule Thinktank.BenchSpec do
          id: id,
          description: description,
          kind: kind,
+         structured_findings: structured_findings,
          agents: agents,
          planner: planner,
          synthesizer: synthesizer,
@@ -99,6 +103,12 @@ defmodule Thinktank.BenchSpec do
   end
 
   defp parse_concurrency(_), do: {:error, "bench concurrency must be a positive integer"}
+
+  defp parse_boolean(nil, default), do: {:ok, default}
+  defp parse_boolean(value, _default) when is_boolean(value), do: {:ok, value}
+
+  defp parse_boolean(_value, _default),
+    do: {:error, "bench structured_findings must be a boolean"}
 
   defp present_string(value, error) when is_binary(value) do
     trimmed = String.trim(value)

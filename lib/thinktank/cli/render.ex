@@ -112,6 +112,7 @@ defmodule Thinktank.CLI.Render do
     Bench: #{payload.id}
     Description: #{payload.description}
     Kind: #{payload.kind}
+    Structured Findings: #{payload.structured_findings}
     Planner: #{payload.planner || "none"}
     Synthesizer: #{payload.synthesizer || "none"}
     Concurrency: #{payload.concurrency || "none"}
