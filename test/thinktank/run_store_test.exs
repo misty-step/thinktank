@@ -104,6 +104,16 @@ defmodule Thinktank.RunStoreTest do
     RunStore.init_run(output_dir, contract, bench)
     RunStore.record_agent_result(output_dir, "systems", "hello", %{status: :ok})
     RunStore.write_text_artifact(output_dir, "synthesis", "synthesis.md", "Synthesized content")
+
+    RunStore.write_json_artifact(output_dir, "research-findings", "research/findings.json", %{
+      status: "complete",
+      thesis: "Structured result",
+      findings: [],
+      evidence: [],
+      open_questions: [],
+      confidence: "high"
+    })
+
     RunStore.write_text_artifact(output_dir, "summary", "summary.md", "Summary content")
     RunStore.complete_run(output_dir, "complete")
 
@@ -121,8 +131,54 @@ defmodule Thinktank.RunStoreTest do
     assert synth_artifact["content_type"] == "text/markdown"
     assert synth_artifact["type"] == "text"
 
+    findings_artifact = Enum.find(envelope.artifacts, &(&1["name"] == "research-findings"))
+    assert findings_artifact["content_type"] == "application/json"
+    assert envelope.research_findings["thesis"] == "Structured result"
+
     json_artifact = Enum.find(envelope.artifacts, &(&1["name"] == "contract"))
     assert json_artifact["content_type"] == "application/json"
+  end
+
+  test "result_envelope ignores unrecorded stale research findings files" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-store-stale-findings"), "run")
+
+    contract = %RunContract{
+      bench_id: "research/default",
+      workspace_root: File.cwd!(),
+      input: %{input_text: "hello"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{id: "research/default", description: "Demo", agents: ["systems"]}
+
+    RunStore.init_run(output_dir, contract, bench)
+
+    stale_path = Path.join(output_dir, "research/findings.json")
+    File.mkdir_p!(Path.dirname(stale_path))
+    File.write!(stale_path, Jason.encode!(%{status: "complete", thesis: "stale"}))
+
+    assert RunStore.result_envelope(output_dir).research_findings == nil
+  end
+
+  test "result_envelope ignores corrupt recorded research findings without crashing" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-run-store-corrupt-findings"), "run")
+
+    contract = %RunContract{
+      bench_id: "research/default",
+      workspace_root: File.cwd!(),
+      input: %{input_text: "hello"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{id: "research/default", description: "Demo", agents: ["systems"]}
+
+    RunStore.init_run(output_dir, contract, bench)
+    RunStore.write_json_artifact(output_dir, "research-findings", "research/findings.json", %{})
+    File.write!(Path.join(output_dir, "research/findings.json"), "not json")
+
+    assert RunStore.result_envelope(output_dir).research_findings == nil
   end
 
   test "aggregates usd cost totals and per-model usage into the result envelope" do
@@ -278,6 +334,8 @@ defmodule Thinktank.RunStoreTest do
     assert File.read!(Path.join(output_dir, "summary.md")) =~ "Partial Result"
     assert File.read!(Path.join(output_dir, "summary.md")) =~ "partial finding"
     assert File.exists?(Path.join(output_dir, "synthesis.md"))
+
+    refute File.exists?(Path.join(output_dir, "research/findings.json"))
   end
 
   test "initializes trace artifacts and updates trace summary on completion" do

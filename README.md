@@ -182,6 +182,7 @@ Each run writes:
 - `prompts/*.md` — rendered prompts passed to Pi
 - `summary.md` — synthesizer output when enabled
 - `synthesis.md` for research benches
+- `research/findings.json` for research benches with a schema-driven structured findings contract
 - `review.md` for review benches
 - `review/context.json` and `review/plan.json` for review benches (canonical structured review contract)
 - `review/context.md` and `review/plan.md` for review benches (optional derivative orientation artifacts)
@@ -193,7 +194,8 @@ running, stderr emits newline-delimited JSON progress events that surface the
 current phase, the selected `output_dir`, and periodic heartbeats for long
 runs. The final envelope includes `usd_cost_total`, `usd_cost_by_model`, and
 `pricing_gaps`, and the human-readable text output shows the same cost line.
-It does not write a `report.json` artifact. For research benches, the
+It does not write a `report.json` artifact. For research benches, canonical
+structured findings live in `research/findings.json` and the human-readable
 synthesized document lives in `synthesis.md` when a synthesizer is enabled.
 If a run times out, is interrupted, or loses synthesis after useful work has
 already been captured, ThinkTank finalizes it as `partial` and writes a

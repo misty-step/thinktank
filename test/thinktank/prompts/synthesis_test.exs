@@ -2,6 +2,7 @@ defmodule Thinktank.Prompts.SynthesisTest do
   use ExUnit.Case, async: true
 
   alias Thinktank.Prompts.Synthesis
+  alias Thinktank.Research.Findings
 
   test "research_task/0 contains required placeholders" do
     task = Synthesis.research_task()
@@ -9,6 +10,9 @@ defmodule Thinktank.Prompts.SynthesisTest do
     for placeholder <- ~w({{input_text}} {{workspace_root}} {{paths_hint}} {{agent_outputs}}) do
       assert task =~ placeholder, "research synthesis task missing #{placeholder}"
     end
+
+    assert task =~ "JSON"
+    assert task =~ Findings.schema_prompt()
   end
 
   test "review_task/0 contains required placeholders" do

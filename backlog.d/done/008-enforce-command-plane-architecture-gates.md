@@ -1,7 +1,7 @@
 # Enforce Command-Plane Architecture Gates
 
 Priority: medium
-Status: in-progress
+Status: done
 Estimate: L
 
 ## Goal

@@ -14,3 +14,4 @@
 {"date":"2026-04-20","pr":null,"correctness":8,"depth":6,"simplicity":8,"craft":8,"verdict":"conditional","providers":["codex","gemini"]}
 {"date":"2026-04-22","pr":null,"correctness":8,"depth":8,"simplicity":7,"craft":8,"verdict":"ship","providers":["codex","thinktank","gemini"]}
 {"date":"2026-04-23","pr":295,"correctness":9,"depth":8,"simplicity":8,"craft":8,"verdict":"ship","providers":["subagents","thinktank","gemini"]}
+{"date":"2026-04-23","pr":null,"correctness":9,"depth":8,"simplicity":8,"craft":9,"verdict":"ship","providers":["codex","subagents"]}

@@ -1,9 +1,12 @@
 defmodule Thinktank.Prompts.Synthesis do
   @moduledoc false
 
+  alias Thinktank.Research.Findings
+
   @research_system """
-  You synthesize multiple research agent reports into one concise document.
+  You synthesize multiple research agent reports into one structured findings contract.
   Preserve disagreements. Do not invent consensus. Favor grounded recommendations over rhetoric.
+  Return valid JSON only. Do not wrap the JSON in Markdown fences.
   """
 
   @review_system """
@@ -18,7 +21,7 @@ defmodule Thinktank.Prompts.Synthesis do
   to fill space. Write a clear human review, not structured JSON.
   """
 
-  @research_task """
+  @research_task_prefix """
   Original task:
   {{input_text}}
 
@@ -57,6 +60,15 @@ defmodule Thinktank.Prompts.Synthesis do
 
   def research_system, do: @research_system
   def review_system, do: @review_system
-  def research_task, do: @research_task
+
+  def research_task do
+    """
+    #{@research_task_prefix}
+
+    Return JSON only with this shape:
+    #{Findings.schema_prompt()}
+    """
+  end
+
   def review_task, do: @review_task
 end

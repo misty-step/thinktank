@@ -1,7 +1,7 @@
 # Add Structured Research Findings Contract
 
 Priority: high
-Status: ready
+Status: done
 Estimate: M
 
 ## Goal
@@ -29,11 +29,16 @@ Research benches become more useful to both humans and downstream agents because
 - `README.md`
 
 ## Oracle
-- [ ] `research/default` writes a canonical structured findings artifact in addition to `synthesis.md`
-- [ ] The structured artifact contains at least: `thesis`, `findings[]`, `evidence[]`, `open_questions[]`, and `confidence`
-- [ ] A synthesis failure or partial run produces an explicit typed status for the structured artifact instead of silently omitting it
-- [ ] `README.md` documents the structured research artifact and its role relative to raw outputs
-- [ ] Automated coverage proves successful structured synthesis, invalid-structure fallback, and partial-run behavior
+- [x] `research/default` writes a canonical structured findings artifact in addition to `synthesis.md`
+- [x] The structured artifact contains at least: `thesis`, `findings[]`, `evidence[]`, `open_questions[]`, and `confidence`
+- [x] A synthesis failure or partial run produces an explicit typed status for the structured artifact instead of silently omitting it
+- [x] `README.md` documents the structured research artifact and its role relative to raw outputs
+- [x] Automated coverage proves successful structured synthesis, invalid-structure fallback, and partial-run behavior
+
+## What Was Built
+- Research synthesis is now schema-first: `research-synth` returns structured JSON, `research/findings.json` is the canonical machine contract, and `synthesis.md` is rendered from validated findings.
+- Invalid JSON, invalid schema, synthesizer failures, and partial no-synthesis runs all surface typed `research_findings` statuses in the result envelope.
+- Result envelopes read findings only from manifest-recorded artifacts so reused output directories cannot leak stale files.
 
 ## Notes
 ThinkTank already records durable research artifacts, but today the synthesized result is primarily markdown. That is readable, but it limits reuse by downstream tools and makes “council of intelligence” style consumers depend on prose interpretation.

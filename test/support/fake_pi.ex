@@ -155,7 +155,15 @@ defmodule Thinktank.Test.FakePi do
         '"synthesis_brief":"Use grounded evidence.",' \\
         '"warnings":[]}'
       ;;
-      review-synth-*|research-synth-*)
+      research-synth-*)
+      printf '%s\n' \
+        '{"thesis":"Synthetic research thesis.",' \
+        '"findings":[{"claim":"Synthetic finding.","evidence":["fake-pi"],"confidence":"high"}],' \
+        '"evidence":[{"source":"fake-pi","summary":"Hermetic synthesis output."}],' \
+        '"open_questions":[],' \
+        '"confidence":"high"}'
+      ;;
+      review-synth-*)
       echo "Synthesized summary"
       ;;
       *)

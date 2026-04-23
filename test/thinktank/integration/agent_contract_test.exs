@@ -135,6 +135,7 @@ defmodule Thinktank.Integration.AgentContractTest do
                    "error",
                    "output_dir",
                    "pricing_gaps",
+                   "research_findings",
                    "started_at",
                    "status",
                    "synthesis",
@@ -152,6 +153,7 @@ defmodule Thinktank.Integration.AgentContractTest do
           assert payload["usd_cost_total"] == 0.0
           assert payload["usd_cost_by_model"] == %{}
           assert payload["pricing_gaps"] == []
+          assert payload["research_findings"] == nil
           assert File.exists?(Path.join(payload["output_dir"], "contract.json"))
         end)
       end)
