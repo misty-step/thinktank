@@ -20,8 +20,8 @@ Status conventions:
 
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
-| [024](024-add-first-class-focused-review-benches.md) | Add First-Class Focused Review Benches | medium | M |
 | [021](021-domain-tagged-degrade-policy.md) | Domain-Tagged Degrade Policy | medium | L |
+| [024](024-add-first-class-focused-review-benches.md) | Add First-Class Focused Review Benches | medium | M |
 
 ## Done
 
