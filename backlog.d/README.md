@@ -15,7 +15,6 @@ Status conventions:
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
 | [008](008-enforce-command-plane-architecture-gates.md) | Enforce Command-Plane Architecture Gates | medium | L |
-| [025](025-add-ship-skill.md) | Add Ship Skill | low | S |
 
 ## Active (ready to pick)
 
@@ -51,6 +50,7 @@ See [done/](done/) for full write-ups including "What Was Built" notes.
 | [019](done/019-fix-default-review-bench-guard-agent-incompatibility.md) | Fix Default Review Bench Guard Agent Incompatibility |
 | [022](done/022-add-run-inspection-and-explicit-run-state-commands.md) | Add Run Inspection And Explicit Run State Commands |
 | [023](done/023-add-structured-research-findings-contract.md) | Add Structured Research Findings Contract |
+| [025](done/025-add-ship-skill.md) | Add Ship Skill |
 
 ## Workflow
 

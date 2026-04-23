@@ -1,7 +1,7 @@
 # Add Ship Skill
 
 Priority: low
-Status: in-progress
+Status: done
 Estimate: S
 
 ## Goal
@@ -29,6 +29,11 @@ ThinkTank can use a repo-local `ship` skill for final-mile branch landing withou
 - [x] `.claude/skills/ship`, `.codex/skills/ship`, and `.pi/skills/ship` resolve to the shared skill
 - [x] `AGENTS.md` lists `ship` in the skill index
 - [x] `scripts/ci/harness-agent-gate.sh` passes after the install
+
+## What Was Built
+- Installed a repo-local `ship` skill under `.agent/skills/ship/` with ThinkTank-specific final-mile instructions instead of the spellbook-global helper assumptions.
+- Bridged the shared skill into `.claude/skills/ship`, `.codex/skills/ship`, and `.pi/skills/ship` so all three harnesses resolve the same body.
+- Added `ship` to the repo skill index in `AGENTS.md` and kept the backlog index aligned with the shipped state.
 
 ## Notes
 Spellbook already has a global `ship` skill, but the upstream body assumes backlog helper scripts and archive paths that this repo does not use. The repo-local install should preserve the intent while adapting the operational details to ThinkTank.
