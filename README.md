@@ -126,6 +126,10 @@ Built-in benches:
 Config shape:
 
 ```yaml
+defaults:
+  agent:
+    thinking_level: medium
+
 providers:
   openrouter:
     adapter: openrouter
@@ -157,6 +161,10 @@ benches:
     agents: [systems, verification, ml, dx]
     synthesizer: research-synth
 ```
+
+`defaults.agent` applies shared agent settings before validation, so the
+built-in and user/repo config can set a default `thinking_level` without
+hardcoding it in Elixir source.
 
 Bench kinds:
 

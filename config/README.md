@@ -12,6 +12,10 @@ CLI flags override run-time input such as task text, paths, and review refs.
 ## Top-Level Shape
 
 ```yaml
+defaults:
+  agent:
+    thinking_level: medium
+
 providers:
   openrouter:
     adapter: openrouter
@@ -61,6 +65,10 @@ benches:
   thinking level, retries, timeout
 - `BenchSpec`: id, kind, description, agent list, optional synthesizer,
   concurrency, and optional `default_task`
+
+`defaults.agent` is merged into every agent before typed validation. Use it for
+shared settings like the default `thinking_level` instead of repeating a
+hardcoded value across agents.
 
 ## Bench Kinds
 

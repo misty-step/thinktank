@@ -9,6 +9,7 @@ defmodule Thinktank.AgentSpecTest do
                "provider" => "openrouter",
                "model" => "openai/gpt-5.4",
                "system_prompt" => "You are trace.",
+               "thinking_level" => "high",
                "task_prompt" => "Review {{input_text}}",
                "tools" => "bash,read,grep",
                "timeout_ms" => "9000"
@@ -26,6 +27,7 @@ defmodule Thinktank.AgentSpecTest do
                "provider" => "openrouter",
                "model" => "openai/gpt-5.4",
                "system_prompt" => "You are trace.",
+               "thinking_level" => "high",
                "prompt" => "Legacy {{input_text}}"
              })
 
@@ -37,27 +39,33 @@ defmodule Thinktank.AgentSpecTest do
              AgentSpec.from_pair("trace", %{
                "provider" => "openrouter",
                "model" => "bad model",
+               "thinking_level" => "high",
                "system_prompt" => "You are trace."
              })
   end
 
-  test "falls back to defaults for blank optional strings and rejects blank required strings" do
+  test "uses configured defaults for blank optional strings and rejects blank required strings" do
     assert {:ok, spec} =
-             AgentSpec.from_pair("trace", %{
-               "provider" => "openrouter",
-               "model" => "openai/gpt-5.4",
-               "system_prompt" => "You are trace.",
-               "task_prompt" => "   ",
-               "thinking_level" => " "
-             })
+             AgentSpec.from_pair(
+               "trace",
+               %{
+                 "provider" => "openrouter",
+                 "model" => "openai/gpt-5.4",
+                 "system_prompt" => "You are trace.",
+                 "task_prompt" => "   ",
+                 "thinking_level" => " "
+               },
+               %{"thinking_level" => "high"}
+             )
 
     assert spec.task_prompt == "{{input_text}}"
-    assert spec.thinking_level == "medium"
+    assert spec.thinking_level == "high"
 
     assert {:error, "agent system_prompt is required"} =
              AgentSpec.from_pair("trace", %{
                "provider" => "openrouter",
                "model" => "openai/gpt-5.4",
+               "thinking_level" => "high",
                "system_prompt" => "   "
              })
   end
@@ -68,6 +76,7 @@ defmodule Thinktank.AgentSpecTest do
                "provider" => "openrouter",
                "model" => "openai/gpt-5.4",
                "system_prompt" => "You are trace.",
+               "thinking_level" => "high",
                "retries" => "2",
                "timeout" => 7000,
                "tools" => ["bash", 42, "read"],
@@ -88,6 +97,7 @@ defmodule Thinktank.AgentSpecTest do
                "provider" => "openrouter",
                "model" => "openai/gpt-5.4",
                "system_prompt" => "You are trace.",
+               "thinking_level" => "high",
                "retries" => "-1"
              })
 
@@ -96,6 +106,7 @@ defmodule Thinktank.AgentSpecTest do
                "provider" => "openrouter",
                "model" => "openai/gpt-5.4",
                "system_prompt" => "You are trace.",
+               "thinking_level" => "high",
                "timeout_ms" => "nope"
              })
   end
@@ -105,12 +116,23 @@ defmodule Thinktank.AgentSpecTest do
              AgentSpec.from_pair("trace", %{
                "provider" => " ",
                "model" => "openai/gpt-5.4",
+               "thinking_level" => "high",
                "system_prompt" => "You are trace."
              })
 
     assert {:error, "agent model is required"} =
              AgentSpec.from_pair("trace", %{
                "provider" => "openrouter",
+               "thinking_level" => "high",
+               "system_prompt" => "You are trace."
+             })
+  end
+
+  test "requires thinking_level when config defaults do not provide one" do
+    assert {:error, "agent thinking_level is required"} =
+             AgentSpec.from_pair("trace", %{
+               "provider" => "openrouter",
+               "model" => "openai/gpt-5.4",
                "system_prompt" => "You are trace."
              })
   end
@@ -121,6 +143,7 @@ defmodule Thinktank.AgentSpecTest do
                "provider" => "openrouter",
                "model" => "openai/gpt-5.4",
                "system_prompt" => "You are trace.",
+               "thinking_level" => "high",
                "retries" => 1,
                "tools" => %{"bash" => true}
              })

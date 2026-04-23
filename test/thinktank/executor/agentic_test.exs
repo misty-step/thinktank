@@ -82,6 +82,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 5_000
     }
@@ -101,6 +102,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 5_000
     }
@@ -127,6 +129,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 5_000
     }
@@ -159,6 +162,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 5_000
     }
@@ -183,6 +187,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 5_000
     }
@@ -204,6 +209,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       tools: ["read", "$(touch #{pwned})"],
       timeout_ms: 5_000
@@ -233,6 +239,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       tools: ["nope", "$(touch #{pwned})"],
       timeout_ms: 5_000
@@ -262,6 +269,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 5_000
     }
@@ -312,6 +320,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 5_000
     }
@@ -337,6 +346,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "Role={{review_role}}\nBrief={{review_brief}}",
       timeout_ms: 5_000,
       metadata: %{"review_role" => "correctness", "review_brief" => "Focus on regressions."}
@@ -391,6 +401,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 5_000,
       retries: 1
@@ -448,6 +459,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4-mini",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 5_000,
       retries: 1
@@ -491,6 +503,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 5_000
     }
@@ -518,6 +531,7 @@ defmodule Thinktank.Executor.AgenticTest do
       provider: "openrouter",
       model: "openai/gpt-5.4",
       system_prompt: "You are a reviewer.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}",
       timeout_ms: 10
     }

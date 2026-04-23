@@ -3,14 +3,14 @@ defmodule Thinktank.AgentSpec do
   Typed Pi agent configuration.
   """
 
-  @enforce_keys [:name, :provider, :model, :system_prompt]
+  @enforce_keys [:name, :provider, :model, :system_prompt, :thinking_level]
   defstruct [
     :name,
     :provider,
     :model,
     :system_prompt,
+    :thinking_level,
     task_prompt: "{{input_text}}",
-    thinking_level: "medium",
     retries: 0,
     timeout_ms: :timer.minutes(5),
     tools: nil,
@@ -31,11 +31,21 @@ defmodule Thinktank.AgentSpec do
         }
 
   @spec from_pair(String.t(), map()) :: {:ok, t()} | {:error, String.t()}
-  def from_pair(name, %{} = raw) when is_binary(name) do
+  def from_pair(name, %{} = raw) when is_binary(name), do: from_pair(name, raw, %{})
+  def from_pair(name, _raw), do: {:error, "agent #{name} must be a map"}
+
+  @spec from_pair(String.t(), map(), map()) :: {:ok, t()} | {:error, String.t()}
+  def from_pair(name, %{} = raw, defaults) when is_binary(name) and is_map(defaults) do
+    thinking_level =
+      raw["thinking_level"]
+      |> string_or_default(Map.get(defaults, "thinking_level"))
+
     with {:ok, provider} <- require_string(raw, "provider"),
          {:ok, model} <- require_string(raw, "model"),
          :ok <- validate_model(model),
          {:ok, system_prompt} <- require_string(raw, "system_prompt"),
+         {:ok, thinking_level} <-
+           require_present_string(thinking_level, "agent thinking_level is required"),
          {:ok, retries} <- parse_non_neg_int("retries", raw["retries"], 0),
          {:ok, timeout_ms} <-
            parse_non_neg_int(
@@ -50,7 +60,7 @@ defmodule Thinktank.AgentSpec do
          model: model,
          system_prompt: system_prompt,
          task_prompt: string_or_default(raw["task_prompt"] || raw["prompt"], "{{input_text}}"),
-         thinking_level: string_or_default(raw["thinking_level"], "medium"),
+         thinking_level: thinking_level,
          retries: retries,
          timeout_ms: timeout_ms,
          tools: parse_tools(raw["tools"]),
@@ -59,7 +69,7 @@ defmodule Thinktank.AgentSpec do
     end
   end
 
-  def from_pair(name, _raw), do: {:error, "agent #{name} must be a map"}
+  def from_pair(name, _raw, _defaults), do: {:error, "agent #{name} must be a map"}
 
   defp require_string(raw, key) do
     case raw[key] do
@@ -76,6 +86,12 @@ defmodule Thinktank.AgentSpec do
   end
 
   defp string_or_default(_, default), do: default
+
+  defp require_present_string(value, error) when is_binary(value) do
+    if String.trim(value) == "", do: {:error, error}, else: {:ok, value}
+  end
+
+  defp require_present_string(_value, error), do: {:error, error}
 
   defp validate_model(model) do
     if String.match?(model, ~r/\s/) do

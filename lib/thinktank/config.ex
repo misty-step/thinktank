@@ -65,8 +65,10 @@ defmodule Thinktank.Config do
   end
 
   defp build(raw, sources) do
+    agent_defaults = get_in(raw, ["defaults", "agent"])
+
     with {:ok, providers} <- build_providers(Map.get(raw, "providers", %{})),
-         {:ok, agents} <- build_agents(Map.get(raw, "agents", %{})),
+         {:ok, agents} <- build_agents(Map.get(raw, "agents", %{}), agent_defaults),
          {:ok, benches} <- build_benches(Map.get(raw, "benches", %{})),
          :ok <- validate_references(benches, agents, providers) do
       {:ok, %__MODULE__{providers: providers, agents: agents, benches: benches, sources: sources}}
@@ -84,16 +86,16 @@ defmodule Thinktank.Config do
 
   defp build_providers(_), do: {:error, "providers must be a map"}
 
-  defp build_agents(raw) when is_map(raw) do
+  defp build_agents(raw, defaults) when is_map(raw) do
     Enum.reduce_while(raw, {:ok, %{}}, fn {name, spec}, {:ok, acc} ->
-      case AgentSpec.from_pair(name, spec) do
+      case AgentSpec.from_pair(name, spec, defaults || %{}) do
         {:ok, agent} -> {:cont, {:ok, Map.put(acc, name, agent)}}
         {:error, reason} -> {:halt, {:error, "agent #{name}: #{reason}"}}
       end
     end)
   end
 
-  defp build_agents(_), do: {:error, "agents must be a map"}
+  defp build_agents(_raw, _defaults), do: {:error, "agents must be a map"}
 
   defp build_benches(raw) when is_map(raw) do
     Enum.reduce_while(raw, {:ok, %{}}, fn {id, spec}, {:ok, acc} ->

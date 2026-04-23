@@ -9,6 +9,7 @@ defmodule Thinktank.Review.PlannerTest do
       provider: "openrouter",
       model: "demo/model",
       system_prompt: "You are #{name}.",
+      thinking_level: "high",
       task_prompt: "{{input_text}}"
     }
   end

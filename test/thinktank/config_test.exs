@@ -73,6 +73,29 @@ defmodule Thinktank.ConfigTest do
     assert config.benches["demo/custom"].kind == :review
   end
 
+  test "agent defaults from config apply to agents that omit thinking_level" do
+    tmp = unique_tmp_dir("thinktank-config-defaults")
+    repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
+    File.mkdir_p!(Path.dirname(repo_cfg))
+
+    File.write!(
+      repo_cfg,
+      """
+      defaults:
+        agent:
+          thinking_level: low
+      agents:
+        custom:
+          provider: openrouter
+          model: repo/model
+          system_prompt: Repo override
+      """
+    )
+
+    assert {:ok, config} = Config.load(cwd: tmp, trust_repo_config: true)
+    assert config.agents["custom"].thinking_level == "low"
+  end
+
   test "untrusted repo config is skipped before parsing" do
     tmp = unique_tmp_dir("thinktank-untrusted-malformed")
     repo_cfg = Path.join([tmp, ".thinktank", "config.yml"])
