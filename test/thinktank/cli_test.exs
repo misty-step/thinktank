@@ -210,8 +210,11 @@ defmodule Thinktank.CLITest do
     assert {:ok, %{action: :runs_show, target: "abc123"}} =
              CLI.parse_args(["runs", "show", "abc123"])
 
-    assert {:ok, %{action: :runs_wait, target: "./tmp/run"}} =
-             CLI.parse_args(["runs", "wait", "./tmp/run"])
+    assert {:ok, %{action: :runs_wait, target: "./tmp/run", timeout_ms: 250}} =
+             CLI.parse_args(["runs", "wait", "./tmp/run", "--timeout-ms", "250"])
+
+    assert {:error, "--timeout-ms must be a non-negative integer"} =
+             CLI.parse_args(["runs", "wait", "./tmp/run", "--timeout-ms", "-1"])
   end
 
   test "benches validate prints JSON when --json is requested" do
@@ -493,6 +496,17 @@ defmodule Thinktank.CLITest do
     assert run["output_dir"] == output_dir
   end
 
+  test "runs list returns an input error for invalid internal limit" do
+    command = %{action: :runs_list, cwd: File.cwd!(), json: false, limit: -1}
+
+    stderr =
+      capture_io(:stderr, fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.input_error
+      end)
+
+    assert stderr =~ "Error: run list limit must be a non-negative integer"
+  end
+
   test "runs show prints terminal status without treating failed runs as CLI errors" do
     output_dir = init_run_fixture("thinktank-cli-runs-show", "research/default", "failed")
 
@@ -598,6 +612,56 @@ defmodule Thinktank.CLITest do
       end)
 
     assert stderr =~ "Error: not a ThinkTank run directory: #{path}"
+  end
+
+  test "runs wait supports bounded polling with --timeout-ms" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-cli-runs-wait-timeout"), "run")
+
+    contract = %RunContract{
+      bench_id: "research/default",
+      workspace_root: File.cwd!(),
+      input: %{"input_text" => "inspect this"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{id: "research/default", description: "Demo", agents: ["systems"]}
+    RunStore.init_run(output_dir, contract, bench)
+
+    {:ok, command} = CLI.parse_args(["runs", "wait", output_dir, "--timeout-ms", "0"])
+
+    stderr =
+      capture_io(:stderr, fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.generic_error
+      end)
+
+    assert stderr =~ "Error: timed out waiting for run to finish: #{output_dir}"
+  end
+
+  test "runs wait --json includes output_dir in timeout errors" do
+    output_dir = Path.join(unique_tmp_dir("thinktank-cli-runs-wait-timeout-json"), "run")
+
+    contract = %RunContract{
+      bench_id: "research/default",
+      workspace_root: File.cwd!(),
+      input: %{"input_text" => "inspect this"},
+      artifact_dir: output_dir,
+      adapter_context: %{}
+    }
+
+    bench = %BenchSpec{id: "research/default", description: "Demo", agents: ["systems"]}
+    RunStore.init_run(output_dir, contract, bench)
+
+    {:ok, command} = CLI.parse_args(["runs", "wait", output_dir, "--timeout-ms", "0", "--json"])
+
+    stderr =
+      capture_io(:stderr, fn ->
+        assert CLI.execute({:ok, command}) == @exit_codes.generic_error
+      end)
+
+    assert {:ok, decoded} = Jason.decode(String.trim(stderr))
+    assert decoded["output_dir"] == output_dir
+    assert decoded["error"]["code"] == "run_wait_timeout"
   end
 
   test "renders a cost line in the human-readable run payload" do

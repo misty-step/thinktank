@@ -205,7 +205,7 @@ commands first:
 ```bash
 thinktank runs list
 thinktank runs show <path-or-id>
-thinktank runs wait <path-or-id>
+thinktank runs wait <path-or-id> [--timeout-ms N]
 ```
 
 `runs show` and `runs wait` surface the canonical typed run state from
@@ -216,8 +216,9 @@ consume it without parsing markdown. `runs list` shows the 20 most recent
 discoverable local runs by default, sorted newest-first by `started_at`.
 `runs wait` exits `0` only when the terminal state is `complete`, returns the
 generic non-zero CLI failure status for `degraded`, `partial`, and `failed`,
-returns the input-error status when the target cannot be resolved, and uses the
-generic failure status for malformed or unreadable run artifacts.
+returns the input-error status when the target cannot be resolved, uses the
+generic failure status for malformed or unreadable run artifacts, and waits
+indefinitely unless `--timeout-ms` is provided.
 
 If you still need the raw event stream, tail the trace file inside `output_dir`:
 

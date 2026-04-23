@@ -13,7 +13,7 @@ defmodule Thinktank.CLI.Render do
       thinktank research "..." [options]
       thinktank review [options]
       thinktank review eval <contract-or-dir> [--bench <bench>]
-      thinktank runs list|show <path-or-id>|wait <path-or-id>
+      thinktank runs list|show <path-or-id>|wait <path-or-id> [--timeout-ms N]
       thinktank benches list|show|validate
 
     Task text can come from --input, positional text, or piped stdin.
@@ -32,6 +32,7 @@ defmodule Thinktank.CLI.Render do
       --head REF            Review head ref
       --repo REPO           Review repo owner/name
       --pr N                Review pull request number
+      --timeout-ms N        Bound runs wait polling in milliseconds
 
     Examples:
       thinktank research "analyze this codebase" --paths ./lib

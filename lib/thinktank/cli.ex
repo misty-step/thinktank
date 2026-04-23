@@ -107,15 +107,13 @@ defmodule Thinktank.CLI do
   end
 
   def execute({:ok, %{action: :runs_list} = command}) do
-    case RunInspector.list() do
+    case command |> runs_list_opts() |> RunInspector.list() do
       {:ok, runs} ->
         emit_runs_list(runs, command)
         @exit_codes.success
 
       {:error, reason} ->
-        error = normalize_error(reason)
-        emit_error(command, error, nil)
-        runs_error_exit_code(error)
+        emit_runs_error(command, reason)
     end
   end
 
@@ -126,14 +124,12 @@ defmodule Thinktank.CLI do
         @exit_codes.success
 
       {:error, reason} ->
-        error = normalize_error(reason)
-        emit_error(command, error, nil)
-        runs_error_exit_code(error)
+        emit_runs_error(command, reason)
     end
   end
 
   def execute({:ok, %{action: :runs_wait, target: target} = command}) do
-    case RunInspector.wait(target) do
+    case RunInspector.wait(target, runs_wait_opts(command)) do
       {:ok, run} ->
         emit_run(run, command)
 
@@ -143,9 +139,7 @@ defmodule Thinktank.CLI do
         end
 
       {:error, reason} ->
-        error = normalize_error(reason)
-        emit_error(command, error, nil)
-        runs_error_exit_code(error)
+        emit_runs_error(command, reason)
     end
   end
 
@@ -297,12 +291,36 @@ defmodule Thinktank.CLI do
     |> IO.puts()
   end
 
-  defp runs_error_exit_code(%Error{code: code})
-       when code in [:run_target_not_found, :run_target_ambiguous, :invalid_run_target] do
-    @exit_codes.input_error
+  defp runs_wait_opts(command) do
+    case Map.get(command, :timeout_ms) do
+      nil -> []
+      timeout_ms -> [timeout_ms: timeout_ms]
+    end
   end
 
-  defp runs_error_exit_code(_error), do: @exit_codes.generic_error
+  defp runs_list_opts(command) do
+    command
+    |> Map.take([:limit])
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+  end
+
+  defp emit_runs_error(command, reason) do
+    error = normalize_error(reason)
+    emit_error(command, error, runs_error_output_dir(error))
+    runs_error_exit_code(error)
+  end
+
+  defp runs_error_output_dir(%Error{details: %{output_dir: output_dir}})
+       when is_binary(output_dir),
+       do: output_dir
+
+  defp runs_error_output_dir(_error), do: nil
+
+  defp runs_error_exit_code(%Error{} = error) do
+    if RunInspector.input_error?(error),
+      do: @exit_codes.input_error,
+      else: @exit_codes.generic_error
+  end
 
   defp emit_runs_list(runs, %{json: true}) do
     runs

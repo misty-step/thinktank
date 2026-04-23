@@ -3,7 +3,7 @@ defmodule Thinktank.RunInspector do
   Reads durable run artifacts and exposes inspection helpers for CLI commands.
   """
 
-  alias Thinktank.{ArtifactLayout, RunTracker, TraceLog}
+  alias Thinktank.{ArtifactLayout, Error, RunTracker, TraceLog}
 
   @known_statuses ~w(running complete degraded partial failed)
   @terminal_statuses ~w(complete degraded partial failed)
@@ -24,42 +24,21 @@ defmodule Thinktank.RunInspector do
           trace_events_file: String.t() | nil
         }
 
-  @type error_reason :: %{
-          required(:category) => atom(),
-          required(:message) => String.t(),
-          optional(atom()) => term()
-        }
-
-  @spec list(keyword()) :: {:ok, [run_info()]} | {:error, error_reason()}
+  @spec list(keyword()) :: {:ok, [run_info()]} | {:error, Error.t()}
   def list(opts \\ []) do
-    limit = Keyword.get(opts, :limit, @default_limit)
-
-    runs =
-      opts
-      |> discover_output_dirs()
-      |> Enum.flat_map(fn output_dir ->
-        case load_run(output_dir, :lenient) do
-          {:ok, run} -> [run]
-          nil -> []
-        end
-      end)
-      |> Enum.sort_by(&{sort_timestamp(&1), &1.id, &1.output_dir}, :desc)
-      |> maybe_limit(limit)
-
-    {:ok, runs}
-  rescue
-    exception ->
-      error(:run_list_failed, "failed to discover runs", reason: Exception.message(exception))
+    with {:ok, limit} <- list_limit(opts) do
+      {:ok, load_listed_runs(opts, limit)}
+    end
   end
 
-  @spec show(String.t(), keyword()) :: {:ok, run_info()} | {:error, error_reason()}
+  @spec show(String.t(), keyword()) :: {:ok, run_info()} | {:error, Error.t()}
   def show(target, opts \\ []) when is_binary(target) do
     with {:ok, output_dir} <- resolve_target(target, opts) do
       load_run(output_dir)
     end
   end
 
-  @spec wait(String.t(), keyword()) :: {:ok, run_info()} | {:error, error_reason()}
+  @spec wait(String.t(), keyword()) :: {:ok, run_info()} | {:error, Error.t()}
   def wait(target, opts \\ []) when is_binary(target) do
     poll_ms = Keyword.get(opts, :poll_ms, @default_poll_ms)
     timeout_ms = Keyword.get(opts, :timeout_ms, :infinity)
@@ -71,6 +50,18 @@ defmodule Thinktank.RunInspector do
 
   @spec terminal_status?(String.t()) :: boolean()
   def terminal_status?(status) when is_binary(status), do: status in @terminal_statuses
+
+  @spec input_error?(Error.t()) :: boolean()
+  def input_error?(%Error{code: code})
+      when code in [
+             :run_target_not_found,
+             :run_target_ambiguous,
+             :invalid_run_target,
+             :invalid_run_list_limit
+           ],
+      do: true
+
+  def input_error?(_error), do: false
 
   defp wait_for_terminal(output_dir, poll_ms, deadline) do
     case load_run(output_dir) do
@@ -130,36 +121,20 @@ defmodule Thinktank.RunInspector do
   defp resolve_target_path(target) do
     expanded = Path.expand(target)
 
-    if path_target?(target) || File.exists?(expanded) do
-      resolve_existing_path(expanded, target)
-    else
-      :not_a_path_target
-    end
-  end
-
-  defp resolve_existing_path(expanded, original_target) do
-    case existing_target_candidate(expanded) do
-      :missing ->
-        error(:run_target_not_found, "run not found: #{original_target}", target: original_target)
-
-      candidate ->
-        if run_dir?(candidate) do
-          {:ok, candidate}
-        else
-          error(
-            :invalid_run_target,
-            "not a ThinkTank run directory: #{original_target}",
-            target: original_target
-          )
-        end
-    end
-  end
-
-  defp existing_target_candidate(expanded) do
     cond do
-      File.dir?(expanded) -> expanded
-      File.exists?(expanded) -> run_dir_from_artifact_path(expanded)
-      true -> :missing
+      File.dir?(expanded) ->
+        validate_run_dir(expanded, target)
+
+      File.exists?(expanded) ->
+        expanded
+        |> run_dir_from_artifact_path()
+        |> validate_run_dir(target)
+
+      path_target?(target) ->
+        error(:run_target_not_found, "run not found: #{target}", target: target)
+
+      true ->
+        :not_a_path_target
     end
   end
 
@@ -184,6 +159,26 @@ defmodule Thinktank.RunInspector do
     end
   end
 
+  defp validate_run_dir(nil, original_target) do
+    error(
+      :invalid_run_target,
+      "not a ThinkTank run directory: #{original_target}",
+      target: original_target
+    )
+  end
+
+  defp validate_run_dir(output_dir, original_target) do
+    if run_dir?(output_dir) do
+      {:ok, output_dir}
+    else
+      error(
+        :invalid_run_target,
+        "not a ThinkTank run directory: #{original_target}",
+        target: original_target
+      )
+    end
+  end
+
   defp path_target?(target) do
     String.contains?(target, ["/", "\\"]) || String.starts_with?(target, ".") ||
       String.starts_with?(target, "~")
@@ -201,6 +196,36 @@ defmodule Thinktank.RunInspector do
     |> List.flatten()
     |> Enum.map(&Path.expand/1)
     |> Enum.uniq()
+  end
+
+  defp list_limit(opts) do
+    case Keyword.get(opts, :limit, @default_limit) do
+      nil ->
+        {:ok, nil}
+
+      limit when is_integer(limit) and limit >= 0 ->
+        {:ok, limit}
+
+      limit ->
+        error(:invalid_run_list_limit, "run list limit must be a non-negative integer",
+          limit: limit
+        )
+    end
+  end
+
+  defp load_listed_runs(opts, limit) do
+    opts
+    |> discover_output_dirs()
+    |> Enum.flat_map(&load_listed_run/1)
+    |> Enum.sort_by(&{sort_timestamp(&1), &1.id, &1.output_dir}, :desc)
+    |> maybe_limit(limit)
+  end
+
+  defp load_listed_run(output_dir) do
+    case load_run(output_dir, :lenient) do
+      {:ok, run} -> [run]
+      nil -> []
+    end
   end
 
   defp resolved_log_dir(opts) do
@@ -333,7 +358,7 @@ defmodule Thinktank.RunInspector do
          {:ok, decoded} <- decode_json_object(body, path) do
       {:ok, decoded}
     else
-      {:error, %{category: _} = reason} ->
+      {:error, %Error{} = reason} ->
         {:error, reason}
 
       {:error, reason} ->
@@ -363,7 +388,8 @@ defmodule Thinktank.RunInspector do
   end
 
   defp error(category, message, details \\ %{}) do
-    {:error, Map.merge(%{category: category, message: message}, Map.new(details))}
+    reason = Map.merge(%{category: category, message: message}, Map.new(details))
+    {:error, Error.from_reason(reason)}
   end
 
   defp build_run_info(output_dir, paths, manifest, summary, contract, status) do

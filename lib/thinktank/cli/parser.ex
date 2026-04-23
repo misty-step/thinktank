@@ -20,7 +20,8 @@ defmodule Thinktank.CLI.Parser do
       base: :string,
       head: :string,
       repo: :string,
-      pr: :integer
+      pr: :integer,
+      timeout_ms: :integer
     ],
     aliases: [
       h: :help,
@@ -161,13 +162,16 @@ defmodule Thinktank.CLI.Parser do
   end
 
   defp build_command(["runs", "wait", target], parsed) do
-    {:ok,
-     %{
-       action: :runs_wait,
-       target: target,
-       cwd: File.cwd!(),
-       json: parsed[:json] || false
-     }}
+    with {:ok, timeout_ms} <- parse_timeout_ms(parsed[:timeout_ms]) do
+      {:ok,
+       %{
+         action: :runs_wait,
+         target: target,
+         cwd: File.cwd!(),
+         json: parsed[:json] || false,
+         timeout_ms: timeout_ms
+       }}
+    end
   end
 
   defp build_command(["runs" | _rest], _parsed) do
@@ -251,6 +255,13 @@ defmodule Thinktank.CLI.Parser do
     |> maybe_put_value(:repo, parsed[:repo])
     |> maybe_put_value(:pr, parsed[:pr])
   end
+
+  defp parse_timeout_ms(nil), do: {:ok, nil}
+
+  defp parse_timeout_ms(timeout_ms) when is_integer(timeout_ms) and timeout_ms >= 0,
+    do: {:ok, timeout_ms}
+
+  defp parse_timeout_ms(_timeout_ms), do: {:error, "--timeout-ms must be a non-negative integer"}
 
   defp validate_review_pr_flags(%BenchSpec{id: bench_id} = bench, parsed) do
     parsed = if is_map(parsed), do: parsed, else: Map.new(parsed)
