@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+
+CORE_ROOT="$(cd -P "$(dirname "$SOURCE")/.." >/dev/null 2>&1 && pwd)"
+COMMAND="${1:-help}"
+
+case "$COMMAND" in
+  init|install-global|config|help|-h|--help)
+    exec "$CORE_ROOT/scripts/gradient.sh" "$@"
+    ;;
+esac
+
+WORKSPACE_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+WORKSPACE_GRADIENT="$WORKSPACE_ROOT/scripts/gradient.sh"
+
+if [ "$WORKSPACE_ROOT" != "$CORE_ROOT" ] && [ -x "$WORKSPACE_GRADIENT" ]; then
+  exec "$WORKSPACE_GRADIENT" "$@"
+fi
+
+exec "$CORE_ROOT/scripts/gradient.sh" "$@"

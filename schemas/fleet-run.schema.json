@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gradient.local/schemas/fleet-run.schema.json",
+  "title": "Gradient Fleet Run",
+  "type": "object",
+  "required": ["id", "backend", "status", "work_item_ids", "harness_id", "started_at", "events", "artifacts"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "backend": { "enum": ["codex-local", "claude-code-local", "manual"] },
+    "slot_id": { "type": "string", "minLength": 1 },
+    "workflow_prompt_version": { "type": "string", "minLength": 1 },
+    "handoff_state": { "enum": ["queued", "waiting_for_operator", "in_progress", "ready_for_review", "closed", "aborted"] },
+    "status": { "enum": ["running", "waiting", "succeeded", "failed", "aborted"] },
+    "work_item_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "harness_id": { "type": "string", "minLength": 1 },
+    "context_bundle_id": { "type": "string", "minLength": 1 },
+    "operator": { "type": "string", "minLength": 1 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "ended_at": { "type": "string", "format": "date-time" },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type", "at", "summary"],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "enum": ["start", "approval", "intervention", "artifact", "validation", "handoff", "status", "complete", "abort"]
+          },
+          "at": { "type": "string", "format": "date-time" },
+          "summary": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "trace_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["backend", "trace_id", "redaction", "summary"],
+        "additionalProperties": false,
+        "anyOf": [
+          { "required": ["uri"] },
+          { "required": ["artifact_path"] }
+        ],
+        "properties": {
+          "backend": { "enum": ["local", "raindrop", "langfuse", "helicone", "otlp"] },
+          "trace_id": { "type": "string", "minLength": 1 },
+          "uri": { "type": "string", "minLength": 1 },
+          "artifact_path": { "type": "string", "minLength": 1 },
+          "redaction": { "enum": ["synthetic", "redacted", "redacted-export", "public-safe"] },
+          "summary": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

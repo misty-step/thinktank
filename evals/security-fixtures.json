@@ -1,0 +1,34 @@
+{
+  "safe_samples": [
+    "secret reference: infisical://project/env/path/API_TOKEN",
+    "masked token: sk-...redacted",
+    "audit log reference: external-audit-log://event/12345",
+    "github token redacted: ghp_...redacted"
+  ],
+  "unsafe_samples": [
+    {
+      "name": "openai_key",
+      "parts": ["sk-", "aaaaaaaaaaaaaaaaaaaaaaaa"]
+    },
+    {
+      "name": "openai_project_key",
+      "parts": ["sk-proj-", "bbbbbbbbbbbbbbbbbbbbbbbb"]
+    },
+    {
+      "name": "github_token",
+      "parts": ["ghp_", "cccccccccccccccccccccccc"]
+    },
+    {
+      "name": "github_fine_grained_token",
+      "parts": ["github_pat_", "dddddddddddddddddddddddd"]
+    },
+    {
+      "name": "private_key",
+      "parts": ["BEGIN ", "OPENSSH PRIVATE KEY"]
+    },
+    {
+      "name": "aws_secret_assignment",
+      "parts": ["aws_secret_access_key", "=eeeeeeeeeeeeeeeeeeee"]
+    }
+  ]
+}

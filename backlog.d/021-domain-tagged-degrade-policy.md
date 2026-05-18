@@ -1,3 +1,14 @@
+---
+acceptance:
+    - Gradient can preserve and track this adopted work item.
+evidence_required:
+    - gradient work show 021-domain-tagged-degrade-policy
+id: 021-domain-tagged-degrade-policy
+lifecycle_stage: Intent
+status: ready
+title: Domain-Tagged Degrade Policy
+---
+
 # Domain-Tagged Degrade Policy
 
 Priority: medium

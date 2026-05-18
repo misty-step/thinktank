@@ -55,3 +55,7 @@ agent_config/logs/
 
 # Claude settings
 **/.claude/settings.local.json
+
+# Gradient local/private state
+.gradient/private/
+.gradient/sources.local.yaml

@@ -1,0 +1,71 @@
+name: org-engineering
+extends: base
+version: 0.1.0
+description: Small engineering team profile with shared standards and review gates.
+
+standards:
+  baseline: org-engineering
+  manifests:
+    - standards/org-engineering.yaml
+  policy_packs:
+    - public-safe
+    - evidence-required
+    - security-defaults
+    - trace-reference-boundary
+  harness_packs:
+    - codex-primary
+    - claude-code-compatible
+    - filesystem-skills
+  exception_policy:
+    adapter: backlog.d
+    required_fields:
+      - owner
+      - reason
+      - expires_at
+      - approver
+      - risk
+    expiry_required: true
+    approval_required: true
+
+work:
+  adapter: configurable
+  requirements:
+    durable_ids: true
+    owner: required
+    acceptance_criteria: required
+
+fleet:
+  backend: configurable
+  autonomy: gated
+
+policy:
+  approvals:
+    code_changes: required
+    production_changes: required
+    external_side_effects: required
+  secrets:
+    secret_manager: dedicated_secret_manager
+    secret_access_log: external_reference_required
+    rotation_required: required
+    machine_identity_required: required_for_automation
+    secret_values_logged: forbidden
+  supply_chain:
+    package_manager: deployment_defined
+    lockfile: required
+    frozen_installs: required
+    lifecycle_scripts: reviewed
+    minimum_release_age_seconds: 259200
+    release_age_exceptions: []
+  evidence:
+    tests: required
+    ci_status: required
+    review_map: required
+    risk_notes: required
+    rollback_notes: recommended
+  feedback:
+    classification: required
+
+context:
+  permissions: role_scoped
+  citations: required
+  freshness: enforce_stale_warning

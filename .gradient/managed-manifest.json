@@ -1,0 +1,2330 @@
+{
+  "files": [
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/agents/beck.md",
+      "source_sha256": "e62243327817aa919d1fc6e1f9b50bacf915a977b1cb62b194a7d9933047d883",
+      "target_path": ".agents/agents/beck.md",
+      "target_sha256": "e62243327817aa919d1fc6e1f9b50bacf915a977b1cb62b194a7d9933047d883"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/agents/builder.md",
+      "source_sha256": "44866cd33025a82492c0265b054e7d9dcb34791ccc402778acdaf154d869176c",
+      "target_path": ".agents/agents/builder.md",
+      "target_sha256": "44866cd33025a82492c0265b054e7d9dcb34791ccc402778acdaf154d869176c"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/agents/carmack.md",
+      "source_sha256": "a3779a7e2eb3551d1f82d378d88d739ca2c5a2fbffd9ec3b4f235cf8658279cb",
+      "target_path": ".agents/agents/carmack.md",
+      "target_sha256": "a3779a7e2eb3551d1f82d378d88d739ca2c5a2fbffd9ec3b4f235cf8658279cb"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/agents/cooper.md",
+      "source_sha256": "01b056a4ac5c2702e249063da0d2bd38e6fdf2f02dd7c129d26b8f6b046ecc34",
+      "target_path": ".agents/agents/cooper.md",
+      "target_sha256": "01b056a4ac5c2702e249063da0d2bd38e6fdf2f02dd7c129d26b8f6b046ecc34"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/agents/critic.md",
+      "source_sha256": "da4f51f631355b445586193edff56ac7435b960d48629bdcb754aed2c9777566",
+      "target_path": ".agents/agents/critic.md",
+      "target_sha256": "da4f51f631355b445586193edff56ac7435b960d48629bdcb754aed2c9777566"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/agents/grug.md",
+      "source_sha256": "0e4166caa7b103db02e983d8fb9c784b5d617dabe0b8f6d6e3d62787093ddbd7",
+      "target_path": ".agents/agents/grug.md",
+      "target_sha256": "0e4166caa7b103db02e983d8fb9c784b5d617dabe0b8f6d6e3d62787093ddbd7"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/agents/ousterhout.md",
+      "source_sha256": "39a5f7bb89296cf0fb6fc653b8d40c2c386b33a446659a0b8419f3cf784aa140",
+      "target_path": ".agents/agents/ousterhout.md",
+      "target_sha256": "39a5f7bb89296cf0fb6fc653b8d40c2c386b33a446659a0b8419f3cf784aa140"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/agents/planner.md",
+      "source_sha256": "8c65b4132a0b31de176f22610d800bcbb19af60e2ceb73f124da2efc173e697e",
+      "target_path": ".agents/agents/planner.md",
+      "target_sha256": "8c65b4132a0b31de176f22610d800bcbb19af60e2ceb73f124da2efc173e697e"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/agent-readiness/.spellbook",
+      "source_sha256": "e602794196772372cffa397e7b62fbbc52d8782e70b21e7612ca69b4a82d930f",
+      "target_path": ".agents/skills/agent-readiness/.spellbook",
+      "target_sha256": "e602794196772372cffa397e7b62fbbc52d8782e70b21e7612ca69b4a82d930f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/agent-readiness/SKILL.md",
+      "source_sha256": "c53af7ec3efbf7ac12b5b92174d89e5432480fb332300378df473b836363fa4f",
+      "target_path": ".agents/skills/agent-readiness/SKILL.md",
+      "target_sha256": "c53af7ec3efbf7ac12b5b92174d89e5432480fb332300378df473b836363fa4f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/agent-readiness/references/agent-readiness-principles.md",
+      "source_sha256": "0e6ba040fd8c60614deeea4204cc6fafbbef2de89af6af8fc6cbc984cbd963bf",
+      "target_path": ".agents/skills/agent-readiness/references/agent-readiness-principles.md",
+      "target_sha256": "0e6ba040fd8c60614deeea4204cc6fafbbef2de89af6af8fc6cbc984cbd963bf"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/agent-readiness/references/pillar-checks.md",
+      "source_sha256": "1e752fb7dc1babfca6ec7045915e013fa27ff8fb03cc328679c46150135c0aec",
+      "target_path": ".agents/skills/agent-readiness/references/pillar-checks.md",
+      "target_sha256": "1e752fb7dc1babfca6ec7045915e013fa27ff8fb03cc328679c46150135c0aec"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/ceo-review/.spellbook",
+      "source_sha256": "e4f3bb04b9e7bfafc3463941f90d17f09aa28aadccf972c08623dbc67401a911",
+      "target_path": ".agents/skills/ceo-review/.spellbook",
+      "target_sha256": "e4f3bb04b9e7bfafc3463941f90d17f09aa28aadccf972c08623dbc67401a911"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/ceo-review/SKILL.md",
+      "source_sha256": "c39fbd579af7df81c78d9c4f545e4ff8daeef671db5efea60a417e8a2fd518f2",
+      "target_path": ".agents/skills/ceo-review/SKILL.md",
+      "target_sha256": "c39fbd579af7df81c78d9c4f545e4ff8daeef671db5efea60a417e8a2fd518f2"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/ci/.spellbook",
+      "source_sha256": "2d5bf73fde5d6bc1b165201341f26b46d2640d688c20124ee82a30271df3aac5",
+      "target_path": ".agents/skills/ci/.spellbook",
+      "target_sha256": "2d5bf73fde5d6bc1b165201341f26b46d2640d688c20124ee82a30271df3aac5"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/ci/SKILL.md",
+      "source_sha256": "73bfd2a320a8614f0041deba73ef8f9a73ed2aab7284649c59182cbc286c6724",
+      "target_path": ".agents/skills/ci/SKILL.md",
+      "target_sha256": "73bfd2a320a8614f0041deba73ef8f9a73ed2aab7284649c59182cbc286c6724"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/ci/references/audit.md",
+      "source_sha256": "195fec3a1382b6c6c7c4fba1363791b5bf3118fd82b6deae6ead0f5f20009063",
+      "target_path": ".agents/skills/ci/references/audit.md",
+      "target_sha256": "195fec3a1382b6c6c7c4fba1363791b5bf3118fd82b6deae6ead0f5f20009063"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/ci/references/self-heal.md",
+      "source_sha256": "80e231be12b036eb585d53b5e6f12e4123742158164de33bc1e32177fbfb8545",
+      "target_path": ".agents/skills/ci/references/self-heal.md",
+      "target_sha256": "80e231be12b036eb585d53b5e6f12e4123742158164de33bc1e32177fbfb8545"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/code-review/.spellbook",
+      "source_sha256": "09f3b7ae72077e5af7e8db8af5241e958e111061d597dd88620be341260d74a3",
+      "target_path": ".agents/skills/code-review/.spellbook",
+      "target_sha256": "09f3b7ae72077e5af7e8db8af5241e958e111061d597dd88620be341260d74a3"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/code-review/SKILL.md",
+      "source_sha256": "dbbb95df491805e87ca6e15193407293eef422b64c0cdc57cadc6c540a34d3b3",
+      "target_path": ".agents/skills/code-review/SKILL.md",
+      "target_sha256": "dbbb95df491805e87ca6e15193407293eef422b64c0cdc57cadc6c540a34d3b3"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/code-review/evals/README.md",
+      "source_sha256": "260f4fba614c096d578dff4e5f7faab3ca1806fec918274e794087bda636084b",
+      "target_path": ".agents/skills/code-review/evals/README.md",
+      "target_sha256": "260f4fba614c096d578dff4e5f7faab3ca1806fec918274e794087bda636084b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/code-review/evals/cases/unverified-entrypoint.md",
+      "source_sha256": "f9049a1855fe46dd3308f86e95b0775e6eb104410b63a323ec90b7148dc0e654",
+      "target_path": ".agents/skills/code-review/evals/cases/unverified-entrypoint.md",
+      "target_sha256": "f9049a1855fe46dd3308f86e95b0775e6eb104410b63a323ec90b7148dc0e654"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/code-review/evals/graders/check.sh",
+      "source_sha256": "4dbde5774ce7fd490ecb6949925fc4b17e18624b1074bd8d1b9026d130fec716",
+      "target_path": ".agents/skills/code-review/evals/graders/check.sh",
+      "target_sha256": "4dbde5774ce7fd490ecb6949925fc4b17e18624b1074bd8d1b9026d130fec716"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/code-review/references/bench-map.md",
+      "source_sha256": "f1af34787e14dadb6378aae5827fb0d5c81f49c1bcc9bc0463dcbfb876b525e4",
+      "target_path": ".agents/skills/code-review/references/bench-map.md",
+      "target_sha256": "f1af34787e14dadb6378aae5827fb0d5c81f49c1bcc9bc0463dcbfb876b525e4"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/code-review/references/bench-map.yaml",
+      "source_sha256": "5f8886b534a0902654fe8756674b1ae42de3e2b539a2d2236e057d165c618d44",
+      "target_path": ".agents/skills/code-review/references/bench-map.yaml",
+      "target_sha256": "5f8886b534a0902654fe8756674b1ae42de3e2b539a2d2236e057d165c618d44"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/code-review/references/cross-harness.md",
+      "source_sha256": "1f084ac26986ecf5416ca2b014e65b9a51aaff07a8600aa6e1315c7a3b7c7a2e",
+      "target_path": ".agents/skills/code-review/references/cross-harness.md",
+      "target_sha256": "1f084ac26986ecf5416ca2b014e65b9a51aaff07a8600aa6e1315c7a3b7c7a2e"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/code-review/references/internal-bench.md",
+      "source_sha256": "8a8d0be582c8ee329d03b7af66fe6ecb471ac408cd915f2b191b78cee1c3aff4",
+      "target_path": ".agents/skills/code-review/references/internal-bench.md",
+      "target_sha256": "8a8d0be582c8ee329d03b7af66fe6ecb471ac408cd915f2b191b78cee1c3aff4"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/code-review/references/thinktank-review.md",
+      "source_sha256": "aaf950ec3b6e8787010da228dd529cdd91ce0687405aefa2821b613a09710897",
+      "target_path": ".agents/skills/code-review/references/thinktank-review.md",
+      "target_sha256": "aaf950ec3b6e8787010da228dd529cdd91ce0687405aefa2821b613a09710897"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/deliver/.spellbook",
+      "source_sha256": "4b102e05456d70af6efe7af3b1a0a3afd23ea77325d061239b49817e289c0411",
+      "target_path": ".agents/skills/deliver/.spellbook",
+      "target_sha256": "4b102e05456d70af6efe7af3b1a0a3afd23ea77325d061239b49817e289c0411"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/deliver/SKILL.md",
+      "source_sha256": "0baafa7f2d8cc6998c623790330206769aac678e9b0206ed80c0a0f2918cdbc1",
+      "target_path": ".agents/skills/deliver/SKILL.md",
+      "target_sha256": "0baafa7f2d8cc6998c623790330206769aac678e9b0206ed80c0a0f2918cdbc1"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/deliver/references/branch.md",
+      "source_sha256": "9de36a67835b282b58e0d6bf3aa2b0410c3c91753da033cbe253e41e36747b0d",
+      "target_path": ".agents/skills/deliver/references/branch.md",
+      "target_sha256": "9de36a67835b282b58e0d6bf3aa2b0410c3c91753da033cbe253e41e36747b0d"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/deliver/references/clean-loop.md",
+      "source_sha256": "f6b2790565f4a2558086dd26ff941cfaaeb7558db9be4f00e2680a981c8580bb",
+      "target_path": ".agents/skills/deliver/references/clean-loop.md",
+      "target_sha256": "f6b2790565f4a2558086dd26ff941cfaaeb7558db9be4f00e2680a981c8580bb"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/deliver/references/durability.md",
+      "source_sha256": "6ce27eb697d716e15c4049b35d20407fdfcd1d018004d8575c1dcbca6db05aaa",
+      "target_path": ".agents/skills/deliver/references/durability.md",
+      "target_sha256": "6ce27eb697d716e15c4049b35d20407fdfcd1d018004d8575c1dcbca6db05aaa"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/deliver/references/evidence.md",
+      "source_sha256": "ee6794cbd262121c6404947437807b70608b3acc29af578960ebdd3ff1d60496",
+      "target_path": ".agents/skills/deliver/references/evidence.md",
+      "target_sha256": "ee6794cbd262121c6404947437807b70608b3acc29af578960ebdd3ff1d60496"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/deliver/references/receipt.md",
+      "source_sha256": "1a2943644a4d215ca590363f011e70acf2c558df33b434119982caefb33fa2e4",
+      "target_path": ".agents/skills/deliver/references/receipt.md",
+      "target_sha256": "1a2943644a4d215ca590363f011e70acf2c558df33b434119982caefb33fa2e4"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/deliver/references/worktree.md",
+      "source_sha256": "f05959e726a33234ff2f1ee02d5dec4acada664dc0fd3a78015be4c9db47222c",
+      "target_path": ".agents/skills/deliver/references/worktree.md",
+      "target_sha256": "f05959e726a33234ff2f1ee02d5dec4acada664dc0fd3a78015be4c9db47222c"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/demo/.spellbook",
+      "source_sha256": "7afeca60eeb91787e659f933879d069b19eef8a94c24f8ab63f3337d471cdba1",
+      "target_path": ".agents/skills/demo/.spellbook",
+      "target_sha256": "7afeca60eeb91787e659f933879d069b19eef8a94c24f8ab63f3337d471cdba1"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/demo/SKILL.md",
+      "source_sha256": "348ffc2bc0a084313e57b1c12ca61ccff8f25fb728375207665d0af2f8292f31",
+      "target_path": ".agents/skills/demo/SKILL.md",
+      "target_sha256": "348ffc2bc0a084313e57b1c12ca61ccff8f25fb728375207665d0af2f8292f31"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/demo/references/pr-evidence-upload.md",
+      "source_sha256": "ffed0cd7923b8a84a15b53b10eecb09a0641f191172bd75eaaa97e70ead23c6a",
+      "target_path": ".agents/skills/demo/references/pr-evidence-upload.md",
+      "target_sha256": "ffed0cd7923b8a84a15b53b10eecb09a0641f191172bd75eaaa97e70ead23c6a"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/demo/references/remotion.md",
+      "source_sha256": "cbb7e1979831233fbca1f02f10c3ff2a49ee74a959a2542577be702b0d972de2",
+      "target_path": ".agents/skills/demo/references/remotion.md",
+      "target_sha256": "cbb7e1979831233fbca1f02f10c3ff2a49ee74a959a2542577be702b0d972de2"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/demo/references/scaffold.md",
+      "source_sha256": "82362e519e16648667d875c7f39dd2f2a1716c91b5b88b85c23d6a002b12b900",
+      "target_path": ".agents/skills/demo/references/scaffold.md",
+      "target_sha256": "82362e519e16648667d875c7f39dd2f2a1716c91b5b88b85c23d6a002b12b900"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/demo/references/tts-narration.md",
+      "source_sha256": "2bdf2941a0d682454115ead4cbf541934d2af7f37204b3325174157f85562b9b",
+      "target_path": ".agents/skills/demo/references/tts-narration.md",
+      "target_sha256": "2bdf2941a0d682454115ead4cbf541934d2af7f37204b3325174157f85562b9b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/diagnose/.spellbook",
+      "source_sha256": "e3b97749bdab3c53efebf33c5045823146a8753c3be601e09b1af834abda53c4",
+      "target_path": ".agents/skills/diagnose/.spellbook",
+      "target_sha256": "e3b97749bdab3c53efebf33c5045823146a8753c3be601e09b1af834abda53c4"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/diagnose/SKILL.md",
+      "source_sha256": "5835538c1b848842a5d2e1095204447d036dea1a144b159e99ec048c427aaaa3",
+      "target_path": ".agents/skills/diagnose/SKILL.md",
+      "target_sha256": "5835538c1b848842a5d2e1095204447d036dea1a144b159e99ec048c427aaaa3"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/diagnose/references/audit.md",
+      "source_sha256": "b37e90fcc9dbe29fd34100b7fd56e3c4539644e2068c07f7ca9c59b3c9f781f6",
+      "target_path": ".agents/skills/diagnose/references/audit.md",
+      "target_sha256": "b37e90fcc9dbe29fd34100b7fd56e3c4539644e2068c07f7ca9c59b3c9f781f6"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/diagnose/references/fix.md",
+      "source_sha256": "5cb5b915d7b04d70745776cfb6223c556c175894b46eecc9d73ede9a00c7ebf6",
+      "target_path": ".agents/skills/diagnose/references/fix.md",
+      "target_sha256": "5cb5b915d7b04d70745776cfb6223c556c175894b46eecc9d73ede9a00c7ebf6"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/diagnose/references/flaky-test-investigation.md",
+      "source_sha256": "8ff468a32f8fd6fbff987952b563c317d37cda00d5496b3586fd69dc5334744f",
+      "target_path": ".agents/skills/diagnose/references/flaky-test-investigation.md",
+      "target_sha256": "8ff468a32f8fd6fbff987952b563c317d37cda00d5496b3586fd69dc5334744f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/diagnose/references/investigation-protocol.md",
+      "source_sha256": "2475d011030cfa2c3e5d33fd8b90d3809eda70b18ef292a1bd1f8e0199c4d81f",
+      "target_path": ".agents/skills/diagnose/references/investigation-protocol.md",
+      "target_sha256": "2475d011030cfa2c3e5d33fd8b90d3809eda70b18ef292a1bd1f8e0199c4d81f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/diagnose/references/log-issues.md",
+      "source_sha256": "72d76000fb9edaaa82f0a0f58629d8f4c6140a7468c323b87702dcfdf17040eb",
+      "target_path": ".agents/skills/diagnose/references/log-issues.md",
+      "target_sha256": "72d76000fb9edaaa82f0a0f58629d8f4c6140a7468c323b87702dcfdf17040eb"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/diagnose/references/systematic-debugging.md",
+      "source_sha256": "e356a89648fae3ad0c729b5f4b4faf2e2dcb012f5f35bece9b86d7f13cb01ec1",
+      "target_path": ".agents/skills/diagnose/references/systematic-debugging.md",
+      "target_sha256": "e356a89648fae3ad0c729b5f4b4faf2e2dcb012f5f35bece9b86d7f13cb01ec1"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/diagnose/references/triage.md",
+      "source_sha256": "3ebc2beb92aa8b631ae5e1c3bed91bda3dc0e04d660da9088f28fa899f30722f",
+      "target_path": ".agents/skills/diagnose/references/triage.md",
+      "target_sha256": "3ebc2beb92aa8b631ae5e1c3bed91bda3dc0e04d660da9088f28fa899f30722f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/flywheel/.spellbook",
+      "source_sha256": "0b2ef5a4c3fd20b5e1b5196e7bcdee17ad6bbe440dd27df77c818f502f18f1ca",
+      "target_path": ".agents/skills/flywheel/.spellbook",
+      "target_sha256": "0b2ef5a4c3fd20b5e1b5196e7bcdee17ad6bbe440dd27df77c818f502f18f1ca"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/flywheel/SKILL.md",
+      "source_sha256": "31ed11248152a9211f76397ecd40b4951511ed6e1062694655215a4efcf0a3c8",
+      "target_path": ".agents/skills/flywheel/SKILL.md",
+      "target_sha256": "31ed11248152a9211f76397ecd40b4951511ed6e1062694655215a4efcf0a3c8"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/gradient-contracts/.spellbook",
+      "source_sha256": "7538ca1c44eef98f81c3c9e1a6cd15170530ce147218aa6a1c78636a2cc861ac",
+      "target_path": ".agents/skills/gradient-contracts/.spellbook",
+      "target_sha256": "7538ca1c44eef98f81c3c9e1a6cd15170530ce147218aa6a1c78636a2cc861ac"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/gradient-contracts/SKILL.md",
+      "source_sha256": "ab17a054f2001caa0aafd196b673fd390cf7a95645596f88293f5a385d4cc379",
+      "target_path": ".agents/skills/gradient-contracts/SKILL.md",
+      "target_sha256": "ab17a054f2001caa0aafd196b673fd390cf7a95645596f88293f5a385d4cc379"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/gradient/SKILL.md",
+      "source_sha256": "586c511034f39aa046fe7d210c3adfa9b39ae719496807d149785f746475c630",
+      "target_path": ".agents/skills/gradient/SKILL.md",
+      "target_sha256": "586c511034f39aa046fe7d210c3adfa9b39ae719496807d149785f746475c630"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/groom/.spellbook",
+      "source_sha256": "d6abb2bc4396ceaacb78c3e3587bb587481e0b8fbad3b34991109a391089f506",
+      "target_path": ".agents/skills/groom/.spellbook",
+      "target_sha256": "d6abb2bc4396ceaacb78c3e3587bb587481e0b8fbad3b34991109a391089f506"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/groom/SKILL.md",
+      "source_sha256": "7fafd232ab302dc937571979e9162bb1c046bd3c4204ddfa652d579a2d147d92",
+      "target_path": ".agents/skills/groom/SKILL.md",
+      "target_sha256": "7fafd232ab302dc937571979e9162bb1c046bd3c4204ddfa652d579a2d147d92"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/groom/references/agent-issue-writing.md",
+      "source_sha256": "fbace08ffa060857f98214a8336b4eef036baa4ee64f769988d22987e3c83123",
+      "target_path": ".agents/skills/groom/references/agent-issue-writing.md",
+      "target_sha256": "fbace08ffa060857f98214a8336b4eef036baa4ee64f769988d22987e3c83123"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/groom/references/backlog-doctrine.md",
+      "source_sha256": "52e90def13072f60c3b238eda4a66f894533841b93bf51872ab1e05b6219b13b",
+      "target_path": ".agents/skills/groom/references/backlog-doctrine.md",
+      "target_sha256": "52e90def13072f60c3b238eda4a66f894533841b93bf51872ab1e05b6219b13b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/groom/references/investigation-bench.md",
+      "source_sha256": "b25f98c54a2f8afef292cc79ce578a7ebf4f67fa6fa986617c554761577182e4",
+      "target_path": ".agents/skills/groom/references/investigation-bench.md",
+      "target_sha256": "b25f98c54a2f8afef292cc79ce578a7ebf4f67fa6fa986617c554761577182e4"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/harness/.spellbook",
+      "source_sha256": "ab47fe7b3a738cfc9f197c90540cee596d2f34b3c0addedb2c50ad49396eca26",
+      "target_path": ".agents/skills/harness/.spellbook",
+      "target_sha256": "ab47fe7b3a738cfc9f197c90540cee596d2f34b3c0addedb2c50ad49396eca26"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/harness/SKILL.md",
+      "source_sha256": "d0c72f540d4ac6177f4ab3ac278e7e3631c3aca4613ba4aae8c8c877ec31783b",
+      "target_path": ".agents/skills/harness/SKILL.md",
+      "target_sha256": "d0c72f540d4ac6177f4ab3ac278e7e3631c3aca4613ba4aae8c8c877ec31783b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/harness/references/mode-audit.md",
+      "source_sha256": "7c4f3d7a977c06c1745e47db431251fd28bde4687e6744d8cb9db80684780d84",
+      "target_path": ".agents/skills/harness/references/mode-audit.md",
+      "target_sha256": "7c4f3d7a977c06c1745e47db431251fd28bde4687e6744d8cb9db80684780d84"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/harness/references/mode-convert.md",
+      "source_sha256": "954233317d025a8c1f8c1afd7cc644786653b2e09243f350ad0add023c048aba",
+      "target_path": ".agents/skills/harness/references/mode-convert.md",
+      "target_sha256": "954233317d025a8c1f8c1afd7cc644786653b2e09243f350ad0add023c048aba"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/harness/references/mode-create.md",
+      "source_sha256": "42eddcb4594b5a5e365d96b25c23222c3b3c4e32b2074aa36149f586137533db",
+      "target_path": ".agents/skills/harness/references/mode-create.md",
+      "target_sha256": "42eddcb4594b5a5e365d96b25c23222c3b3c4e32b2074aa36149f586137533db"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/harness/references/mode-engineer.md",
+      "source_sha256": "e00cfc81ca03cc752b316c36de1af3652628eadec9b70855a21a63bb29791be9",
+      "target_path": ".agents/skills/harness/references/mode-engineer.md",
+      "target_sha256": "e00cfc81ca03cc752b316c36de1af3652628eadec9b70855a21a63bb29791be9"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/harness/references/mode-eval.md",
+      "source_sha256": "c43b0428ef665fc1897d496dad3541660c1ea6ea6cb9e45d9316e1123d337570",
+      "target_path": ".agents/skills/harness/references/mode-eval.md",
+      "target_sha256": "c43b0428ef665fc1897d496dad3541660c1ea6ea6cb9e45d9316e1123d337570"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/harness/references/mode-lint.md",
+      "source_sha256": "893aad64c4918fbe11655370a144c9864ff7be9d29e87e3090a25f0ec14917c8",
+      "target_path": ".agents/skills/harness/references/mode-lint.md",
+      "target_sha256": "893aad64c4918fbe11655370a144c9864ff7be9d29e87e3090a25f0ec14917c8"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/harness/references/mode-sync.md",
+      "source_sha256": "821a913c161ffc14ef38a770a0db9b535cffbadaea3bdc81b22785e7bf2fdd4f",
+      "target_path": ".agents/skills/harness/references/mode-sync.md",
+      "target_sha256": "821a913c161ffc14ef38a770a0db9b535cffbadaea3bdc81b22785e7bf2fdd4f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/harness/scripts/validate-evals.sh",
+      "source_sha256": "53bd8fe86258530d505592ebefc4afa3e30c84be0e38f5bfc2d91eb5a78e49d8",
+      "target_path": ".agents/skills/harness/scripts/validate-evals.sh",
+      "target_sha256": "53bd8fe86258530d505592ebefc4afa3e30c84be0e38f5bfc2d91eb5a78e49d8"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/implement/.spellbook",
+      "source_sha256": "f4ec4b61b306f6bf6bfc8e553ba50bc6e5661714dc4f46bb09044e2e3ffcfcaa",
+      "target_path": ".agents/skills/implement/.spellbook",
+      "target_sha256": "f4ec4b61b306f6bf6bfc8e553ba50bc6e5661714dc4f46bb09044e2e3ffcfcaa"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/implement/SKILL.md",
+      "source_sha256": "5443b34ed12a2dcbb00607b8ecb438c433616adb1fedb8b99c0036eb0b605afb",
+      "target_path": ".agents/skills/implement/SKILL.md",
+      "target_sha256": "5443b34ed12a2dcbb00607b8ecb438c433616adb1fedb8b99c0036eb0b605afb"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/implement/references/context-packet.md",
+      "source_sha256": "35cadd4cb8b470bcadd4d3d371b668f70c8ab8a15b733e3fc16938d0df2e5efc",
+      "target_path": ".agents/skills/implement/references/context-packet.md",
+      "target_sha256": "35cadd4cb8b470bcadd4d3d371b668f70c8ab8a15b733e3fc16938d0df2e5efc"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/implement/references/tdd-loop.md",
+      "source_sha256": "fa2a0dab859827a2894d32316dd3b0631624dc7026cbac8bc548d38211c2034d",
+      "target_path": ".agents/skills/implement/references/tdd-loop.md",
+      "target_sha256": "fa2a0dab859827a2894d32316dd3b0631624dc7026cbac8bc548d38211c2034d"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/karpathy-guidelines/.spellbook",
+      "source_sha256": "3f5705b42597db1db6dca11f8b66965895ad80ab471678b0700bbf49ba07b7b3",
+      "target_path": ".agents/skills/karpathy-guidelines/.spellbook",
+      "target_sha256": "3f5705b42597db1db6dca11f8b66965895ad80ab471678b0700bbf49ba07b7b3"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/karpathy-guidelines/SKILL.md",
+      "source_sha256": "9a0fed314c27a44bd91962809d1ca6a65386a06f6df54655b57cbf0267769328",
+      "target_path": ".agents/skills/karpathy-guidelines/SKILL.md",
+      "target_sha256": "9a0fed314c27a44bd91962809d1ca6a65386a06f6df54655b57cbf0267769328"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/model-research/.spellbook",
+      "source_sha256": "fc2f662c88e83c83f198bd15e2f699dcb29c32222787204c49b6208f16fea071",
+      "target_path": ".agents/skills/model-research/.spellbook",
+      "target_sha256": "fc2f662c88e83c83f198bd15e2f699dcb29c32222787204c49b6208f16fea071"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/model-research/SKILL.md",
+      "source_sha256": "6d24d4409c7bc833ee726ef102f4a08c3ea2d21677b7715c6835a3f0c02488c5",
+      "target_path": ".agents/skills/model-research/SKILL.md",
+      "target_sha256": "6d24d4409c7bc833ee726ef102f4a08c3ea2d21677b7715c6835a3f0c02488c5"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/monitor/.spellbook",
+      "source_sha256": "3d3d875055bddbc38b7256244ce615bc1fa11a2fe7b591a366fddc736b8c6bbe",
+      "target_path": ".agents/skills/monitor/.spellbook",
+      "target_sha256": "3d3d875055bddbc38b7256244ce615bc1fa11a2fe7b591a366fddc736b8c6bbe"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/monitor/SKILL.md",
+      "source_sha256": "f22a8e2cc1ceeb0318205148963aa5fb1b4414cd3c0c779cf6a8d5e0c64b56ad",
+      "target_path": ".agents/skills/monitor/SKILL.md",
+      "target_sha256": "f22a8e2cc1ceeb0318205148963aa5fb1b4414cd3c0c779cf6a8d5e0c64b56ad"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/monitor/references/grace-window.md",
+      "source_sha256": "cfeda444f24d50e6312d601753e67b389f620518b1d294aba9a5c72172e5349a",
+      "target_path": ".agents/skills/monitor/references/grace-window.md",
+      "target_sha256": "cfeda444f24d50e6312d601753e67b389f620518b1d294aba9a5c72172e5349a"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/monitor/references/signals.md",
+      "source_sha256": "fc28a4a9f60b1304705458734c299688576cb3bbe91d5e85e0657ca1af19293e",
+      "target_path": ".agents/skills/monitor/references/signals.md",
+      "target_sha256": "fc28a4a9f60b1304705458734c299688576cb3bbe91d5e85e0657ca1af19293e"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/office-hours/.spellbook",
+      "source_sha256": "006f238c1af2fe2f4e82435d3e108859ac6053dc32ed762eafb06fad2f695246",
+      "target_path": ".agents/skills/office-hours/.spellbook",
+      "target_sha256": "006f238c1af2fe2f4e82435d3e108859ac6053dc32ed762eafb06fad2f695246"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/office-hours/SKILL.md",
+      "source_sha256": "5457c9e6d2e4af469553b2cb43b1f0ebd652a3b887d566ebbe8193e60de5bc68",
+      "target_path": ".agents/skills/office-hours/SKILL.md",
+      "target_sha256": "5457c9e6d2e4af469553b2cb43b1f0ebd652a3b887d566ebbe8193e60de5bc68"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/qa/.spellbook",
+      "source_sha256": "58aea1b281d112a5250aa057f8559d8fa6cca3d862704ae8e58d888ca24f2f13",
+      "target_path": ".agents/skills/qa/.spellbook",
+      "target_sha256": "58aea1b281d112a5250aa057f8559d8fa6cca3d862704ae8e58d888ca24f2f13"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/qa/SKILL.md",
+      "source_sha256": "9979ecaf0380f4385b188210c70e12e4b6e653dfc1bf99a95c6cb4e630d8861c",
+      "target_path": ".agents/skills/qa/SKILL.md",
+      "target_sha256": "9979ecaf0380f4385b188210c70e12e4b6e653dfc1bf99a95c6cb4e630d8861c"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/qa/evals/README.md",
+      "source_sha256": "c857ddec4b69e13b7f45e66de30d60e691b751d4adc476075188369cf9310bc2",
+      "target_path": ".agents/skills/qa/evals/README.md",
+      "target_sha256": "c857ddec4b69e13b7f45e66de30d60e691b751d4adc476075188369cf9310bc2"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/qa/evals/cases/cli-smoke.md",
+      "source_sha256": "83ff5db9d476ddb909f901bb3ed46f73cec96937cf82c6434755ae322ae296ad",
+      "target_path": ".agents/skills/qa/evals/cases/cli-smoke.md",
+      "target_sha256": "83ff5db9d476ddb909f901bb3ed46f73cec96937cf82c6434755ae322ae296ad"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/qa/evals/graders/check.sh",
+      "source_sha256": "415cc03550f3660a8315ae2e08c868dfd5bebac871386c424b9218068430595f",
+      "target_path": ".agents/skills/qa/evals/graders/check.sh",
+      "target_sha256": "415cc03550f3660a8315ae2e08c868dfd5bebac871386c424b9218068430595f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/qa/references/browser-tools.md",
+      "source_sha256": "7afca4a02bd35fafed648742c01085513526fd47e4af5d5cdf29887f1f83dbc7",
+      "target_path": ".agents/skills/qa/references/browser-tools.md",
+      "target_sha256": "7afca4a02bd35fafed648742c01085513526fd47e4af5d5cdf29887f1f83dbc7"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/qa/references/evidence-capture.md",
+      "source_sha256": "fa13326b6008c7400799081cea4295452fa809fe5c6731125149ee2fb94c9f1a",
+      "target_path": ".agents/skills/qa/references/evidence-capture.md",
+      "target_sha256": "fa13326b6008c7400799081cea4295452fa809fe5c6731125149ee2fb94c9f1a"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/qa/references/scaffold.md",
+      "source_sha256": "3a50e99b09d2a73b11d739cb6ac181f8e7a1fa6464f760aa73ba7328c90f6263",
+      "target_path": ".agents/skills/qa/references/scaffold.md",
+      "target_sha256": "3a50e99b09d2a73b11d739cb6ac181f8e7a1fa6464f760aa73ba7328c90f6263"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/refactor/.spellbook",
+      "source_sha256": "c3a634a4e33a9fa46a5f4c892083470a2b2e3416987caa7096beb4268de74fa8",
+      "target_path": ".agents/skills/refactor/.spellbook",
+      "target_sha256": "c3a634a4e33a9fa46a5f4c892083470a2b2e3416987caa7096beb4268de74fa8"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/refactor/SKILL.md",
+      "source_sha256": "7d1fa30e9400a64b141ad3b853505e58fd154fbb9aaf4e6414af24217b56f6fd",
+      "target_path": ".agents/skills/refactor/SKILL.md",
+      "target_sha256": "7d1fa30e9400a64b141ad3b853505e58fd154fbb9aaf4e6414af24217b56f6fd"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/refactor/references/simplify.md",
+      "source_sha256": "00208c698ebd7f676d1f0fa7055fe399b24ac7a87d97da5710241740733b04f7",
+      "target_path": ".agents/skills/refactor/references/simplify.md",
+      "target_sha256": "00208c698ebd7f676d1f0fa7055fe399b24ac7a87d97da5710241740733b04f7"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/reflect/.spellbook",
+      "source_sha256": "eb6dcb785d66bf72615a44f254130b4ebbf40084a4d10cb51a5bbe3c2369fcba",
+      "target_path": ".agents/skills/reflect/.spellbook",
+      "target_sha256": "eb6dcb785d66bf72615a44f254130b4ebbf40084a4d10cb51a5bbe3c2369fcba"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/reflect/SKILL.md",
+      "source_sha256": "7932af37555a99c3549f514687055c0abe87313357fc0efb7cada1de99e2bb78",
+      "target_path": ".agents/skills/reflect/SKILL.md",
+      "target_sha256": "7932af37555a99c3549f514687055c0abe87313357fc0efb7cada1de99e2bb78"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/reflect/references/calibrate.md",
+      "source_sha256": "aa26a2083bcc2cc73676ed12a5d2be4eb2f1f911178ddbeab20e8c12e297de09",
+      "target_path": ".agents/skills/reflect/references/calibrate.md",
+      "target_sha256": "aa26a2083bcc2cc73676ed12a5d2be4eb2f1f911178ddbeab20e8c12e297de09"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/reflect/references/coach.md",
+      "source_sha256": "2b752339ee560eb7931500fc9304d6b6c3acd9176191598d104b7036cd726b81",
+      "target_path": ".agents/skills/reflect/references/coach.md",
+      "target_sha256": "2b752339ee560eb7931500fc9304d6b6c3acd9176191598d104b7036cd726b81"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/reflect/references/cycle.md",
+      "source_sha256": "b1cb4884d2a81475f3b55c90d864581c544416f7d14489f67c36f65caf5f19b9",
+      "target_path": ".agents/skills/reflect/references/cycle.md",
+      "target_sha256": "b1cb4884d2a81475f3b55c90d864581c544416f7d14489f67c36f65caf5f19b9"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/reflect/references/distill.md",
+      "source_sha256": "ce24b2376461c98f87c2fe68f8a07534c9f55b6184a1519597c7dcca3db6a4bd",
+      "target_path": ".agents/skills/reflect/references/distill.md",
+      "target_sha256": "ce24b2376461c98f87c2fe68f8a07534c9f55b6184a1519597c7dcca3db6a4bd"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/reflect/references/retro-format.md",
+      "source_sha256": "cf211913478e2c3fca94ca766388cecd4a08af5d1be14a70dfd78281ef2ef3ab",
+      "target_path": ".agents/skills/reflect/references/retro-format.md",
+      "target_sha256": "cf211913478e2c3fca94ca766388cecd4a08af5d1be14a70dfd78281ef2ef3ab"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/reflect/references/tune-repo.md",
+      "source_sha256": "79ec8987d68d0789b99f20ab104eef2a2a1d0fc6f632cf141d2824936e4daef5",
+      "target_path": ".agents/skills/reflect/references/tune-repo.md",
+      "target_sha256": "79ec8987d68d0789b99f20ab104eef2a2a1d0fc6f632cf141d2824936e4daef5"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/reflect/scripts/gather_evidence.sh",
+      "source_sha256": "e1a816feb31c1b1d007ff26bb58144adc30b62fd6ed35302338b413b4070cdce",
+      "target_path": ".agents/skills/reflect/scripts/gather_evidence.sh",
+      "target_sha256": "e1a816feb31c1b1d007ff26bb58144adc30b62fd6ed35302338b413b4070cdce"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/SKILL.md",
+      "source_sha256": "829d9e0b1c5a73699f527ba1d3e4e10edb5bf66052a83d488617d9ebf255a332",
+      "target_path": ".agents/skills/remotion-best-practices/SKILL.md",
+      "target_sha256": "829d9e0b1c5a73699f527ba1d3e4e10edb5bf66052a83d488617d9ebf255a332"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/3d.md",
+      "source_sha256": "42cef6d68fb4a266ab495d35df0c60e03672b0d85c043f9b567f6aa7ff00dd0d",
+      "target_path": ".agents/skills/remotion-best-practices/rules/3d.md",
+      "target_sha256": "42cef6d68fb4a266ab495d35df0c60e03672b0d85c043f9b567f6aa7ff00dd0d"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/assets/charts-bar-chart.tsx",
+      "source_sha256": "6e5e219c596c8515336570a5bc89c233e32e695d5816dec88eb929e798eeea61",
+      "target_path": ".agents/skills/remotion-best-practices/rules/assets/charts-bar-chart.tsx",
+      "target_sha256": "6e5e219c596c8515336570a5bc89c233e32e695d5816dec88eb929e798eeea61"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/assets/text-animations-typewriter.tsx",
+      "source_sha256": "92b5f47d6d18387a0aa008ce9dceefd30f673ae5879e16892bd4b4ea97f5dddb",
+      "target_path": ".agents/skills/remotion-best-practices/rules/assets/text-animations-typewriter.tsx",
+      "target_sha256": "92b5f47d6d18387a0aa008ce9dceefd30f673ae5879e16892bd4b4ea97f5dddb"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/assets/text-animations-word-highlight.tsx",
+      "source_sha256": "30e707bbc90e3734fcdb0f9e869bdb9fbbaf8ded1d923951d616f5ba402ce03d",
+      "target_path": ".agents/skills/remotion-best-practices/rules/assets/text-animations-word-highlight.tsx",
+      "target_sha256": "30e707bbc90e3734fcdb0f9e869bdb9fbbaf8ded1d923951d616f5ba402ce03d"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/audio-visualization.md",
+      "source_sha256": "0f4043de86639b6390e5ab888eaa66a24a10a8bd540f1443327cb88107eae1e9",
+      "target_path": ".agents/skills/remotion-best-practices/rules/audio-visualization.md",
+      "target_sha256": "0f4043de86639b6390e5ab888eaa66a24a10a8bd540f1443327cb88107eae1e9"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/audio.md",
+      "source_sha256": "e931664ac23bc4acfa137d8b415702bb4860b4fbabd6caed0042c0902d3bec90",
+      "target_path": ".agents/skills/remotion-best-practices/rules/audio.md",
+      "target_sha256": "e931664ac23bc4acfa137d8b415702bb4860b4fbabd6caed0042c0902d3bec90"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/calculate-metadata.md",
+      "source_sha256": "7d6217deed7425c6662e8d112b933be162a99a9f26a5c10b7c0b2ba62329a269",
+      "target_path": ".agents/skills/remotion-best-practices/rules/calculate-metadata.md",
+      "target_sha256": "7d6217deed7425c6662e8d112b933be162a99a9f26a5c10b7c0b2ba62329a269"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/compositions.md",
+      "source_sha256": "49fb12d1bb9e9fc68823625e83d43d5f36904593ad738a9d7e5ef97a1230627b",
+      "target_path": ".agents/skills/remotion-best-practices/rules/compositions.md",
+      "target_sha256": "49fb12d1bb9e9fc68823625e83d43d5f36904593ad738a9d7e5ef97a1230627b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/display-captions.md",
+      "source_sha256": "20b8898a90536fa427a5a39571fc7deac7bde96c4c7bfdf413eee1ef4ef85530",
+      "target_path": ".agents/skills/remotion-best-practices/rules/display-captions.md",
+      "target_sha256": "20b8898a90536fa427a5a39571fc7deac7bde96c4c7bfdf413eee1ef4ef85530"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/ffmpeg.md",
+      "source_sha256": "b67ff4e3ce01c48241ef92fa165398d427e9f676ae8e17d1ed19d5584bff5002",
+      "target_path": ".agents/skills/remotion-best-practices/rules/ffmpeg.md",
+      "target_sha256": "b67ff4e3ce01c48241ef92fa165398d427e9f676ae8e17d1ed19d5584bff5002"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/get-audio-duration.md",
+      "source_sha256": "720a5346ae79555e933498995d5cb04d1bfbeeee7232436d8835c3ec17d46281",
+      "target_path": ".agents/skills/remotion-best-practices/rules/get-audio-duration.md",
+      "target_sha256": "720a5346ae79555e933498995d5cb04d1bfbeeee7232436d8835c3ec17d46281"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/get-video-dimensions.md",
+      "source_sha256": "ed1bb6e0ae742e4bfcb18e7c50af23fc782a9d699b90d367250437c7f6da7304",
+      "target_path": ".agents/skills/remotion-best-practices/rules/get-video-dimensions.md",
+      "target_sha256": "ed1bb6e0ae742e4bfcb18e7c50af23fc782a9d699b90d367250437c7f6da7304"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/get-video-duration.md",
+      "source_sha256": "ed594a0d73a5274483f21c30e612aba57089d5bbc5437041aa32d07a8e789fd9",
+      "target_path": ".agents/skills/remotion-best-practices/rules/get-video-duration.md",
+      "target_sha256": "ed594a0d73a5274483f21c30e612aba57089d5bbc5437041aa32d07a8e789fd9"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/gifs.md",
+      "source_sha256": "db5d84bb8da4c52c133cdc9820a5b6995db94a548df5f9838efb8d1224065787",
+      "target_path": ".agents/skills/remotion-best-practices/rules/gifs.md",
+      "target_sha256": "db5d84bb8da4c52c133cdc9820a5b6995db94a548df5f9838efb8d1224065787"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/google-fonts.md",
+      "source_sha256": "c0860213dfde60dd188a8b7cb1368e2e92fe960584b9ca6340c6cd555fcbd141",
+      "target_path": ".agents/skills/remotion-best-practices/rules/google-fonts.md",
+      "target_sha256": "c0860213dfde60dd188a8b7cb1368e2e92fe960584b9ca6340c6cd555fcbd141"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/html-in-canvas.md",
+      "source_sha256": "503c125bc9532b12ebfa8c37e35558e9059228c322a65675f0bdbd05d4a5ffa3",
+      "target_path": ".agents/skills/remotion-best-practices/rules/html-in-canvas.md",
+      "target_sha256": "503c125bc9532b12ebfa8c37e35558e9059228c322a65675f0bdbd05d4a5ffa3"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/images.md",
+      "source_sha256": "6a93c05858a842ea380e4a92491fa2ef6e205b184e0d22cd32ae3692f2e27333",
+      "target_path": ".agents/skills/remotion-best-practices/rules/images.md",
+      "target_sha256": "6a93c05858a842ea380e4a92491fa2ef6e205b184e0d22cd32ae3692f2e27333"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/import-srt-captions.md",
+      "source_sha256": "ad89cc1834dcd63ff225593f699611a1a20b57eff4ed8e587f429b36516ec82c",
+      "target_path": ".agents/skills/remotion-best-practices/rules/import-srt-captions.md",
+      "target_sha256": "ad89cc1834dcd63ff225593f699611a1a20b57eff4ed8e587f429b36516ec82c"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/light-leaks.md",
+      "source_sha256": "17d2f136f7bf2f438274a0ade43df017c360ae31175d8367ce476415c222dfca",
+      "target_path": ".agents/skills/remotion-best-practices/rules/light-leaks.md",
+      "target_sha256": "17d2f136f7bf2f438274a0ade43df017c360ae31175d8367ce476415c222dfca"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/local-fonts.md",
+      "source_sha256": "51597b528837c3fda45a61241ecb87124dd8b72c191bd06986bfc967bb380f8c",
+      "target_path": ".agents/skills/remotion-best-practices/rules/local-fonts.md",
+      "target_sha256": "51597b528837c3fda45a61241ecb87124dd8b72c191bd06986bfc967bb380f8c"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/lottie.md",
+      "source_sha256": "6dd0a845f5cea9c0f3d2465b5678a16076f5778ad1a628abbf387dba0b929cbb",
+      "target_path": ".agents/skills/remotion-best-practices/rules/lottie.md",
+      "target_sha256": "6dd0a845f5cea9c0f3d2465b5678a16076f5778ad1a628abbf387dba0b929cbb"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/maplibre.md",
+      "source_sha256": "36bfaa77f345e272837d827c6e99160a573ab609b27b44c604bec06eae3daa7e",
+      "target_path": ".agents/skills/remotion-best-practices/rules/maplibre.md",
+      "target_sha256": "36bfaa77f345e272837d827c6e99160a573ab609b27b44c604bec06eae3daa7e"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/measuring-dom-nodes.md",
+      "source_sha256": "4017103b03f14a041ac433be78c521ec2e9961629fae419c8b196d349637585b",
+      "target_path": ".agents/skills/remotion-best-practices/rules/measuring-dom-nodes.md",
+      "target_sha256": "4017103b03f14a041ac433be78c521ec2e9961629fae419c8b196d349637585b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/measuring-text.md",
+      "source_sha256": "5cab1807b9ae9f5be3fc0e1cb0e0513a69451e31e32657d6a665573331db6807",
+      "target_path": ".agents/skills/remotion-best-practices/rules/measuring-text.md",
+      "target_sha256": "5cab1807b9ae9f5be3fc0e1cb0e0513a69451e31e32657d6a665573331db6807"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/parameters.md",
+      "source_sha256": "9de38837a07dc406052dfbb759c58ca5298ca331d86d9aa0f4e177b339e288b5",
+      "target_path": ".agents/skills/remotion-best-practices/rules/parameters.md",
+      "target_sha256": "9de38837a07dc406052dfbb759c58ca5298ca331d86d9aa0f4e177b339e288b5"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/sequencing.md",
+      "source_sha256": "a3c448bfd99a5e7b6c838dab30c8aaf449d4f0732152203b65cf1b49977abb72",
+      "target_path": ".agents/skills/remotion-best-practices/rules/sequencing.md",
+      "target_sha256": "a3c448bfd99a5e7b6c838dab30c8aaf449d4f0732152203b65cf1b49977abb72"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/sfx.md",
+      "source_sha256": "96fcc4f0973b5ed5cd9cd0d4d0479c642984cfacd8010fc7d6186c468296626b",
+      "target_path": ".agents/skills/remotion-best-practices/rules/sfx.md",
+      "target_sha256": "96fcc4f0973b5ed5cd9cd0d4d0479c642984cfacd8010fc7d6186c468296626b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/silence-detection.md",
+      "source_sha256": "ed95d46d078f3749b87ec3c6e25c1c5b0c8485fdcb41156d649266369748fdc2",
+      "target_path": ".agents/skills/remotion-best-practices/rules/silence-detection.md",
+      "target_sha256": "ed95d46d078f3749b87ec3c6e25c1c5b0c8485fdcb41156d649266369748fdc2"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/subtitles.md",
+      "source_sha256": "9f18ec4a9c88adf35d51b44aaf344442443fd687a4dc948366ebb683fc3ecd30",
+      "target_path": ".agents/skills/remotion-best-practices/rules/subtitles.md",
+      "target_sha256": "9f18ec4a9c88adf35d51b44aaf344442443fd687a4dc948366ebb683fc3ecd30"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/tailwind.md",
+      "source_sha256": "6212ce72abe5eaee0eb41822b2cdf944b77ad9b082426909beb2da07151e1788",
+      "target_path": ".agents/skills/remotion-best-practices/rules/tailwind.md",
+      "target_sha256": "6212ce72abe5eaee0eb41822b2cdf944b77ad9b082426909beb2da07151e1788"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/text-animations.md",
+      "source_sha256": "40ac6b1bccf1c57d9edd46c74e847ec6e86fe775d3ef4fd14e1338f4a2606171",
+      "target_path": ".agents/skills/remotion-best-practices/rules/text-animations.md",
+      "target_sha256": "40ac6b1bccf1c57d9edd46c74e847ec6e86fe775d3ef4fd14e1338f4a2606171"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/timing.md",
+      "source_sha256": "d7df8f74a08a86ff019cbd3bf528dd9d9528ae1860be70d54b3334544d6b36a7",
+      "target_path": ".agents/skills/remotion-best-practices/rules/timing.md",
+      "target_sha256": "d7df8f74a08a86ff019cbd3bf528dd9d9528ae1860be70d54b3334544d6b36a7"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/transcribe-captions.md",
+      "source_sha256": "ad1a62af35fe176b37ac4d98f796451ca66bcc9983207a9710ec3eca6e847738",
+      "target_path": ".agents/skills/remotion-best-practices/rules/transcribe-captions.md",
+      "target_sha256": "ad1a62af35fe176b37ac4d98f796451ca66bcc9983207a9710ec3eca6e847738"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/transitions.md",
+      "source_sha256": "f6b0ca21322d68ab516345e8d57a2039c48654c98604b673913382c854e79d86",
+      "target_path": ".agents/skills/remotion-best-practices/rules/transitions.md",
+      "target_sha256": "f6b0ca21322d68ab516345e8d57a2039c48654c98604b673913382c854e79d86"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/transparent-videos.md",
+      "source_sha256": "394ccda476e084522d544471fee92d7c65672e2cbaf2201a785c3dd5c74f31a4",
+      "target_path": ".agents/skills/remotion-best-practices/rules/transparent-videos.md",
+      "target_sha256": "394ccda476e084522d544471fee92d7c65672e2cbaf2201a785c3dd5c74f31a4"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/trimming.md",
+      "source_sha256": "ae00948f6a903e384c7c312896adba9b50ed592f24a5a090699b7345849b36b9",
+      "target_path": ".agents/skills/remotion-best-practices/rules/trimming.md",
+      "target_sha256": "ae00948f6a903e384c7c312896adba9b50ed592f24a5a090699b7345849b36b9"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/videos.md",
+      "source_sha256": "d9d3032a57f92c759daf0bd60b3282f6810ecc9958e9093a6b828de623b05328",
+      "target_path": ".agents/skills/remotion-best-practices/rules/videos.md",
+      "target_sha256": "d9d3032a57f92c759daf0bd60b3282f6810ecc9958e9093a6b828de623b05328"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/remotion-best-practices/rules/voiceover.md",
+      "source_sha256": "60340034cf422052007183d031171b3c88422dd3fe85f0d915283dd8ec5df3e8",
+      "target_path": ".agents/skills/remotion-best-practices/rules/voiceover.md",
+      "target_sha256": "60340034cf422052007183d031171b3c88422dd3fe85f0d915283dd8ec5df3e8"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/.spellbook",
+      "source_sha256": "79d96ab33e3eab91cf00efb9c6eb2c71ac7bbb81e63ab4874b254a15ba70ab83",
+      "target_path": ".agents/skills/research/.spellbook",
+      "target_sha256": "79d96ab33e3eab91cf00efb9c6eb2c71ac7bbb81e63ab4874b254a15ba70ab83"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/SKILL.md",
+      "source_sha256": "c33a5c092d4c906106a669122b56d97110287a9fd6ec8d5bb480541b5f039f22",
+      "target_path": ".agents/skills/research/SKILL.md",
+      "target_sha256": "c33a5c092d4c906106a669122b56d97110287a9fd6ec8d5bb480541b5f039f22"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/__tests__/confidence.test.ts",
+      "source_sha256": "9d6002c887cea52108ebc22792379722fcc82d0a84fe08e517d76dc39ca07956",
+      "target_path": ".agents/skills/research/__tests__/confidence.test.ts",
+      "target_sha256": "9d6002c887cea52108ebc22792379722fcc82d0a84fe08e517d76dc39ca07956"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/__tests__/query-utils.test.ts",
+      "source_sha256": "c2f52a3450d78eb4317a1696661fa84a490ca50b057c19c84e5fd9cc9f50454f",
+      "target_path": ".agents/skills/research/__tests__/query-utils.test.ts",
+      "target_sha256": "c2f52a3450d78eb4317a1696661fa84a490ca50b057c19c84e5fd9cc9f50454f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/cache.ts",
+      "source_sha256": "5fd5ab98a9eeb31a652a54d7509e6c0069043c71ccb8fd80a80cb2cb3cc3d0f0",
+      "target_path": ".agents/skills/research/cache.ts",
+      "target_sha256": "5fd5ab98a9eeb31a652a54d7509e6c0069043c71ccb8fd80a80cb2cb3cc3d0f0"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/cli.ts",
+      "source_sha256": "7440f41ca47262b0809084c6189ae8851945a81a01a4af302fb60088ed5cd316",
+      "target_path": ".agents/skills/research/cli.ts",
+      "target_sha256": "7440f41ca47262b0809084c6189ae8851945a81a01a4af302fb60088ed5cd316"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/confidence.ts",
+      "source_sha256": "1e1f10b8f4e6330b6aa77e76f6e11ce09f5d388125094ef107e99b73a2f84d02",
+      "target_path": ".agents/skills/research/confidence.ts",
+      "target_sha256": "1e1f10b8f4e6330b6aa77e76f6e11ce09f5d388125094ef107e99b73a2f84d02"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/orchestrator.ts",
+      "source_sha256": "a5f1c81074089a4fbe5868c4b63ddc14d8f1b2c3ef9a822ed2c97080c768d9df",
+      "target_path": ".agents/skills/research/orchestrator.ts",
+      "target_sha256": "a5f1c81074089a4fbe5868c4b63ddc14d8f1b2c3ef9a822ed2c97080c768d9df"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/provider-adapter.ts",
+      "source_sha256": "f5888e5243c54926a298653cdc2c5a9de9914badf3a5dc2abca23126946c78f4",
+      "target_path": ".agents/skills/research/provider-adapter.ts",
+      "target_sha256": "f5888e5243c54926a298653cdc2c5a9de9914badf3a5dc2abca23126946c78f4"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/providers.ts",
+      "source_sha256": "79966762cea5549902614d058097b264447a01bb1bec6f4cb6b5994db9c0fdbe",
+      "target_path": ".agents/skills/research/providers.ts",
+      "target_sha256": "79966762cea5549902614d058097b264447a01bb1bec6f4cb6b5994db9c0fdbe"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/query-utils.ts",
+      "source_sha256": "b4035418786fbabdf6875e352a5a2f653e80d9ff2e5716b7c3e5ef08b63f626c",
+      "target_path": ".agents/skills/research/query-utils.ts",
+      "target_sha256": "b4035418786fbabdf6875e352a5a2f653e80d9ff2e5716b7c3e5ef08b63f626c"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/references/delegate.md",
+      "source_sha256": "08a8a0e9fdebb38605315c3efebb3faca735c1be4ea28d92a31ad78f0aa6b046",
+      "target_path": ".agents/skills/research/references/delegate.md",
+      "target_sha256": "08a8a0e9fdebb38605315c3efebb3faca735c1be4ea28d92a31ad78f0aa6b046"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/references/exa-tools.md",
+      "source_sha256": "ec81c0e53d0975b7fb097b288dfb10ee9a598793992882b39987bf3148ad725f",
+      "target_path": ".agents/skills/research/references/exa-tools.md",
+      "target_sha256": "ec81c0e53d0975b7fb097b288dfb10ee9a598793992882b39987bf3148ad725f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/references/exemplars.md",
+      "source_sha256": "6740e18c6132dbdd9c04b43e7a3b0fd66ea5b7dcfedf1472d1898eecef4ae57b",
+      "target_path": ".agents/skills/research/references/exemplars.md",
+      "target_sha256": "6740e18c6132dbdd9c04b43e7a3b0fd66ea5b7dcfedf1472d1898eecef4ae57b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/references/introspect.md",
+      "source_sha256": "89704d50551f69c14af9ebfc1c9b34ab2c26431b4ce5a2ae3b4ea7841321d949",
+      "target_path": ".agents/skills/research/references/introspect.md",
+      "target_sha256": "89704d50551f69c14af9ebfc1c9b34ab2c26431b4ce5a2ae3b4ea7841321d949"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/references/readwise.md",
+      "source_sha256": "12f134fbd9a0a13ce281d7eba1deafd1f0b38d6820c05ab966f9c18f39033f24",
+      "target_path": ".agents/skills/research/references/readwise.md",
+      "target_sha256": "12f134fbd9a0a13ce281d7eba1deafd1f0b38d6820c05ab966f9c18f39033f24"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/references/thinktank.md",
+      "source_sha256": "8f8cb4f888d6e440eaad7693028891905743ef207712fd38ab1af7544e7d807a",
+      "target_path": ".agents/skills/research/references/thinktank.md",
+      "target_sha256": "8f8cb4f888d6e440eaad7693028891905743ef207712fd38ab1af7544e7d807a"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/references/web-search.md",
+      "source_sha256": "5370efca1545619ebee9ce5f7a8b150227ad29c9921550d69d75ea38e7a4e57b",
+      "target_path": ".agents/skills/research/references/web-search.md",
+      "target_sha256": "5370efca1545619ebee9ce5f7a8b150227ad29c9921550d69d75ea38e7a4e57b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/research/references/xai-search.md",
+      "source_sha256": "14f57fc03380b27473cf1c298195993ba639552c82b7689b6b366ea97b43e2d9",
+      "target_path": ".agents/skills/research/references/xai-search.md",
+      "target_sha256": "14f57fc03380b27473cf1c298195993ba639552c82b7689b6b366ea97b43e2d9"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/settle/.spellbook",
+      "source_sha256": "27223358b2338f8c601e288a7d74ab614847064e66544e3feeb8b787b0d2330e",
+      "target_path": ".agents/skills/settle/.spellbook",
+      "target_sha256": "27223358b2338f8c601e288a7d74ab614847064e66544e3feeb8b787b0d2330e"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/settle/SKILL.md",
+      "source_sha256": "696d729b92457fb008efac8c04227044d3f1f99b5b9f57a80bc6810f8bee88bc",
+      "target_path": ".agents/skills/settle/SKILL.md",
+      "target_sha256": "696d729b92457fb008efac8c04227044d3f1f99b5b9f57a80bc6810f8bee88bc"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/settle/references/pr-fix.md",
+      "source_sha256": "c45878727893b62830a5b3c8043fa1982fa51d79beece06808df6cd671c959ba",
+      "target_path": ".agents/skills/settle/references/pr-fix.md",
+      "target_sha256": "c45878727893b62830a5b3c8043fa1982fa51d79beece06808df6cd671c959ba"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/settle/references/pr-polish.md",
+      "source_sha256": "b862f3c85a863369541411714f7cf49b6323f52ab64a3a5854bb75ee48d8777a",
+      "target_path": ".agents/skills/settle/references/pr-polish.md",
+      "target_sha256": "b862f3c85a863369541411714f7cf49b6323f52ab64a3a5854bb75ee48d8777a"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/settle/references/simplify.md",
+      "source_sha256": "1e6263429e048a0e4bc0dee6b2980bdbf9523b8d3c84311ea6f0e2a43330daf6",
+      "target_path": ".agents/skills/settle/references/simplify.md",
+      "target_sha256": "1e6263429e048a0e4bc0dee6b2980bdbf9523b8d3c84311ea6f0e2a43330daf6"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/settle/scripts/fetch-pr-reviews.sh",
+      "source_sha256": "f9d280367ecc65189f7577bf89a327336daecbb1a24c26d128ae3fcaa4d6acd4",
+      "target_path": ".agents/skills/settle/scripts/fetch-pr-reviews.sh",
+      "target_sha256": "f9d280367ecc65189f7577bf89a327336daecbb1a24c26d128ae3fcaa4d6acd4"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/shape/.spellbook",
+      "source_sha256": "b264375cc5541e7b3e983a0c7563badd834d12f7059bd5c1161c26f4802af168",
+      "target_path": ".agents/skills/shape/.spellbook",
+      "target_sha256": "b264375cc5541e7b3e983a0c7563badd834d12f7059bd5c1161c26f4802af168"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/shape/SKILL.md",
+      "source_sha256": "ceda25b527daeb884f1ff7ba9a6696d37f5e18b38b89cf2aa4b5418bada67565",
+      "target_path": ".agents/skills/shape/SKILL.md",
+      "target_sha256": "ceda25b527daeb884f1ff7ba9a6696d37f5e18b38b89cf2aa4b5418bada67565"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/shape/references/breadboarding.md",
+      "source_sha256": "7231f437012d51351ea13e43d9ce5d13b146128bfe2e75b81302d18c3670cd76",
+      "target_path": ".agents/skills/shape/references/breadboarding.md",
+      "target_sha256": "7231f437012d51351ea13e43d9ce5d13b146128bfe2e75b81302d18c3670cd76"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/shape/references/critique-personas.md",
+      "source_sha256": "5c77da8f0486da5d8fd350965da1640f40f888e0e4de2e0b7dd2015217131b27",
+      "target_path": ".agents/skills/shape/references/critique-personas.md",
+      "target_sha256": "5c77da8f0486da5d8fd350965da1640f40f888e0e4de2e0b7dd2015217131b27"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/shape/references/executable-oracles.md",
+      "source_sha256": "8a78686a2125509872ced2233163f5077050907cd26314b29be04013029a9570",
+      "target_path": ".agents/skills/shape/references/executable-oracles.md",
+      "target_sha256": "8a78686a2125509872ced2233163f5077050907cd26314b29be04013029a9570"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/shape/references/shaping-methodology.md",
+      "source_sha256": "9a87232f8b255f0c8f5d62bc69a660b464bb936ffb4e682686fe93e851dd256b",
+      "target_path": ".agents/skills/shape/references/shaping-methodology.md",
+      "target_sha256": "9a87232f8b255f0c8f5d62bc69a660b464bb936ffb4e682686fe93e851dd256b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/shape/references/writing-plans.md",
+      "source_sha256": "617684770f65f9f511c8ccd0d30ede0504f55900c25222fa801eb2a691005ab3",
+      "target_path": ".agents/skills/shape/references/writing-plans.md",
+      "target_sha256": "617684770f65f9f511c8ccd0d30ede0504f55900c25222fa801eb2a691005ab3"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/ship/.spellbook",
+      "source_sha256": "6b73715e597ca3965e19b50cc8401d82207fc6864dcf1c84723fed24e0b4e7a3",
+      "target_path": ".agents/skills/ship/.spellbook",
+      "target_sha256": "6b73715e597ca3965e19b50cc8401d82207fc6864dcf1c84723fed24e0b4e7a3"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/ship/SKILL.md",
+      "source_sha256": "38c8f09f61accd12ea56be81537de938634d2108d89cc4766727ca6fdf3b6829",
+      "target_path": ".agents/skills/ship/SKILL.md",
+      "target_sha256": "38c8f09f61accd12ea56be81537de938634d2108d89cc4766727ca6fdf3b6829"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/yeet/.spellbook",
+      "source_sha256": "8148443bdc2c55dcd84f0bb36ee1a8103dbb7068474334e9d710444dd302a021",
+      "target_path": ".agents/skills/yeet/.spellbook",
+      "target_sha256": "8148443bdc2c55dcd84f0bb36ee1a8103dbb7068474334e9d710444dd302a021"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/yeet/SKILL.md",
+      "source_sha256": "5172e11ecadef9790227baba3b0815ece8d3fd0dc65f9345d8d2decfc21c9640",
+      "target_path": ".agents/skills/yeet/SKILL.md",
+      "target_sha256": "5172e11ecadef9790227baba3b0815ece8d3fd0dc65f9345d8d2decfc21c9640"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/zero-tech-debt/.spellbook",
+      "source_sha256": "2bbafc1bd796d077bb70b964278a0fa0b0116b26994f14c4e45899638ed78d54",
+      "target_path": ".agents/skills/zero-tech-debt/.spellbook",
+      "target_sha256": "2bbafc1bd796d077bb70b964278a0fa0b0116b26994f14c4e45899638ed78d54"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".agents/skills/zero-tech-debt/SKILL.md",
+      "source_sha256": "69396c2d793ab763cb694bd791e8612327849002be2e610a94a2c475541bb20c",
+      "target_path": ".agents/skills/zero-tech-debt/SKILL.md",
+      "target_sha256": "69396c2d793ab763cb694bd791e8612327849002be2e610a94a2c475541bb20c"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/beck.md",
+      "source_sha256": "e62243327817aa919d1fc6e1f9b50bacf915a977b1cb62b194a7d9933047d883",
+      "target_path": ".claude/agents/beck.md",
+      "target_sha256": "05dcbf2f7ecc472853c6320e8ddae88ea456c5ac2d94ae4a734bad29eb44a019"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/beck.spellbook",
+      "source_sha256": "f03a1efcf64ee88a1a63b5b88243e633af55539782659170b35c096320256e37",
+      "target_path": ".claude/agents/beck.spellbook",
+      "target_sha256": "f03a1efcf64ee88a1a63b5b88243e633af55539782659170b35c096320256e37"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/builder.md",
+      "source_sha256": "44866cd33025a82492c0265b054e7d9dcb34791ccc402778acdaf154d869176c",
+      "target_path": ".claude/agents/builder.md",
+      "target_sha256": "480f6ea2df007e3044a2f9510f27ab6652618c76bd3d8a8fa33fc418f0683ca2"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/builder.spellbook",
+      "source_sha256": "4f16a7dea28eee33a2bbd794c1274588e4492058c9e77d3cda15a1baf5a1f5b3",
+      "target_path": ".claude/agents/builder.spellbook",
+      "target_sha256": "4f16a7dea28eee33a2bbd794c1274588e4492058c9e77d3cda15a1baf5a1f5b3"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/carmack.md",
+      "source_sha256": "a3779a7e2eb3551d1f82d378d88d739ca2c5a2fbffd9ec3b4f235cf8658279cb",
+      "target_path": ".claude/agents/carmack.md",
+      "target_sha256": "fdb10fff9421542f4ae71a4f67f3ce37290d3dd536c0860d9249663c9c908df1"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/carmack.spellbook",
+      "source_sha256": "35f687550ec9e400193f26e511f149f425a448d6bf8c433d7fa7223caa93e1d3",
+      "target_path": ".claude/agents/carmack.spellbook",
+      "target_sha256": "35f687550ec9e400193f26e511f149f425a448d6bf8c433d7fa7223caa93e1d3"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/cooper.md",
+      "source_sha256": "01b056a4ac5c2702e249063da0d2bd38e6fdf2f02dd7c129d26b8f6b046ecc34",
+      "target_path": ".claude/agents/cooper.md",
+      "target_sha256": "01b056a4ac5c2702e249063da0d2bd38e6fdf2f02dd7c129d26b8f6b046ecc34"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/cooper.spellbook",
+      "source_sha256": "d52f6ac4aac0e9bc913f00205ccb7edeb2503a00fad19e1a000368e6999f4a0e",
+      "target_path": ".claude/agents/cooper.spellbook",
+      "target_sha256": "d52f6ac4aac0e9bc913f00205ccb7edeb2503a00fad19e1a000368e6999f4a0e"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/critic.md",
+      "source_sha256": "da4f51f631355b445586193edff56ac7435b960d48629bdcb754aed2c9777566",
+      "target_path": ".claude/agents/critic.md",
+      "target_sha256": "8197b0b2229426d038768cb331f812edc963ff07206ed643b9c936c7a108b773"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/critic.spellbook",
+      "source_sha256": "ece9b4d291e08415621b5a1f7b4c491ffbffcaa5a1748dcbfba7629a2a596357",
+      "target_path": ".claude/agents/critic.spellbook",
+      "target_sha256": "ece9b4d291e08415621b5a1f7b4c491ffbffcaa5a1748dcbfba7629a2a596357"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/grug.md",
+      "source_sha256": "0e4166caa7b103db02e983d8fb9c784b5d617dabe0b8f6d6e3d62787093ddbd7",
+      "target_path": ".claude/agents/grug.md",
+      "target_sha256": "4c2dc6e4af99f6fb1e89e1683b979d653d91f839918bb8a77a3f2e850cdb31f4"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/grug.spellbook",
+      "source_sha256": "6f95c378e43c737a7467b3214ed416cdee387ec6310ccf9456cbb0b31dc06a8a",
+      "target_path": ".claude/agents/grug.spellbook",
+      "target_sha256": "6f95c378e43c737a7467b3214ed416cdee387ec6310ccf9456cbb0b31dc06a8a"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/ousterhout.md",
+      "source_sha256": "39a5f7bb89296cf0fb6fc653b8d40c2c386b33a446659a0b8419f3cf784aa140",
+      "target_path": ".claude/agents/ousterhout.md",
+      "target_sha256": "0b785b6a1145089784a649d670cd27306061f736ddbeb311aafbf4a0c14a774e"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/ousterhout.spellbook",
+      "source_sha256": "a789c4e345ec7772ccf7cb8ab5bf3d9c7dccb845deadcda350164cc3e74fa6ab",
+      "target_path": ".claude/agents/ousterhout.spellbook",
+      "target_sha256": "a789c4e345ec7772ccf7cb8ab5bf3d9c7dccb845deadcda350164cc3e74fa6ab"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/planner.md",
+      "source_sha256": "8c65b4132a0b31de176f22610d800bcbb19af60e2ceb73f124da2efc173e697e",
+      "target_path": ".claude/agents/planner.md",
+      "target_sha256": "96f21e6c4963349d7bcdb1f92f80e040c706ead042cb7ee63c7806e3901b0219"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": ".claude/agents/planner.spellbook",
+      "source_sha256": "1a62398c1bc64090edb12d78e57c2971cc9f023c3f68d9b872c24db61d100acd",
+      "target_path": ".claude/agents/planner.spellbook",
+      "target_sha256": "1a62398c1bc64090edb12d78e57c2971cc9f023c3f68d9b872c24db61d100acd"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "bin/gradient",
+      "source_sha256": "e74a336e4bc0ad7d16bea26048ecbf18cb0a632ec7bed78d5c213610005f3b77",
+      "target_path": "bin/gradient",
+      "target_sha256": "e74a336e4bc0ad7d16bea26048ecbf18cb0a632ec7bed78d5c213610005f3b77"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "cmd/gradient/init.go",
+      "source_sha256": "1ed23b8b48558f824419f68bd0c6c71d23d5d10e6275ff9260aac9b6247308a9",
+      "target_path": "cmd/gradient/init.go",
+      "target_sha256": "1ed23b8b48558f824419f68bd0c6c71d23d5d10e6275ff9260aac9b6247308a9"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "cmd/gradient/main.go",
+      "source_sha256": "049e2d82f87abdc8367f97f220a4afe00417b677cf2df1802664fa360e0d468c",
+      "target_path": "cmd/gradient/main.go",
+      "target_sha256": "049e2d82f87abdc8367f97f220a4afe00417b677cf2df1802664fa360e0d468c"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "cmd/gradient/main_test.go",
+      "source_sha256": "a44f5cec75d4c6c3116140051c0aa850457dca85065cc86f802fac9b888150de",
+      "target_path": "cmd/gradient/main_test.go",
+      "target_sha256": "a44f5cec75d4c6c3116140051c0aa850457dca85065cc86f802fac9b888150de"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "cmd/gradient/readiness.go",
+      "source_sha256": "6b77525fddb235c3c17a4ecb21987859462ee693a7baef2120e2bf0cf0a983b3",
+      "target_path": "cmd/gradient/readiness.go",
+      "target_sha256": "6b77525fddb235c3c17a4ecb21987859462ee693a7baef2120e2bf0cf0a983b3"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "evals/gradient-contracts.md",
+      "source_sha256": "a6b1cd861de7211ebddca35f7a5bfc67dcc6e2d288225e88c132a3e561471e7d",
+      "target_path": "evals/gradient-contracts.md",
+      "target_sha256": "a6b1cd861de7211ebddca35f7a5bfc67dcc6e2d288225e88c132a3e561471e7d"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "evals/readiness-fixtures.json",
+      "source_sha256": "2b8d7a87415bc9dc898ad57b03259c825b4d2cdb9c71be509edc277dd8a2d49b",
+      "target_path": "evals/readiness-fixtures.json",
+      "target_sha256": "2b8d7a87415bc9dc898ad57b03259c825b4d2cdb9c71be509edc277dd8a2d49b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "evals/security-fixtures.json",
+      "source_sha256": "97b95d076293afacf8f88c89dbc152aa22397e67d1ca9f0b4ac157134c21c58f",
+      "target_path": "evals/security-fixtures.json",
+      "target_sha256": "97b95d076293afacf8f88c89dbc152aa22397e67d1ca9f0b4ac157134c21c58f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "evals/solo-mvp.md",
+      "source_sha256": "16bf244bee321f3cea999315c6dc342a8220ccf5366a2f53fcb4c282adc47f1c",
+      "target_path": "evals/solo-mvp.md",
+      "target_sha256": "16bf244bee321f3cea999315c6dc342a8220ccf5366a2f53fcb4c282adc47f1c"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "evals/trace-fixtures.json",
+      "source_sha256": "2d82cebbc1eaea3465b1dd17158fb291430381f794181a1ebd98d76ced740e21",
+      "target_path": "evals/trace-fixtures.json",
+      "target_sha256": "2d82cebbc1eaea3465b1dd17158fb291430381f794181a1ebd98d76ced740e21"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "evals/zero-tech-debt.md",
+      "source_sha256": "e8dce00d01bc7e9cd0a3d5a96e92f914142857b297ec4927ef20529bacf7fb42",
+      "target_path": "evals/zero-tech-debt.md",
+      "target_sha256": "e8dce00d01bc7e9cd0a3d5a96e92f914142857b297ec4927ef20529bacf7fb42"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "go.mod",
+      "source_sha256": "8617e1be34a5a62f0aa8a81708e3569775f1d35f2d4d5acca0a150cb66bc9e22",
+      "target_path": "go.mod",
+      "target_sha256": "8617e1be34a5a62f0aa8a81708e3569775f1d35f2d4d5acca0a150cb66bc9e22"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "go.sum",
+      "source_sha256": "e42794fa9b56301ad073de55cac1dea683b320ed951454d8709ffc7156088dd2",
+      "target_path": "go.sum",
+      "target_sha256": "e42794fa9b56301ad073de55cac1dea683b320ed951454d8709ffc7156088dd2"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "gradient.yaml.example",
+      "source_sha256": "2a1d1ed27a2f6472fd4bed2a2fb240876d9d7c116df535657785a2cd12e13f13",
+      "target_path": "gradient.yaml.example",
+      "target_sha256": "2a1d1ed27a2f6472fd4bed2a2fb240876d9d7c116df535657785a2cd12e13f13"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "harness/default/manifest.json",
+      "source_sha256": "94dae5aa0af3c6fce27171b49d88ac478ad155debcd68de5da4fd97aab594336",
+      "target_path": "harness/default/manifest.json",
+      "target_sha256": "94dae5aa0af3c6fce27171b49d88ac478ad155debcd68de5da4fd97aab594336"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "profiles/base.yaml",
+      "source_sha256": "e18cacdd4e4b4d8fe1cb9afea7ffa7aaf91b19afbaa66302e47ae52f14557773",
+      "target_path": "profiles/base.yaml",
+      "target_sha256": "e18cacdd4e4b4d8fe1cb9afea7ffa7aaf91b19afbaa66302e47ae52f14557773"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "profiles/enterprise.yaml",
+      "source_sha256": "775982bc034054bd72ddd29f94af8a90729a80e619574aaac48522ae3663049c",
+      "target_path": "profiles/enterprise.yaml",
+      "target_sha256": "775982bc034054bd72ddd29f94af8a90729a80e619574aaac48522ae3663049c"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "profiles/org-engineering.yaml",
+      "source_sha256": "d0d84d61b6fd8acf4f792b15303230f3fee1089a3fd082239c087d3645966aec",
+      "target_path": "profiles/org-engineering.yaml",
+      "target_sha256": "d0d84d61b6fd8acf4f792b15303230f3fee1089a3fd082239c087d3645966aec"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "profiles/solo-frontier.yaml",
+      "source_sha256": "b7e4137624334b5d75771be15762ab35da57dbe73acd3d5fb50d47f993ae2f58",
+      "target_path": "profiles/solo-frontier.yaml",
+      "target_sha256": "b7e4137624334b5d75771be15762ab35da57dbe73acd3d5fb50d47f993ae2f58"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/context-bundle.schema.json",
+      "source_sha256": "daaee0bb0d6da64ed52525f498c9950a8714f8638b9290be126b51bb43fa649d",
+      "target_path": "schemas/context-bundle.schema.json",
+      "target_sha256": "daaee0bb0d6da64ed52525f498c9950a8714f8638b9290be126b51bb43fa649d"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/evidence-packet.schema.json",
+      "source_sha256": "fd85bd1e1acf8e25fa0151eaca667fa9695bef606377b0703dd57a8149495c25",
+      "target_path": "schemas/evidence-packet.schema.json",
+      "target_sha256": "fd85bd1e1acf8e25fa0151eaca667fa9695bef606377b0703dd57a8149495c25"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/feedback-item.schema.json",
+      "source_sha256": "6d5324af5b2eda14f8a85eab792d94fc0797d718eeccc9603975dd965c1cb57f",
+      "target_path": "schemas/feedback-item.schema.json",
+      "target_sha256": "6d5324af5b2eda14f8a85eab792d94fc0797d718eeccc9603975dd965c1cb57f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/fleet-run.schema.json",
+      "source_sha256": "f568fb9b7a8996574fa972ce6b3645fc265b848dd750a71b853cda076ca33aa8",
+      "target_path": "schemas/fleet-run.schema.json",
+      "target_sha256": "f568fb9b7a8996574fa972ce6b3645fc265b848dd750a71b853cda076ca33aa8"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/gradient.schema.json",
+      "source_sha256": "e5dd0afa26b5492fb5185c78c138867bf8d835c09b391c113206db138091e9fc",
+      "target_path": "schemas/gradient.schema.json",
+      "target_sha256": "e5dd0afa26b5492fb5185c78c138867bf8d835c09b391c113206db138091e9fc"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/harness-resolution.schema.json",
+      "source_sha256": "d6ce29bd288752b5fffbd61ba7596843b044872a6e376e7fec9e6cb6971c1be1",
+      "target_path": "schemas/harness-resolution.schema.json",
+      "target_sha256": "d6ce29bd288752b5fffbd61ba7596843b044872a6e376e7fec9e6cb6971c1be1"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/managed-manifest.schema.json",
+      "source_sha256": "20ad6886194cff4ffcff09c56450d0b1eb499022658dc19579ca6a137d87648a",
+      "target_path": "schemas/managed-manifest.schema.json",
+      "target_sha256": "20ad6886194cff4ffcff09c56450d0b1eb499022658dc19579ca6a137d87648a"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/policy-outcome.schema.json",
+      "source_sha256": "4e9549f0f7b230a349f133da15e8654805f801f6b004dd880dd70bd0777e0282",
+      "target_path": "schemas/policy-outcome.schema.json",
+      "target_sha256": "4e9549f0f7b230a349f133da15e8654805f801f6b004dd880dd70bd0777e0282"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/readiness-report.schema.json",
+      "source_sha256": "3ff385f69a9eff50c646c21d1cd4f39160b153d40034d618d6e56742a7e0978b",
+      "target_path": "schemas/readiness-report.schema.json",
+      "target_sha256": "3ff385f69a9eff50c646c21d1cd4f39160b153d40034d618d6e56742a7e0978b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/standards-manifest.schema.json",
+      "source_sha256": "60f47ca0258629ab7677bd2a750a9e517bc6223f062de5fa1dd592b7c69380e7",
+      "target_path": "schemas/standards-manifest.schema.json",
+      "target_sha256": "60f47ca0258629ab7677bd2a750a9e517bc6223f062de5fa1dd592b7c69380e7"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "schemas/work-item.schema.json",
+      "source_sha256": "1002683915da1b6ab560f5775bae0ef0c627f49d282bc9b35181496b2b80bc92",
+      "target_path": "schemas/work-item.schema.json",
+      "target_sha256": "1002683915da1b6ab560f5775bae0ef0c627f49d282bc9b35181496b2b80bc92"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/capture-evidence.sh",
+      "source_sha256": "7ed2a6db76aa869cfae90ee33330228e88457ffe2572530b462ae3c9c7fb4106",
+      "target_path": "scripts/capture-evidence.sh",
+      "target_sha256": "7ed2a6db76aa869cfae90ee33330228e88457ffe2572530b462ae3c9c7fb4106"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/close-work.sh",
+      "source_sha256": "bebb132f193b93b75b3e9a9001df1c4e8399e9fd96139043a314edbb3d225db2",
+      "target_path": "scripts/close-work.sh",
+      "target_sha256": "bebb132f193b93b75b3e9a9001df1c4e8399e9fd96139043a314edbb3d225db2"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/context.sh",
+      "source_sha256": "086cbccd6fe5d82972ca4201766215273c729c2df43d4852ab4b4694f1c0ce5f",
+      "target_path": "scripts/context.sh",
+      "target_sha256": "086cbccd6fe5d82972ca4201766215273c729c2df43d4852ab4b4694f1c0ce5f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/eval-gradient.sh",
+      "source_sha256": "52c36516cbec5a481d8b1af2b81937c9afe758ebe6f796958eae15827e020752",
+      "target_path": "scripts/eval-gradient.sh",
+      "target_sha256": "52c36516cbec5a481d8b1af2b81937c9afe758ebe6f796958eae15827e020752"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/feedback.sh",
+      "source_sha256": "815233b8c7a1806c73f4d711ef33886c5a695389254a0abefa3fc602289e73fa",
+      "target_path": "scripts/feedback.sh",
+      "target_sha256": "815233b8c7a1806c73f4d711ef33886c5a695389254a0abefa3fc602289e73fa"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/fleet.sh",
+      "source_sha256": "a7c5712cd03f0885e5ed80656e073300abf610ebc45d61c28d5f11555b61eb12",
+      "target_path": "scripts/fleet.sh",
+      "target_sha256": "a7c5712cd03f0885e5ed80656e073300abf610ebc45d61c28d5f11555b61eb12"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/gradient.sh",
+      "source_sha256": "60214eb179cd30ee92f52ef33e9e0880f8c77ae9e4b000b638cfb52ca535d961",
+      "target_path": "scripts/gradient.sh",
+      "target_sha256": "60214eb179cd30ee92f52ef33e9e0880f8c77ae9e4b000b638cfb52ca535d961"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/init-workspace.sh",
+      "source_sha256": "895407cc88278df8a967c791cacfd2d1c308e6852d1da9b40b76b9a0007399dc",
+      "target_path": "scripts/init-workspace.sh",
+      "target_sha256": "895407cc88278df8a967c791cacfd2d1c308e6852d1da9b40b76b9a0007399dc"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/install-global.sh",
+      "source_sha256": "efcf3022d22691c0ac2a23bcdcbb3cd000378c07f60b53cb38c8dde3900d7844",
+      "target_path": "scripts/install-global.sh",
+      "target_sha256": "efcf3022d22691c0ac2a23bcdcbb3cd000378c07f60b53cb38c8dde3900d7844"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/lib/backlog.sh",
+      "source_sha256": "4d98cbc5f89bc2a22bc4ef3224ba5642b34effba038e5fffe5cea4be14a08483",
+      "target_path": "scripts/lib/backlog.sh",
+      "target_sha256": "4d98cbc5f89bc2a22bc4ef3224ba5642b34effba038e5fffe5cea4be14a08483"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/lib/backlog.sh.spellbook",
+      "source_sha256": "c651d72c85a1fb54ee6b8348a7797e58adda6c26e430ea960949b8be2693d456",
+      "target_path": "scripts/lib/backlog.sh.spellbook",
+      "target_sha256": "c651d72c85a1fb54ee6b8348a7797e58adda6c26e430ea960949b8be2693d456"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/lib/verdicts.sh",
+      "source_sha256": "ae59c2309dddd66e642615b3981d932c6871c443449d50cd10077ddad55f9a4b",
+      "target_path": "scripts/lib/verdicts.sh",
+      "target_sha256": "ae59c2309dddd66e642615b3981d932c6871c443449d50cd10077ddad55f9a4b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/lib/verdicts.sh.spellbook",
+      "source_sha256": "2b854a0849670e1d3ebf8afdfd1b0ca2964fdb956fcfe75607ed4f7f4afba36f",
+      "target_path": "scripts/lib/verdicts.sh.spellbook",
+      "target_sha256": "2b854a0849670e1d3ebf8afdfd1b0ca2964fdb956fcfe75607ed4f7f4afba36f"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/report.sh",
+      "source_sha256": "635c9edfc1e1f94007d7d29e0b68af50a732440e6a5d01a2e62bbec8328853c0",
+      "target_path": "scripts/report.sh",
+      "target_sha256": "635c9edfc1e1f94007d7d29e0b68af50a732440e6a5d01a2e62bbec8328853c0"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/resolve-harness.sh",
+      "source_sha256": "796470b9703972d94679ea9e96f66b74507e9e8a84ddd2ec7ec2643829759701",
+      "target_path": "scripts/resolve-harness.sh",
+      "target_sha256": "796470b9703972d94679ea9e96f66b74507e9e8a84ddd2ec7ec2643829759701"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/status.sh",
+      "source_sha256": "d81b0a4e34526a51e300c4c1b6295de8a7d12f5d14134945d388e3e1fb6604f0",
+      "target_path": "scripts/status.sh",
+      "target_sha256": "d81b0a4e34526a51e300c4c1b6295de8a7d12f5d14134945d388e3e1fb6604f0"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/test-evidence-truth.sh",
+      "source_sha256": "816771178f48f5a818570ca8396c579fac578fb39249c078e4518f0e6505861a",
+      "target_path": "scripts/test-evidence-truth.sh",
+      "target_sha256": "816771178f48f5a818570ca8396c579fac578fb39249c078e4518f0e6505861a"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/test-global-cli-smoke.sh",
+      "source_sha256": "300a3dbb842eff548c36733ffabd323a4d989659dcf8f7008162d823a9116e1b",
+      "target_path": "scripts/test-global-cli-smoke.sh",
+      "target_sha256": "300a3dbb842eff548c36733ffabd323a4d989659dcf8f7008162d823a9116e1b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/test-native-harness.sh",
+      "source_sha256": "599cac0043a3b1a498414fab29c5a94b8585527795f6646c563456ca9f0a36e6",
+      "target_path": "scripts/test-native-harness.sh",
+      "target_sha256": "599cac0043a3b1a498414fab29c5a94b8585527795f6646c563456ca9f0a36e6"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/test-progressive-init.sh",
+      "source_sha256": "cf8ed64abc73c3547ba87ebab058f28193a5ebb27bd4c1b64cfaa4d7974cffaf",
+      "target_path": "scripts/test-progressive-init.sh",
+      "target_sha256": "cf8ed64abc73c3547ba87ebab058f28193a5ebb27bd4c1b64cfaa4d7974cffaf"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/test-readiness-report.sh",
+      "source_sha256": "8636dcc83fed0539655d40f33a5735b1e3dee17df6c1408d6f91eb47ffa5e18e",
+      "target_path": "scripts/test-readiness-report.sh",
+      "target_sha256": "8636dcc83fed0539655d40f33a5735b1e3dee17df6c1408d6f91eb47ffa5e18e"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/test-target-eval-scope.sh",
+      "source_sha256": "d702b07d67499d7e6c88e72ac53eb6f71ec2dc36d9ef829baf8be4ada4f3a374",
+      "target_path": "scripts/test-target-eval-scope.sh",
+      "target_sha256": "d702b07d67499d7e6c88e72ac53eb6f71ec2dc36d9ef829baf8be4ada4f3a374"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/test-workspace-adoption.sh",
+      "source_sha256": "3075baae0b2c7b56d87ff5555b35e4140a74166d6b27d834a42648e7e7f3a470",
+      "target_path": "scripts/test-workspace-adoption.sh",
+      "target_sha256": "3075baae0b2c7b56d87ff5555b35e4140a74166d6b27d834a42648e7e7f3a470"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/test-workspace-upgrade.sh",
+      "source_sha256": "819f3997191c02a47f233c3c14bc975ffc4cfe525572ae31c45f5d0868684d57",
+      "target_path": "scripts/test-workspace-upgrade.sh",
+      "target_sha256": "819f3997191c02a47f233c3c14bc975ffc4cfe525572ae31c45f5d0868684d57"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/trace.sh",
+      "source_sha256": "bf32044ebc1eea8db89675e6ab13d37825dd5502e7152d63b8770e96285cd819",
+      "target_path": "scripts/trace.sh",
+      "target_sha256": "bf32044ebc1eea8db89675e6ab13d37825dd5502e7152d63b8770e96285cd819"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/upgrade-workspace.sh",
+      "source_sha256": "319fc5bbc1d0aa3856809c5c0b8bf6284b2d82947c60ec3388daf8f0237b8a65",
+      "target_path": "scripts/upgrade-workspace.sh",
+      "target_sha256": "319fc5bbc1d0aa3856809c5c0b8bf6284b2d82947c60ec3388daf8f0237b8a65"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/validate.sh",
+      "source_sha256": "f08f808c2ed83b0d24c4ca739c14cd8d7961b72c75f2925defefd2f28696976b",
+      "target_path": "scripts/validate.sh",
+      "target_sha256": "f08f808c2ed83b0d24c4ca739c14cd8d7961b72c75f2925defefd2f28696976b"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "scripts/work.sh",
+      "source_sha256": "4636b1946a74881ebe8e7ec9270e3fe20fe4fd29f18f9a6b39cfca474d941277",
+      "target_path": "scripts/work.sh",
+      "target_sha256": "4636b1946a74881ebe8e7ec9270e3fe20fe4fd29f18f9a6b39cfca474d941277"
+    },
+    {
+      "kind": "file",
+      "owner": "gradient-managed",
+      "policy": "update-if-unchanged",
+      "source_path": "standards/org-engineering.yaml",
+      "source_sha256": "ce838eabe31fc7e8383248997a1121f8431ee3bba74d57d602b80879fc5aaa8b",
+      "target_path": "standards/org-engineering.yaml",
+      "target_sha256": "ce838eabe31fc7e8383248997a1121f8431ee3bba74d57d602b80879fc5aaa8b"
+    }
+  ],
+  "generated_at": "2026-05-18T15:10:12Z",
+  "repo_owned": [
+    "gradient.yaml",
+    "backlog.d",
+    ".gradient/evidence",
+    ".gradient/context",
+    ".gradient/policy",
+    ".gradient/feedback",
+    ".gradient/runs"
+  ],
+  "schema_version": 1,
+  "source_root": "/Users/phaedrus/Development/gradient",
+  "source_version": "local-go"
+}

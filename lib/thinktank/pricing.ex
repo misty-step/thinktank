@@ -15,7 +15,6 @@ defmodule Thinktank.Pricing do
       cache_write: 3.75
     },
     "arcee-ai/trinity-large-thinking" => %{input: 0.22, output: 0.85, cache_read: 0.06},
-    "x-ai/grok-4.1-fast" => %{input: 0.2, output: 0.5, cache_read: 0.05},
     "google/gemini-3-flash-preview" => %{
       input: 0.5,
       output: 3.0,

@@ -1,3 +1,14 @@
+---
+acceptance:
+    - Gradient can preserve and track this adopted work item.
+evidence_required:
+    - gradient work show 024-add-first-class-focused-review-benches
+id: 024-add-first-class-focused-review-benches
+lifecycle_stage: Intent
+status: ready
+title: Add First-Class Focused Review Benches
+---
+
 # Add First-Class Focused Review Benches
 
 Priority: medium

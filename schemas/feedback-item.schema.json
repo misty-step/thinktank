@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gradient.local/schemas/feedback-item.schema.json",
+  "title": "Gradient Feedback Item",
+  "type": "object",
+  "required": ["id", "module", "classification", "severity", "summary", "route", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "module": { "enum": ["Harness", "Work", "Fleet", "Policy", "Context", "Training", "Deployment"] },
+    "classification": {
+      "enum": [
+        "bug",
+        "missing-standard",
+        "new-skill",
+        "eval-case",
+        "training-gap",
+        "context-miss",
+        "retrieval-stale",
+        "policy-gap",
+        "fleet-runtime",
+        "work-adapter",
+        "client-specific-config"
+      ]
+    },
+    "severity": { "enum": ["low", "medium", "high", "critical"] },
+    "summary": { "type": "string", "minLength": 1 },
+    "route": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["open", "routed", "resolved", "rejected"] },
+    "reporter": { "type": "string", "minLength": 1 },
+    "reported_at": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "profile": { "type": "string", "minLength": 1 },
+    "lifecycle_stage": { "enum": ["Intent", "Work Graph", "Fleet Run", "Evidence", "Policy/Eval", "Feedback"] },
+    "expected": { "type": "string", "minLength": 1 },
+    "actual": { "type": "string", "minLength": 1 },
+    "reproduction": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction": { "enum": ["public-safe", "redacted", "private-local"] },
+    "owner": { "type": "string", "minLength": 1 },
+    "linked_work_item": { "type": "string", "minLength": 1 },
+    "rejection_rationale": { "type": "string", "minLength": 1 }
+  }
+}

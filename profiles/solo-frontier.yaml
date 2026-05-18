@@ -1,0 +1,22 @@
+name: solo-frontier
+extends: base
+version: 0.1.0
+description: Power-user profile for local, high-velocity experimentation.
+
+fleet:
+  backend: local
+  autonomy: supervised
+  always_on: optional
+
+policy:
+  approvals:
+    code_changes: operator_review
+    external_side_effects: operator_review
+  evidence:
+    tests: required
+    verification_commands: required
+    review_summary: recommended
+
+context:
+  permissions: operator_local
+  freshness: prefer_recent

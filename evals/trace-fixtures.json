@@ -1,0 +1,44 @@
+{
+  "cases": [
+    {
+      "name": "required-trace-missing",
+      "expected": "fail",
+      "evidence": {
+        "required_artifact_kinds": ["work-item", "agent-trace"],
+        "trace_refs": []
+      }
+    },
+    {
+      "name": "required-raindrop-trace-present",
+      "expected": "pass",
+      "evidence": {
+        "required_artifact_kinds": ["work-item", "agent-trace"],
+        "trace_refs": [
+          {
+            "backend": "raindrop",
+            "trace_id": "synthetic-raindrop-trace-001",
+            "uri": "http://localhost:5899/traces/synthetic-raindrop-trace-001",
+            "redaction": "synthetic",
+            "summary": "Synthetic Workshop trace reference; no raw payload committed."
+          }
+        ]
+      }
+    },
+    {
+      "name": "raw-raindrop-db-is-not-safe-evidence",
+      "expected": "fail",
+      "evidence": {
+        "required_artifact_kinds": ["work-item", "agent-trace"],
+        "trace_refs": [
+          {
+            "backend": "raindrop",
+            "trace_id": "raw-store",
+            "artifact_path": "raindrop_workshop.db",
+            "redaction": "synthetic",
+            "summary": "Raw Workshop database must not satisfy Gradient evidence requirements."
+          }
+        ]
+      }
+    }
+  ]
+}

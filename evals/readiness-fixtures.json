@@ -1,0 +1,36 @@
+{
+  "cases": [
+    {
+      "name": "low-readiness",
+      "categories": [
+        { "id": "setup", "required": { "passed": 0, "total": 2 }, "optional": { "passed": 0, "total": 2 } },
+        { "id": "tests", "required": { "passed": 0, "total": 2 }, "optional": { "passed": 0, "total": 2 } },
+        { "id": "ci", "required": { "passed": 0, "total": 2 }, "optional": { "passed": 0, "total": 2 } },
+        { "id": "docs", "required": { "passed": 0, "total": 2 }, "optional": { "passed": 0, "total": 2 } },
+        { "id": "harness", "required": { "passed": 0, "total": 2 }, "optional": { "passed": 0, "total": 2 } },
+        { "id": "work", "required": { "passed": 0, "total": 2 }, "optional": { "passed": 0, "total": 2 } },
+        { "id": "observability", "required": { "passed": 0, "total": 1 }, "optional": { "passed": 0, "total": 1 } },
+        { "id": "modularity", "required": { "passed": 0, "total": 1 }, "optional": { "passed": 0, "total": 1 } },
+        { "id": "security", "required": { "passed": 0, "total": 2 }, "optional": { "passed": 0, "total": 2 } },
+        { "id": "evidence", "required": { "passed": 0, "total": 2 }, "optional": { "passed": 0, "total": 2 } }
+      ],
+      "expected": { "min_score": 0, "max_score": 5, "tier": "low" }
+    },
+    {
+      "name": "high-readiness",
+      "categories": [
+        { "id": "setup", "required": { "passed": 2, "total": 2 }, "optional": { "passed": 2, "total": 2 } },
+        { "id": "tests", "required": { "passed": 2, "total": 2 }, "optional": { "passed": 2, "total": 2 } },
+        { "id": "ci", "required": { "passed": 2, "total": 2 }, "optional": { "passed": 2, "total": 2 } },
+        { "id": "docs", "required": { "passed": 2, "total": 2 }, "optional": { "passed": 2, "total": 2 } },
+        { "id": "harness", "required": { "passed": 2, "total": 2 }, "optional": { "passed": 2, "total": 2 } },
+        { "id": "work", "required": { "passed": 2, "total": 2 }, "optional": { "passed": 2, "total": 2 } },
+        { "id": "observability", "required": { "passed": 1, "total": 1 }, "optional": { "passed": 1, "total": 1 } },
+        { "id": "modularity", "required": { "passed": 1, "total": 1 }, "optional": { "passed": 1, "total": 1 } },
+        { "id": "security", "required": { "passed": 2, "total": 2 }, "optional": { "passed": 2, "total": 2 } },
+        { "id": "evidence", "required": { "passed": 2, "total": 2 }, "optional": { "passed": 2, "total": 2 } }
+      ],
+      "expected": { "min_score": 95, "max_score": 100, "tier": "high" }
+    }
+  ]
+}

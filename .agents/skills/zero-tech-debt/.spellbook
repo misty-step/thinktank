@@ -1,0 +1,4 @@
+source: zero-tech-debt
+installed: 2026-05-15T20:26:00Z
+installed-by: gradient
+decision: Install in Gradient repo-local harness now; upstream to Spellbook after use proves the primitive is broadly reusable.

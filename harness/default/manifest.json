@@ -1,0 +1,55 @@
+{
+  "$schema": "../../schemas/harness-resolution.schema.json",
+  "id": "harness-library-gradient-default-0.1.0",
+  "profile": "solo-frontier",
+  "primitive_library": {
+    "name": "gradient-default",
+    "type": "bundled",
+    "version": "0.1.0",
+    "path": ".agents/skills",
+    "role": "bundled Gradient native primitive library for skills, agents, and harness defaults"
+  },
+  "shared_skill_root": ".agents/skills",
+  "skills": [
+    "gradient",
+    "research",
+    "groom",
+    "shape",
+    "implement",
+    "qa",
+    "demo",
+    "code-review",
+    "refactor",
+    "ci",
+    "diagnose",
+    "monitor",
+    "deliver",
+    "settle",
+    "ship",
+    "yeet",
+    "flywheel",
+    "harness",
+    "agent-readiness",
+    "gradient-contracts",
+    "zero-tech-debt"
+  ],
+  "agents": [
+    "planner",
+    "builder",
+    "critic",
+    "ousterhout",
+    "carmack",
+    "beck",
+    "cooper",
+    "grug"
+  ],
+  "agent_root": ".agents/agents",
+  "agent_bridges": [
+    ".claude/agents"
+  ],
+  "bridges": [
+    ".claude/skills",
+    ".codex/skills",
+    ".pi/skills"
+  ]
+}

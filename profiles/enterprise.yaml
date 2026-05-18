@@ -1,0 +1,70 @@
+name: enterprise
+extends: org-engineering
+version: 0.1.0
+description: Enterprise profile with stricter governance, audit, and isolation.
+
+standards:
+  baseline: org-engineering
+  manifests:
+    - standards/org-engineering.yaml
+  policy_packs:
+    - public-safe
+    - evidence-required
+    - security-defaults
+    - trace-reference-boundary
+  harness_packs:
+    - codex-primary
+    - claude-code-compatible
+    - filesystem-skills
+  exception_policy:
+    adapter: governed-ticket-system
+    required_fields:
+      - owner
+      - reason
+      - expires_at
+      - approver
+      - risk
+      - compensating_control
+    expiry_required: true
+    approval_required: true
+
+fleet:
+  backend: tenant_isolated
+  autonomy: approval_gated
+
+policy:
+  approvals:
+    code_changes: required
+    production_changes: required
+    external_side_effects: required
+    data_access_expansion: required
+  audit:
+    run_ids: required
+    evidence_retention: required
+    secret_access_log: required
+  secrets:
+    secret_manager: infisical_or_equivalent
+    secret_access_log: external_reference_required
+    rotation_required: required
+    machine_identity_required: required_for_all_automation
+    secret_values_logged: forbidden
+  supply_chain:
+    package_manager: deployment_defined
+    lockfile: required
+    frozen_installs: required
+    lifecycle_scripts: deny_by_default
+    minimum_release_age_seconds: 604800
+    release_age_exceptions: []
+  evidence:
+    tests: required
+    ci_status: required
+    review_map: required
+    risk_notes: required
+    rollback_notes: required
+    eval_delta: required_for_harness_changes
+
+context:
+  permissions: tenant_role_scoped
+  citations: required
+  redaction: required
+  freshness: enforce
