@@ -109,10 +109,17 @@ defmodule Thinktank.EngineTest do
     runner = fn _cmd, args, _opts ->
       prompt = File.read!(prompt_path(args))
 
-      if String.contains?(prompt, "You are guard") do
-        {"guard failed", 1}
-      else
-        {"ok", 0}
+      cond do
+        String.contains?(prompt, "You are guard") ->
+          {"guard failed", 1}
+
+        String.contains?(prompt, "Agent outputs:") ->
+          assert prompt =~ "Review degrade policy:"
+          assert prompt =~ "security: guard failed"
+          {"synthesized review names missing security perspective", 0}
+
+        true ->
+          {"ok", 0}
       end
     end
 
@@ -125,6 +132,79 @@ defmodule Thinktank.EngineTest do
              )
 
     assert result.envelope.status == "degraded"
+    assert result.envelope.review_degrade_policy["outcome"] == "escalate_to_synthesizer"
+    assert result.envelope.review_degrade_policy["missing_domains"] == ["security"]
+
+    assert [
+             %{
+               "domain" => "security",
+               "failed_agents" => ["guard"],
+               "message" => "Invoked security review coverage was unavailable."
+             }
+           ] = result.envelope.review_degrade_policy["gaps"]
+
+    assert File.exists?(Path.join(result.output_dir, "review/degrade_policy.json"))
+
+    events = read_jsonl(Path.join(result.output_dir, "trace/events.jsonl"))
+
+    assert Enum.any?(events, fn event ->
+             event["event"] == "review_degrade_policy" and
+               event["outcome"] == "escalate_to_synthesizer" and
+               event["missing_domains"] == ["security"]
+           end)
+  end
+
+  test "complete review runs do not emit a degrade policy artifact" do
+    cwd = unique_tmp_dir("thinktank-engine-degrade-policy-complete")
+    init_git_repo_with_commit!(cwd)
+
+    runner = fn _cmd, _args, _opts -> {"ok", 0} end
+
+    assert {:ok, result} =
+             Engine.run(
+               "review/default",
+               %{input_text: "Review this branch"},
+               cwd: cwd,
+               runner: runner
+             )
+
+    assert result.envelope.status == "complete"
+    assert result.envelope.review_degrade_policy == nil
+    refute File.exists?(Path.join(result.output_dir, "review/degrade_policy.json"))
+  end
+
+  test "review domain gaps fail when synthesis is disabled" do
+    cwd = unique_tmp_dir("thinktank-engine-degrade-policy-no-synth")
+    output_dir = Path.join(cwd, "run")
+    init_git_repo_with_commit!(cwd)
+
+    runner = fn _cmd, args, _opts ->
+      prompt = File.read!(prompt_path(args))
+
+      if String.contains?(prompt, "You are guard") do
+        {"guard failed", 1}
+      else
+        {"ok", 0}
+      end
+    end
+
+    assert {:error, %Error{code: :review_domain_coverage_missing} = error, ^output_dir} =
+             Engine.run(
+               "review/default",
+               %{input_text: "Review this branch", no_synthesis: true},
+               cwd: cwd,
+               output: output_dir,
+               runner: runner
+             )
+
+    assert error.details[:missing_domains] == ["security"]
+
+    envelope = Thinktank.RunStore.result_envelope(output_dir)
+
+    assert envelope.status == "failed"
+    assert envelope.review_degrade_policy["outcome"] == "fail_run"
+    assert envelope.review_degrade_policy["missing_domains"] == ["security"]
+    assert File.exists?(Path.join(output_dir, "review/degrade_policy.json"))
   end
 
   test "marks the run as partial when an agent times out and keeps a best-effort summary" do

@@ -1,0 +1,18 @@
+{
+  "$schema": "../../schemas/context-bundle.schema.json",
+  "id": "context-021-domain-tagged-degrade-policy-20260518t204049z",
+  "items": [
+    {
+      "body": "Gradient can preserve and track this adopted work item.",
+      "citation": "backlog.d/021-domain-tagged-degrade-policy.md",
+      "freshness": "current-worktree",
+      "id": "context-021-domain-tagged-degrade-policy-20260518t204049z-work",
+      "permission_label": "public-safe",
+      "source_uri": "backlog.d/021-domain-tagged-degrade-policy.md",
+      "source_version": "git-worktree",
+      "type": "requirement"
+    }
+  ],
+  "mode": "assist",
+  "query": "Context for 021-domain-tagged-degrade-policy"
+}

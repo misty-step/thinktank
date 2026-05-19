@@ -1,0 +1,18 @@
+{
+  "$schema": "../../schemas/policy-outcome.schema.json",
+  "checks": [
+    {
+      "name": "gradient validate",
+      "status": "pass",
+      "summary": "Go-backed validation gate."
+    }
+  ],
+  "created_at": "2026-05-18T20:40:49Z",
+  "evidence_packet_id": "evidence-021-domain-tagged-degrade-policy-20260518t204049z",
+  "evidence_verdict": "sufficient",
+  "id": "policy-021-domain-tagged-degrade-policy-20260518t204049z",
+  "reviewer": "gradient-go",
+  "risks": [],
+  "verdict": "pass",
+  "work_item_id": "021-domain-tagged-degrade-policy"
+}

@@ -15,7 +15,8 @@ defmodule Thinktank.Error do
   @known_reasons %{
     missing_input_text: "input text is required",
     no_successful_agents: "no agents completed successfully",
-    no_git_repository: "workspace is not a git repository — review requires git"
+    no_git_repository: "workspace is not a git repository — review requires git",
+    review_domain_coverage_missing: "invoked review domain coverage was unavailable"
   }
 
   @contract_reasons %{

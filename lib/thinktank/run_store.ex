@@ -207,6 +207,8 @@ defmodule Thinktank.RunStore do
       pricing_gaps: manifest["pricing_gaps"],
       research_findings:
         read_json_artifact(artifact_named(artifacts, "research-findings"), output_dir),
+      review_degrade_policy:
+        read_json_artifact(artifact_named(artifacts, "review-degrade-policy"), output_dir),
       synthesis: read_synthesis(output_dir, artifacts)
     }
   end

@@ -134,6 +134,7 @@ defmodule Thinktank.Engine.Runtime do
   alias Thinktank.Engine.Preparation
   alias Thinktank.Executor.Agentic
   alias Thinktank.Research.Findings
+  alias Thinktank.Review.DegradePolicy
 
   @type terminal_attrs :: map()
 
@@ -237,6 +238,17 @@ defmodule Thinktank.Engine.Runtime do
 
     Enum.each(results, &record_result(output_dir, &1))
 
+    review_degrade_policy =
+      maybe_write_review_degrade_policy(
+        output_dir,
+        DegradePolicy.evaluate(
+          bench,
+          planned_agents,
+          results,
+          can_run_synthesizer?(synthesizer, contract)
+        )
+      )
+
     synthesis =
       maybe_run_synthesizer(
         synthesizer,
@@ -244,19 +256,20 @@ defmodule Thinktank.Engine.Runtime do
         bench,
         contract,
         config,
-        context,
+        maybe_put_review_degrade_policy(context, review_degrade_policy),
         opts,
         output_dir
       )
 
-    status = derive_status(results, synthesis)
+    status = derive_status(results, synthesis, review_degrade_policy)
     maybe_write_partial_research_findings(output_dir, bench, status, synthesis)
 
     terminal_attrs = %{
       "bench" => bench.id,
       "successful_agents" => Enum.count(results, &(&1.status == :ok)),
       "failed_agents" => Enum.count(results, &(&1.status == :error)),
-      "synthesis_status" => synthesis && synthesis.status
+      "synthesis_status" => synthesis && synthesis.status,
+      "review_degrade_policy" => review_degrade_policy
     }
 
     run_result = %{
@@ -268,16 +281,40 @@ defmodule Thinktank.Engine.Runtime do
       planner: planner,
       synthesizer: synthesizer,
       results: results,
+      review_degrade_policy: review_degrade_policy,
       synthesis: synthesis
     }
 
     case status do
       "failed" ->
-        {:error, Error.from_reason(:no_successful_agents), output_dir, status, terminal_attrs}
+        {:error, terminal_error(results, review_degrade_policy), output_dir, status,
+         terminal_attrs}
 
       _ ->
         {:ok, run_result, status, terminal_attrs}
     end
+  end
+
+  defp maybe_write_review_degrade_policy(_output_dir, nil), do: nil
+  defp maybe_write_review_degrade_policy(_output_dir, %{"outcome" => "none"} = policy), do: policy
+
+  defp maybe_write_review_degrade_policy(output_dir, policy) do
+    RunStore.write_json_artifact(
+      output_dir,
+      "review-degrade-policy",
+      ArtifactLayout.review_degrade_policy_file(),
+      policy
+    )
+
+    RunStore.append_run_note(output_dir, "review degrade policy outcome=#{policy["outcome"]}")
+
+    TraceLog.record_event(output_dir, "review_degrade_policy", %{
+      "outcome" => policy["outcome"],
+      "missing_domains" => policy["missing_domains"],
+      "invoked_domains" => policy["invoked_domains"]
+    })
+
+    policy
   end
 
   defp maybe_run_synthesizer(
@@ -397,6 +434,18 @@ defmodule Thinktank.Engine.Runtime do
 
   defp maybe_write_partial_research_findings(_output_dir, _bench, _status, _synthesis), do: :ok
 
+  defp can_run_synthesizer?(nil, _contract), do: false
+  defp can_run_synthesizer?(_synthesizer, %{input: %{"no_synthesis" => true}}), do: false
+  defp can_run_synthesizer?(_synthesizer, _contract), do: true
+
+  defp maybe_put_review_degrade_policy(context, nil), do: context
+
+  defp maybe_put_review_degrade_policy(context, %{"outcome" => "none"}), do: context
+
+  defp maybe_put_review_degrade_policy(context, policy) do
+    Map.put(context, "review_degrade_policy", DegradePolicy.render_for_synthesis(policy))
+  end
+
   defp write_summary_artifacts(output_dir, %BenchSpec{kind: kind}, content) do
     Enum.each(ArtifactLayout.summary_artifacts(kind), fn {name, file} ->
       RunStore.write_text_artifact(output_dir, name, file, content)
@@ -426,16 +475,40 @@ defmodule Thinktank.Engine.Runtime do
     })
   end
 
-  defp derive_status(results, synthesis) do
+  defp derive_status(results, synthesis, review_degrade_policy) do
     successful = successful_result_count(results)
 
     cond do
+      match?(%{"outcome" => "fail_run"}, review_degrade_policy) -> "failed"
       partial_status?(results, synthesis, successful) -> "partial"
       successful == 0 -> "failed"
       degraded_status?(results, synthesis) -> "degraded"
       true -> "complete"
     end
   end
+
+  defp terminal_error(results, review_degrade_policy) do
+    if successful_result_count(results) == 0 do
+      Error.from_reason(:no_successful_agents)
+    else
+      terminal_policy_error(review_degrade_policy)
+    end
+  end
+
+  defp terminal_policy_error(%{
+         "outcome" => "fail_run",
+         "missing_domains" => missing_domains,
+         "gaps" => gaps
+       }) do
+    Error.from_reason(%{
+      category: :review_domain_coverage_missing,
+      message: "invoked review domain coverage was unavailable",
+      missing_domains: missing_domains,
+      gaps: gaps
+    })
+  end
+
+  defp terminal_policy_error(_review_degrade_policy), do: Error.from_reason(:run_error)
 
   defp successful_result_count(results) do
     Enum.count(results, &(&1.status == :ok and String.trim(&1.output) != ""))

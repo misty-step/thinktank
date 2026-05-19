@@ -1,0 +1,7 @@
+ M lib/thinktank/artifact_layout.ex
+ M lib/thinktank/engine.ex
+ M lib/thinktank/engine/runtime.ex
+ M lib/thinktank/prompts/synthesis.ex
+ M lib/thinktank/run_store.ex
+ M test/thinktank/engine_test.exs
+ M test/thinktank/integration/agent_contract_test.exs

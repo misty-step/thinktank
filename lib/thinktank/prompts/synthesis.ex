@@ -54,6 +54,8 @@ defmodule Thinktank.Prompts.Synthesis do
   Synthesis brief from planner:
   {{synthesis_brief}}
 
+  {{review_degrade_policy}}
+
   Agent outputs:
   {{agent_outputs}}
   """

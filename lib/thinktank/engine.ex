@@ -16,6 +16,7 @@ defmodule Thinktank.Engine do
           planner: AgentSpec.t() | nil,
           synthesizer: AgentSpec.t() | nil,
           results: [Agentic.result()],
+          review_degrade_policy: map() | nil,
           synthesis: Agentic.result() | nil
         }
 

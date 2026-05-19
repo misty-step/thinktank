@@ -1,0 +1,8 @@
+ lib/thinktank/artifact_layout.ex                   |   5 +
+ lib/thinktank/engine.ex                            |   1 +
+ lib/thinktank/engine/runtime.ex                    | 127 ++++++++++++++++++++-
+ lib/thinktank/prompts/synthesis.ex                 |   2 +
+ lib/thinktank/run_store.ex                         |   2 +
+ test/thinktank/engine_test.exs                     |  54 ++++++++-
+ test/thinktank/integration/agent_contract_test.exs |   2 +
+ 7 files changed, 187 insertions(+), 6 deletions(-)
