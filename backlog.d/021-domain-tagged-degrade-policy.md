@@ -1,8 +1,8 @@
 ---
 acceptance:
-    - Gradient can preserve and track this adopted work item.
+    - Spellbook and repo-local backlog tracking can preserve this adopted work item.
 evidence_required:
-    - gradient work show 021-domain-tagged-degrade-policy
+    - mix test
 id: 021-domain-tagged-degrade-policy
 lifecycle_stage: Intent
 status: ready

@@ -1,8 +1,8 @@
 ---
 acceptance:
-    - Gradient can preserve and track this adopted work item.
+    - Spellbook and repo-local backlog tracking can preserve this adopted work item.
 evidence_required:
-    - gradient work show 024-add-first-class-focused-review-benches
+    - mix test
 id: 024-add-first-class-focused-review-benches
 lifecycle_stage: Intent
 status: ready

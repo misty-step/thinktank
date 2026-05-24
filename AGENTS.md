@@ -142,4 +142,4 @@ making them worse.
 - `README.md`
 - `CONTRIBUTING.md`
 - `CLAUDE.md`
-- `.spellbook/repo-brief.md`
+- `project.md`

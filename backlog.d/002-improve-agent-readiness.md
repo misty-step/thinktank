@@ -1,39 +1,36 @@
 ---
 acceptance:
-    - Gradient-generated guidance names ThinkTank's Elixir stack, Pi launcher boundary, existing `.agent/skills` root, and canonical Dagger gate.
-    - Gradient-native skills do not contradict ThinkTank's repo-tailored CI, QA, demo, review, or implementation skills.
-    - The Gradient repo-scan records the real package manifests and verification commands.
+    - Spellbook-facing guidance names ThinkTank's Elixir stack, Pi launcher boundary, existing `.agent/skills` root, and canonical Dagger gate.
+    - Spellbook skills do not contradict ThinkTank's repo-tailored CI, QA, demo, review, or implementation skills.
+    - Repo-local guidance records the real package manifests and verification commands without depending on retired scaffold state.
 evidence_required:
-    - AGENTS.gradient.md review
-    - .gradient/init/repo-scan.json review
-    - generated repo-guide review
-    - gradient readiness
-    - gradient validate
+    - AGENTS.md review
+    - .agent/skills/ci/SKILL.md review
+    - mix test
 id: 002-improve-agent-readiness
 lifecycle_stage: Policy/Eval
 status: ready
-title: Improve agent readiness from Gradient init scan
+title: Improve Spellbook Agent Readiness
 ---
 
-# Improve Agent Readiness
+# Improve Spellbook Agent Readiness
 
 Priority: medium
 Status: ready
 Estimate: S
 
-## Init Scan Findings
+## Readiness Findings
 
-- Initial Gradient init missed Elixir, `mix.exs`, `mix.lock`, Dagger, and the
-  existing `.agent/skills` shared skill root.
-- Initial generated CI, QA, demo, implementation, and review guidance described
-  Gradient's own docs/schema repository instead of ThinkTank's Elixir CLI.
-- The scaffold validated structurally even though the agent-facing content was
-  semantically wrong for this repository.
+- Historical generated guidance missed Elixir, `mix.exs`, `mix.lock`, Dagger,
+  and the existing `.agent/skills` shared skill root.
+- Retired generated guidance should stay removed so this repo treats Spellbook
+  as the work-loop layer.
+- The readiness surface should describe ThinkTank's Elixir CLI, Pi launcher
+  boundary, artifact contracts, and Dagger gate directly.
 
 ## Repo Anchors
 
-- `AGENTS.gradient.md`
-- `gradient.yaml`
-- `.gradient/init/repo-scan.json`
-- `.agents/agents/repo-guide.md`
+- `AGENTS.md`
+- `README.md`
+- `project.md`
 - `.agent/skills/ci/SKILL.md`

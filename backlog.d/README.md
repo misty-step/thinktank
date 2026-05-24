@@ -20,8 +20,20 @@ Status conventions:
 
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
+| [002](002-improve-agent-readiness.md) | Improve Spellbook Agent Readiness | medium | S |
 | [021](021-domain-tagged-degrade-policy.md) | Domain-Tagged Degrade Policy | medium | L |
 | [024](024-add-first-class-focused-review-benches.md) | Add First-Class Focused Review Benches | medium | M |
+| [026](026-add-review-coverage-contract.md) | Add Review Coverage Contract | high | M |
+| [027](027-add-bench-evaluation-corpus.md) | Add Bench Evaluation Corpus | high | L |
+| [028](028-add-run-compare-command.md) | Add Run Compare Command | medium | M |
+| [029](029-add-static-run-report-artifact.md) | Add Static Run Report Artifact | medium | M |
+| [030](030-add-ci-review-mode.md) | Add CI Review Mode | high | M |
+| [031](031-support-bench-packs.md) | Support Bench Packs | medium | L |
+| [032](032-add-model-roster-health-command.md) | Add Model Roster Health Command | medium | S |
+| [033](033-add-benchfile-composition-contract.md) | Add Benchfile Composition Contract | high | L |
+| [034](034-add-pi-family-runner-adapter.md) | Add Pi-Family Runner Adapter | high | M |
+| [035](035-add-live-agent-room.md) | Add Live Agent Room | medium | L |
+| [036](036-add-runner-permission-policy.md) | Add Runner Permission Policy | high | M |
 
 ## Done
 

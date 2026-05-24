@@ -35,7 +35,7 @@
             "trace_id": "raw-store",
             "artifact_path": "raindrop_workshop.db",
             "redaction": "synthetic",
-            "summary": "Raw Workshop database must not satisfy Gradient evidence requirements."
+            "summary": "Raw Workshop database must not satisfy agent-trace evidence requirements."
           }
         ]
       }
