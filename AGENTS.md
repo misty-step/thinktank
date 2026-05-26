@@ -43,7 +43,6 @@ merge-readiness gate.
 
 It enforces formatting, compile warnings as errors, `credo --strict`,
 Dialyzer, shell/YAML hygiene, gitleaks, the repo-owned security gate, the
-harness-agent gate for `.claude/agents/*.md`, live model-ID validation, the
 architecture gate, escript smoke, and an `87%` coverage floor.
 
 Use `mix test` and `mix compile --warnings-as-errors` only as targeted fallback
@@ -63,15 +62,9 @@ or debugging gates. Native hooks live in `.githooks/` and are installed by
 
 ## Harness Layout
 
-Canonical shared skill root: `.agent/skills/`
 
 | Layer | Path | Role |
 |---|---|---|
-| Shared skills | `.agent/skills/` | Canonical spellbook-tailored skills for this repo |
-| Claude bridge | `.claude/skills/` | Symlink bridge to shared skills plus repo-local scaffolded `demo` and `qa` |
-| Codex bridge | `.codex/skills/` | Symlink bridge so Codex resolves the same skill bodies |
-| Pi bridge | `.pi/skills/` | Symlink bridge so Pi resolves the same skill bodies |
-| Claude agents | `.claude/agents/` | Repo-local lenses only; model choice belongs to runtime |
 
 Per-harness settings:
 
@@ -81,11 +74,8 @@ Per-harness settings:
 
 Repo-local scaffolded skills remain:
 
-- `.claude/skills/demo/` — CLI-focused demo capture for ThinkTank
-- `.claude/skills/qa/` — CLI behavior verifier, not browser QA
 
 They are bridged into Codex and Pi so invocation is harness-neutral even
-though their authored source still lives under `.claude/skills/`.
 
 ## Skill Index
 
@@ -109,22 +99,6 @@ Shared spellbook-tailored skills installed here:
 | `settle` | Land a clean branch to `master` while respecting hooks, Conventional Commits, and Release Please |
 | `shape` | Turn thin-launcher-safe ideas into context packets with executable oracles |
 | `yeet` | Commit and push intentionally without `--no-verify` or stray workspace junk |
-
-## Agent Index
-
-Installed repo-local lenses:
-
-| Agent | Role |
-|---|---|
-| `beck` | TDD discipline and test-first pressure |
-| `builder` | Heads-down implementation against a context packet |
-| `carmack` | Shippability and anti-overengineering lens |
-| `critic` | Skeptical grading of implementation output |
-| `grug` | Complexity and abstraction minimization |
-| `ousterhout` | Deep-module and information-hiding review |
-| `planner` | Context-packet and decomposition work |
-
-These files must not hardcode model IDs, model families, or reasoning tiers.
 
 ## Debt Map
 
