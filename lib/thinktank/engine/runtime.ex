@@ -134,7 +134,7 @@ defmodule Thinktank.Engine.Runtime do
   alias Thinktank.Engine.Preparation
   alias Thinktank.Executor.Agentic
   alias Thinktank.Research.Findings
-  alias Thinktank.Review.DegradePolicy
+  alias Thinktank.Review.{Coverage, DegradePolicy}
 
   @type terminal_attrs :: map()
 
@@ -262,6 +262,14 @@ defmodule Thinktank.Engine.Runtime do
       )
 
     status = derive_status(results, synthesis, review_degrade_policy)
+
+    review_coverage =
+      maybe_write_review_coverage(
+        output_dir,
+        Coverage.evaluate(bench, planned_agents, results, status, review_degrade_policy)
+      )
+
+    maybe_prepend_review_coverage_summary(output_dir, bench, review_coverage)
     maybe_write_partial_research_findings(output_dir, bench, status, synthesis)
 
     terminal_attrs = %{
@@ -269,6 +277,7 @@ defmodule Thinktank.Engine.Runtime do
       "successful_agents" => Enum.count(results, &(&1.status == :ok)),
       "failed_agents" => Enum.count(results, &(&1.status == :error)),
       "synthesis_status" => synthesis && synthesis.status,
+      "review_coverage" => review_coverage,
       "review_degrade_policy" => review_degrade_policy
     }
 
@@ -281,6 +290,7 @@ defmodule Thinktank.Engine.Runtime do
       planner: planner,
       synthesizer: synthesizer,
       results: results,
+      review_coverage: review_coverage,
       review_degrade_policy: review_degrade_policy,
       synthesis: synthesis
     }
@@ -315,6 +325,48 @@ defmodule Thinktank.Engine.Runtime do
     })
 
     policy
+  end
+
+  defp maybe_write_review_coverage(_output_dir, nil), do: nil
+
+  defp maybe_write_review_coverage(output_dir, coverage) do
+    RunStore.write_json_artifact(
+      output_dir,
+      "review-coverage",
+      ArtifactLayout.review_coverage_file(),
+      coverage
+    )
+
+    coverage
+  end
+
+  defp maybe_prepend_review_coverage_summary(
+         output_dir,
+         %BenchSpec{kind: :review},
+         %{} = coverage
+       ) do
+    if Coverage.summary_required?(coverage) do
+      prepend_review_coverage_summary(output_dir, coverage)
+    end
+  end
+
+  defp maybe_prepend_review_coverage_summary(_output_dir, _bench, _coverage), do: :ok
+
+  defp prepend_review_coverage_summary(output_dir, coverage) do
+    review_path = Path.join(output_dir, "review.md")
+
+    with true <- File.exists?(review_path),
+         content <- File.read!(review_path),
+         false <- String.starts_with?(content, "## Review Coverage") do
+      RunStore.write_text_artifact(
+        output_dir,
+        "review",
+        "review.md",
+        Coverage.render_summary(coverage) <> "\n\n" <> content
+      )
+    else
+      _already_written_or_missing -> :ok
+    end
   end
 
   defp maybe_run_synthesizer(

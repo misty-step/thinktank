@@ -15,6 +15,7 @@ defmodule Thinktank.ArtifactLayout do
   @review_plan_json_file "review/plan.json"
   @review_plan_text_file "review/plan.md"
   @review_planner_file "review/planner.md"
+  @review_coverage_file "review/coverage.json"
   @review_degrade_policy_file "review/degrade_policy.json"
   @agents_dir "agents"
   @artifacts_dir "artifacts"
@@ -37,6 +38,7 @@ defmodule Thinktank.ArtifactLayout do
     @review_plan_json_file,
     @review_plan_text_file,
     @review_planner_file,
+    @review_coverage_file,
     @review_degrade_policy_file,
     @run_scratchpad_file
   ]
@@ -85,6 +87,9 @@ defmodule Thinktank.ArtifactLayout do
 
   @spec review_degrade_policy_file() :: String.t()
   def review_degrade_policy_file, do: @review_degrade_policy_file
+
+  @spec review_coverage_file() :: String.t()
+  def review_coverage_file, do: @review_coverage_file
 
   @spec research_findings_file() :: String.t()
   def research_findings_file, do: @research_findings_file

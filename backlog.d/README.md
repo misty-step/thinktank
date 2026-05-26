@@ -14,7 +14,7 @@ Status conventions:
 
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
-| _None._ | _None._ | _None._ | _None._ |
+| [026](026-add-review-coverage-contract.md) | Add Review Coverage Contract | high | M |
 
 ## Active (ready to pick)
 
@@ -23,7 +23,6 @@ Status conventions:
 | [002](002-improve-agent-readiness.md) | Improve Spellbook Agent Readiness | medium | S |
 | [021](021-domain-tagged-degrade-policy.md) | Domain-Tagged Degrade Policy | medium | L |
 | [024](024-add-first-class-focused-review-benches.md) | Add First-Class Focused Review Benches | medium | M |
-| [026](026-add-review-coverage-contract.md) | Add Review Coverage Contract | high | M |
 | [027](027-add-bench-evaluation-corpus.md) | Add Bench Evaluation Corpus | high | L |
 | [028](028-add-run-compare-command.md) | Add Run Compare Command | medium | M |
 | [029](029-add-static-run-report-artifact.md) | Add Static Run Report Artifact | medium | M |

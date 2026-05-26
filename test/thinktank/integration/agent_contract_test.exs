@@ -143,6 +143,7 @@ defmodule Thinktank.Integration.AgentContractTest do
                    "output_dir",
                    "pricing_gaps",
                    "research_findings",
+                   "review_coverage",
                    "review_degrade_policy",
                    "started_at",
                    "status",

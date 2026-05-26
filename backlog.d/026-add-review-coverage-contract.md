@@ -15,7 +15,7 @@ title: Add Review Coverage Contract
 # Add Review Coverage Contract
 
 Priority: high
-Status: ready
+Status: in-progress
 Estimate: M
 
 ## Goal

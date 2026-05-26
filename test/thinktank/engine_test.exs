@@ -132,6 +132,19 @@ defmodule Thinktank.EngineTest do
              )
 
     assert result.envelope.status == "degraded"
+    assert result.envelope.review_coverage["status"] == "degraded"
+    assert result.envelope.review_coverage["requested_domains"] == review_domains()
+
+    assert result.envelope.review_coverage["completed_domains"] ==
+             review_domains() -- ["security"]
+
+    assert result.envelope.review_coverage["failed_domains"] == ["security"]
+    assert result.envelope.review_coverage["missing_domains"] == ["security"]
+    assert result.envelope.review_coverage["degraded_domains"] == ["security"]
+
+    assert result.envelope.review_coverage["degrade_policy"]["outcome"] ==
+             "escalate_to_synthesizer"
+
     assert result.envelope.review_degrade_policy["outcome"] == "escalate_to_synthesizer"
     assert result.envelope.review_degrade_policy["missing_domains"] == ["security"]
 
@@ -144,6 +157,10 @@ defmodule Thinktank.EngineTest do
            ] = result.envelope.review_degrade_policy["gaps"]
 
     assert File.exists?(Path.join(result.output_dir, "review/degrade_policy.json"))
+    assert File.exists?(Path.join(result.output_dir, "review/coverage.json"))
+
+    assert File.read!(Path.join(result.output_dir, "review.md")) =~
+             "## Review Coverage\n\n- Status: degraded"
 
     events = read_jsonl(Path.join(result.output_dir, "trace/events.jsonl"))
 
@@ -169,6 +186,10 @@ defmodule Thinktank.EngineTest do
              )
 
     assert result.envelope.status == "complete"
+    assert result.envelope.review_coverage["status"] == "complete"
+    assert result.envelope.review_coverage["requested_domains"] == review_domains()
+    assert result.envelope.review_coverage["missing_domains"] == []
+    assert File.exists?(Path.join(result.output_dir, "review/coverage.json"))
     assert result.envelope.review_degrade_policy == nil
     refute File.exists?(Path.join(result.output_dir, "review/degrade_policy.json"))
   end
@@ -202,9 +223,13 @@ defmodule Thinktank.EngineTest do
     envelope = Thinktank.RunStore.result_envelope(output_dir)
 
     assert envelope.status == "failed"
+    assert envelope.review_coverage["status"] == "failed"
+    assert envelope.review_coverage["missing_domains"] == ["security"]
+    assert envelope.review_coverage["degrade_policy"]["outcome"] == "fail_run"
     assert envelope.review_degrade_policy["outcome"] == "fail_run"
     assert envelope.review_degrade_policy["missing_domains"] == ["security"]
     assert File.exists?(Path.join(output_dir, "review/degrade_policy.json"))
+    assert File.exists?(Path.join(output_dir, "review/coverage.json"))
   end
 
   test "marks the run as partial when an agent times out and keeps a best-effort summary" do
@@ -746,6 +771,25 @@ defmodule Thinktank.EngineTest do
     plan = result.output_dir |> Path.join("review/plan.json") |> File.read!() |> Jason.decode!()
     assert plan["source"] == "manual"
     assert Enum.map(plan["selected_agents"], & &1["name"]) == ["guard"]
+    assert result.envelope.review_coverage["status"] == "complete"
+    assert result.envelope.review_coverage["requested_domains"] == ["security"]
+    assert result.envelope.review_coverage["completed_domains"] == ["security"]
+    assert result.envelope.review_coverage["missing_domains"] == []
+  end
+
+  defp review_domains do
+    [
+      "architecture",
+      "compatibility",
+      "correctness",
+      "implementation",
+      "integration",
+      "interfaces",
+      "operability",
+      "runtime-risk",
+      "security",
+      "tests"
+    ]
   end
 
   test "review planner rejects non-JSON responses and records fallback trace events" do

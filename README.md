@@ -263,9 +263,16 @@ the markdown derivatives.
 - ThinkTank may write a light review context pack and review plan before
   launching reviewers. These are orientation artifacts, not substitutes for
   repository exploration.
-- For review benches, `review/context.json` and `review/plan.json` are the
-  canonical machine-readable contract; markdown summaries and planner transcripts
-  are optional derivative orientation artifacts and are never gating.
+- For review benches, `review/context.json`, `review/plan.json`, and
+  `review/coverage.json` are the canonical machine-readable contract; markdown
+  summaries and planner transcripts are optional derivative orientation
+  artifacts and are never gating.
+- The final JSON envelope exposes `review_coverage` with requested, completed,
+  failed, missing, and degraded review domains. Downstream tools should consume
+  that field instead of parsing `review.md`.
+- When review coverage is missing or degraded, ThinkTank prepends a compact
+  coverage summary to `review.md` before any findings so operators see the gap
+  first.
 - `review/default` uses `marshal` as planner and synthesizes across the full reviewer roster.
 - `--base`, `--head`, `--repo`, and `--pr` are orientation hints for the
   reviewers and synthesizer.
