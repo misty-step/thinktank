@@ -8,14 +8,14 @@ evidence_required:
     - ./scripts/with-colima.sh dagger call check
 id: 026-add-review-coverage-contract
 lifecycle_stage: Intent
-status: ready
+status: done
 title: Add Review Coverage Contract
 ---
 
 # Add Review Coverage Contract
 
 Priority: high
-Status: in-progress
+Status: done
 Estimate: M
 
 ## Goal
@@ -47,11 +47,18 @@ Every review run tells operators and downstream agents what review coverage was 
 
 ## Oracle
 
-- [ ] Review envelopes expose `review_coverage` with requested domains, planned reviewers, completed domains, failed domains, missing domains, and terminal coverage status.
-- [ ] `review/degrade_policy.json` either becomes part of that contract or is clearly referenced by it without duplicate meanings.
-- [ ] Human review output starts with a compact coverage summary when any domain is missing or degraded.
-- [ ] Tests cover complete coverage, degraded coverage with synthesis escalation, failed coverage with no synthesis, and no-planner review runs.
-- [ ] README documents how downstream tools should consume coverage without parsing markdown.
+- [x] Review envelopes expose `review_coverage` with requested domains, planned reviewers, completed domains, failed domains, missing domains, and terminal coverage status.
+- [x] `review/degrade_policy.json` either becomes part of that contract or is clearly referenced by it without duplicate meanings.
+- [x] Human review output starts with a compact coverage summary when any domain is missing or degraded.
+- [x] Tests cover complete coverage, degraded coverage with synthesis escalation, failed coverage with no synthesis, and no-planner review runs.
+- [x] README documents how downstream tools should consume coverage without parsing markdown.
+
+## What Was Built
+
+- Added `Thinktank.Review.Coverage` to derive requested, completed, failed, missing, and degraded review domains from planner selections, reviewer metadata, run results, and degrade policy.
+- Wrote `review/coverage.json`, exposed `review_coverage` in run envelopes and terminal trace attributes, and registered the artifact path.
+- Prepended a compact `Review Coverage` section to `review.md` when coverage is degraded, partial, or failed so missing perspectives are visible before findings.
+- Covered complete, degraded, failed, and no-planner review runs in tests, and documented downstream consumption in `README.md`.
 
 ## Notes
 

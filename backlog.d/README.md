@@ -14,7 +14,7 @@ Status conventions:
 
 | # | Title | Priority | Estimate |
 |---|-------|----------|----------|
-| [026](026-add-review-coverage-contract.md) | Add Review Coverage Contract | high | M |
+| _None._ | _None._ | _None._ | _None._ |
 
 ## Active (ready to pick)
 
@@ -62,6 +62,7 @@ See [done/](done/) for full write-ups including "What Was Built" notes.
 | [022](done/022-add-run-inspection-and-explicit-run-state-commands.md) | Add Run Inspection And Explicit Run State Commands |
 | [023](done/023-add-structured-research-findings-contract.md) | Add Structured Research Findings Contract |
 | [025](done/025-add-ship-skill.md) | Add Ship Skill |
+| [026](done/026-add-review-coverage-contract.md) | Add Review Coverage Contract |
 
 ## Workflow
 

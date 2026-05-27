@@ -43,7 +43,7 @@ ThinkTank can measure whether benches are getting better or worse because repres
 - `test/thinktank/review/eval_test.exs`
 - `priv/config/builtin.yml`
 - `backlog.d/done/023-add-structured-research-findings-contract.md`
-- `.agent/skills/` Spellbook-tailored workflow guidance
+- `agent_config/skills/` Spellbook-tailored workflow guidance
 
 ## Oracle
 
