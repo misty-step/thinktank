@@ -116,7 +116,7 @@ agents:
 
   sentry:
     provider: openrouter
-    model: xiaomi/mimo-v2-pro
+    model: xiaomi/mimo-v2.5-pro
     tools: [bash, read, grep, find, ls]
     thinking_level: high
     retries: 2

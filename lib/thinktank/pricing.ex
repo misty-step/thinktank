@@ -27,7 +27,7 @@ defmodule Thinktank.Pricing do
     "minimax/minimax-m2.7" => %{input: 0.3, output: 1.2, cache_read: 0.059},
     "inception/mercury-2" => %{input: 0.25, output: 0.75, cache_read: 0.025},
     "moonshotai/kimi-k2.6" => %{input: 0.6, output: 2.8, cache_read: 0.2},
-    "xiaomi/mimo-v2-pro" => %{input: 1.0, output: 3.0, cache_read: 0.2},
+    "xiaomi/mimo-v2.5-pro" => %{input: 0.435, output: 0.87, cache_read: 0.0036},
     "openai/gpt-5.4" => %{input: 2.5, output: 15.0, cache_read: 0.25}
   }
 
