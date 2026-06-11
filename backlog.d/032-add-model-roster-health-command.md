@@ -20,7 +20,10 @@ Estimate: S
 
 ## Goal
 
-Operators can quickly tell whether the configured agent roster is healthy before running an important research or review bench.
+Operators can quickly tell whether the configured agent roster is healthy
+before running an important research or review bench: model availability, tool
+support, pricing coverage, credential state, and policy readiness are visible
+before money and time are spent.
 
 ## Non-Goals
 
@@ -47,12 +50,20 @@ Operators can quickly tell whether the configured agent roster is healthy before
 
 ## Oracle
 
-- [ ] A command such as `thinktank models health` or `thinktank rosters health` checks the configured roster for a bench or all built-in benches.
+- [ ] A command such as `thinktank models health`, `thinktank rosters health`, or an extended `thinktank benches validate --health` checks the configured roster for a bench or all built-in benches.
 - [ ] Text output groups healthy, warning, and failing roster entries by provider/model/agent.
-- [ ] JSON output exposes availability, supported tools, pricing coverage, credential state, and probe latency.
+- [ ] JSON output exposes availability, supported tools, pricing coverage, credential state, policy state, and probe latency.
 - [ ] Tests cover healthy roster, missing credential, missing tool support, pricing gap, and provider timeout.
 - [ ] README describes this as the preflight check for high-stakes bench runs.
 
 ## Notes
 
 Capability-aware validation prevents known tool mismatches. Roster health makes the operational state of the whole bench visible before the operator spends money and waits on a degraded run.
+
+Coordinate with `036`: policy readiness should be an artifacted preflight
+state, not a one-off probe path that fragments safety evidence away from
+`benches validate` and run artifacts.
+
+The 2026-06-11 groom hit this exact failure class: live OpenRouter validation
+reported `xiaomi/mimo-v2-pro` stale, and the roster had to move to the
+tool-capable `xiaomi/mimo-v2.5-pro`.

@@ -20,7 +20,9 @@ Estimate: L
 
 ## Goal
 
-ThinkTank becomes usable as an "agent tmux" for live compositions: operators can watch agents, give bounded feedback, abort or retry work, and synthesize from the final evidence.
+ThinkTank becomes usable as an "agent tmux" for live runs: operators can watch
+agent status and streams, append durable feedback events, and synthesize from
+final evidence while abort/retry controls wait for explicit runner policy.
 
 ## Non-Goals
 
@@ -28,13 +30,14 @@ ThinkTank becomes usable as an "agent tmux" for live compositions: operators can
 - Replacing local artifacts with UI state
 - Letting feedback mutate history invisibly
 - Allowing agents to decide their own approval requirements
+- Adding abort/retry controls before runner permission policy exists
 
 ## Constraints / Invariants
 
 - The first interface can be CLI-first; a TUI is optional after the data model works.
 - Feedback is a typed event stored under the run directory.
 - Every feedback event records target, author, timestamp, message, and whether it was included in downstream synthesis.
-- Abort/retry controls must use the same lifecycle owner as normal run finalization.
+- Abort/retry controls are a follow-up after `036` can prove permission and approval policy for the target runner.
 
 ## Repo Anchors
 
@@ -47,12 +50,14 @@ ThinkTank becomes usable as an "agent tmux" for live compositions: operators can
 
 ## Oracle
 
-- [ ] `thinktank compose attach <run>` or equivalent shows stage/agent status from durable artifacts.
-- [ ] `thinktank compose feedback <run> --to <agent-or-stage> --message ...` appends a feedback event and exposes it to allowed downstream synthesis.
-- [ ] Abort or retry operations record trace events and terminal status consistently.
-- [ ] Tests prove feedback persistence, synthesis context inclusion, invalid target handling, and terminal-run rejection.
+- [ ] `thinktank runs attach <run>` or `thinktank compose attach <run>` shows agent status and stream locations from durable artifacts.
+- [ ] `thinktank runs feedback <run> --to <agent-or-run> --message ...` appends a feedback event and exposes it to allowed downstream synthesis.
+- [ ] Feedback events are immutable trace/run artifacts and terminal-run feedback is rejected clearly.
+- [ ] Tests prove status attachment, feedback persistence, synthesis context inclusion, invalid target handling, and terminal-run rejection.
 - [ ] README documents that feedback is a run artifact, not an untracked chat message.
 
 ## Notes
 
-This is the operator half of the vision. It should come after the composition contract has explicit stage and agent identities to target.
+This is the operator half of the vision. The first slice is read-only attach
+plus durable feedback. Abort/retry belongs after `036` and the flat composition
+contract have explicit agent identities and approval requirements.

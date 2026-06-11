@@ -20,7 +20,9 @@ Estimate: M
 
 ## Goal
 
-ThinkTank can prove what each agent was allowed to do because runner permissions, sandbox expectations, credentials, and approval requirements are validated and persisted as run evidence.
+ThinkTank can prove what each agent was allowed to do because runner
+permissions, sandbox expectations, credential scope, and approval requirements
+are validated before high-risk launch and persisted as run evidence.
 
 ## Non-Goals
 
@@ -47,12 +49,15 @@ ThinkTank can prove what each agent was allowed to do because runner permissions
 
 ## Oracle
 
-- [ ] Agent/runner config accepts permission policy metadata for tools, credentials, sandbox mode, and approval requirements.
-- [ ] Validation fails when a high-risk tool or runner has no explicit policy.
+- [ ] Agent/runner config accepts permission policy metadata for tools, credentials, sandbox mode, source trust, and approval requirements.
+- [ ] Validation fails when a high-risk tool, trusted repo config, or runner has no explicit policy.
 - [ ] Run artifacts record effective policy per agent and any validation warnings.
 - [ ] Static report or text output highlights unsafe, degraded, or policy-skipped states.
 - [ ] Tests cover read-only agent, write-capable agent, missing policy, credential-scope warning, and public-safe redaction.
 
 ## Notes
 
-Harness best practice is moving from per-action prompt approval toward explicit bounded sessions. This item makes ThinkTank's boundary auditable before the project adds richer arbitrary composition.
+Harness best practice is moving from per-action prompt approval toward explicit
+bounded sessions. This item is the precondition for `033`, `034`, and `035`:
+composition, runner adapters, and live feedback all need policy evidence
+before they can be trusted.

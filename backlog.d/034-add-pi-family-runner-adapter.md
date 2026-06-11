@@ -14,13 +14,15 @@ title: Add Pi-Family Runner Adapter
 
 # Add Pi-Family Runner Adapter
 
-Priority: high
+Priority: medium
 Status: ready
 Estimate: M
 
 ## Goal
 
-ThinkTank can treat Pi CLI, Pi RPC, or experimental Oh My Pi RPC as runner backends behind one execution adapter contract while preserving ThinkTank's run/evidence command plane.
+ThinkTank can treat the existing Pi CLI subprocess path as an explicit runner
+adapter contract, then evaluate Pi RPC or experimental Oh My Pi RPC behind the
+same result, trace, timeout, retry, artifact, and policy surfaces.
 
 ## Non-Goals
 
@@ -36,6 +38,7 @@ ThinkTank can treat Pi CLI, Pi RPC, or experimental Oh My Pi RPC as runner backe
 - All adapters must return the same result shape consumed by `RunStore`, `TraceLog`, and synthesis.
 - RPC support must be version-pinned and fail closed when the protocol shape is unknown.
 - Cost/usage gaps must be explicit if an adapter cannot supply equivalent metadata.
+- Runner adapters inherit the permission and credential policy from `036`; no new adapter launches without policy evidence.
 
 ## Repo Anchors
 
@@ -48,12 +51,14 @@ ThinkTank can treat Pi CLI, Pi RPC, or experimental Oh My Pi RPC as runner backe
 
 ## Oracle
 
-- [ ] Execution command construction is isolated behind a runner adapter module or protocol.
+- [ ] Execution command construction is isolated behind a runner adapter module or protocol with Pi CLI as the only production adapter.
 - [ ] Existing Pi CLI behavior is covered by unchanged or strengthened tests.
-- [ ] A fake RPC adapter test proves JSONL ready/prompt/event/response handling without live provider calls.
+- [ ] A fake experimental RPC adapter test proves JSONL ready/prompt/event/response handling without live provider calls or broad CLI exposure.
 - [ ] Adapter failures map to existing timeout/crash/run-error categories with trace events.
 - [ ] Documentation states OMP/Pi RPC is an adapter/eval target, not a replacement architecture.
 
 ## Notes
 
-OMP's `omp --mode rpc` and SDK are useful because they prove richer Pi-family execution surfaces exist. ThinkTank should use that as a backend option only after the adapter boundary is explicit.
+OMP's `omp --mode rpc` and SDK are useful because they prove richer Pi-family
+execution surfaces exist. The groomed sequencing is Pi CLI adapter first,
+policy evidence second, RPC spike third.

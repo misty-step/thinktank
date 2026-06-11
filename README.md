@@ -11,7 +11,7 @@ the reviewer subset and write a lightweight context pack.
 Built with Elixir/OTP.
 
 Local tooling expects `mix`, `python3`, Colima, a standalone `docker` CLI, and
-`dagger 0.20.3` for the container gate path. Host-native Elixir gates remain
+`dagger 0.20.8` for the container gate path. Host-native Elixir gates remain
 the fallback path when the container toolchain is unavailable.
 `./scripts/with-colima.sh` seeds `.env` from `.env.example` when a fresh
 worktree does not have its ignored env file yet.
